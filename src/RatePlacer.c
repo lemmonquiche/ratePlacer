@@ -1885,99 +1885,66 @@ void get_fractionalike(int treeNum)
 // make default error 0.01
 void make_readfraclike()
 {
-	int i, j, k, pos, read, prevPos, actualLen;
-	double e, ec, err, errorTestLog;
+	int i, j, k, pos, read;
+	double e, ec, err0, err1, err2, err3;
 
-	e = log(0.00001);	//Error for parts of sequence not covered by errorProfile
-	ec = log(1.0000 - e);
-
-	errorTestLog = log(errorTest);
-
-	//printf("e: %.16f\tec: %.16f\n", log(0.01), log(0.99));
+	// TO DO: fix this with more reasonable general errors
+	// Should probably make this an option for users, so need to update
+	e = log(0.01);	//Error for parts of sequence not covered by errorProfile
+	ec = log(1.0000 - 0.01);
 
 	readlike = malloc(numquery*(sizeof(double**)));
 
-	for (i=0; i<numquery; i++){
-		printf("Read %d\n", i);
+	// All reads get general error
+	for (i = 0; i < numquery; i++)
+	{
 		readlike[i] = malloc(readlength[i]*(sizeof(double*)));
-		
-		//actualLen = 0;
-		//for (j=0; j<readlength[i]; j++){
-		//	if (QUERYDATA[i][j] != -1)
-		//	{
-		//		actualLen++;
-		//	}
-		//}
-
-		for (j=0; j<readlength[i]; j++)
-		{
-			printf("\t%d: %d\n", j, QUERYDATA[i][j]);
-		}
-		prevPos = -1;
 		for (j=0; j<readlength[i]; j++){
-			fscanf(infile, "%d", &read);	//read num	//was this needed?
-			fscanf(infile, "%d", &pos);	//sequence pos
-			
-			while(QUERYDATA[i][j] == -1)
+			if (QUERYDATA[i][j] != -1)
 			{
-				// These are unaligned sections
-				printf("\tSkipping %d as %d\n", j, QUERYDATA[i][j]);
-				j++;
-			}
-			while(pos - prevPos > 1)	//there is a gap between positions
-			{	
-				if (QUERYDATA[i][j] != -1)
+				readlike[i][j] = malloc(4*(sizeof(double)));
+				for (k=0; k<4; k++)
 				{
-					printf("\tInserting %d as %d\n", j, QUERYDATA[i][j]);
-					readlike[i][j] = malloc(4*(sizeof(double)));
-					for (k=0; k<4; k++)
+					if (k==QUERYDATA[i][j])
 					{
-						// This gapped region is the section between the first and last 15 bases
-						// Assumption is there is no deamination error and just a general sequencing
-						// error. Currently assume 0.01 seq error, but fix later for more options
-						//Don't need to check log since default is 0.01 or 0.99
-						if (k==QUERYDATA[i][j])
-						{
-							//readlike[i][j][k] = ec + errorTestLog;
-							readlike[i][j][k] = ec;
-						}
-                        		        else
-						{
-							//readlike[i][j][k] = e + errorTestLog;
-							readlike[i][j][k] = e;
-						}
+						//readlike[i][j][k] = ec + errorTestLog;
+						readlike[i][j][k] = ec;
 					}
-					prevPos++;
-					//printf("Read %d pos %d QUERY %d a: %lf c: %lf g: %lf t: %lf\n", i, j, QUERYDATA[i][j], readlike[i][j][0], readlike[i][j][1], readlike[i][j][2], readlike[i][j][3]);
+                        	        else
+					{
+						//readlike[i][j][k] = e + errorTestLog;
+						readlike[i][j][k] = e;
+					}
 				}
-				else
-				{
-					printf("\tSkipping %d as %d\n", j, QUERYDATA[i][j]);
-				}
-				
-				j++;		// decrease gap by 1
 			}
-	
-			printf("\tReading %d as %d\n", j, QUERYDATA[i][j]);
-			// If the pos has -1 for the alignment, change pos + 1
-			readlike[i][j] = malloc(4*(sizeof(double)));
-			fscanf(infile,"%lf", &err);	// deamination error a
-			//readlike[i][j][0] = err + errorTestLog;
-			readlike[i][j][0] = err;
-			fscanf(infile,"%lf", &err);	// deamination error c
-			//readlike[i][j][1] = err + errorTestLog;
-			readlike[i][j][1] = err;
-			fscanf(infile,"%lf", &err);	// deamination error g
-			//readlike[i][j][2] = err + errorTestLog;
-			readlike[i][j][2] = err;
-			fscanf(infile,"%lf", &err);	// deamination error t
-			//readlike[i][j][3] = err + errorTestLog;
-			readlike[i][j][3] = err;
-			prevPos = pos;
-
-			//printf("Read %d pos %d QUERY %d a: %lf c: %lf g: %lf t: %lf\n", i, j, QUERYDATA[i][j], readlike[i][j][0], readlike[i][j][1], readlike[i][j][2], readlike[i][j][3]);
 		}
 	}
+
+	// fix error based on error profile
+	// Should be more flexible to custom error profiles even if not the most efficient
+	while (fscanf(infile,"%d %d %lf %lf %lf %lf", &read, &pos, &err0, &err1, &err2, &err3) == 6)
+	{
+		readlike[read][pos][0] = err0;
+		readlike[read][pos][1] = err1;
+		readlike[read][pos][2] = err2;
+		readlike[read][pos][3] = err3;
+    	}
+
+	// Use for a test function in the future
+	//for (i = 0; i < numquery; i++)
+	//{
+	//	for (j = 0; j < readlength[i]; j++)
+	//	{
+	//		if (QUERYDATA[i][j] != -1)
+	//		{
+	//			printf("Read %d pos %d QUERY %d a: %f c: %f g: %f t: %f\n", i, j, QUERYDATA[i][j], readlike[i][j][0], readlike[i][j][1], readlike[i][j][2], readlike[i][j][3]);
+	//		}
+	//		else
+	//		{
+	//			printf("Read %d pos %d QUERY %d no profile\n", i, j, QUERYDATA[i][j]);
+	//		}
+	//	}
+	//}
 }
 
 //numseq: number of sequences in reference data set
