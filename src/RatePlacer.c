@@ -1885,7 +1885,7 @@ void get_fractionalike(int treeNum)
 // make default error 0.01
 void make_readfraclike()
 {
-	int i, j, k, pos, read;
+	int i, j, k, pos, read, parseNum;
 	double e, ec, err0, err1, err2, err3;
 
 	// TO DO: fix this with more reasonable general errors
@@ -1928,9 +1928,9 @@ void make_readfraclike()
 		readlike[read][pos][1] = err1;
 		readlike[read][pos][2] = err2;
 		readlike[read][pos][3] = err3;
-    	}
+    	}	
 
-	// Use for a test function in the future
+	//// Use for a test function in the future
 	//for (i = 0; i < numquery; i++)
 	//{
 	//	for (j = 0; j < readlength[i]; j++)
@@ -1945,6 +1945,13 @@ void make_readfraclike()
 	//		}
 	//	}
 	//}
+	
+	// Last line read in was not properly read in
+	if(!feof(stdin))
+	{
+		printf("Error in reading in error profile\n");
+		exit(0);
+	}
 }
 
 //numseq: number of sequences in reference data set
@@ -2232,7 +2239,7 @@ void bestAssignment(double **par, int root, int treeNum)
 			continue;
 		}
 
-		//printf("Sequence %d of tree %d and node %d\n", i, treeNum, assignments[i]);
+		printf("Sequence %d of tree %d and node %d\n", i, treeNum, assignments[i]);
 
 		testNodes[0] = assignments[i];
 		p[0] = i;	//read num does not change
@@ -2243,7 +2250,7 @@ void bestAssignment(double **par, int root, int treeNum)
 		//Tronko assignment is the root
 		if(testNodes[0] == root)
 		{
-			//printf("\tRoot\n");
+			printf("\tRoot\n");
 			getGFLChildren(assignments[i], testNodes, treeNum);
 
 			// Test the two nodes (childNodes)
@@ -2280,7 +2287,7 @@ void bestAssignment(double **par, int root, int treeNum)
 			//Old options for leaf nodes
 			//getGFLParSib(assignments[i], testNodes);
 			//continue;
-			//printf("\tLeaf\n");
+			printf("\tLeaf\n");
 			while(testNodes[0] != root)
 			{
 				p[2] = testNodes[0];
@@ -2312,7 +2319,7 @@ void bestAssignment(double **par, int root, int treeNum)
 		}
 		else
 		{
-			//printf("\tInternal\n");
+			printf("\tInternal\n");
 			// Tronko assignment is internal node
 			getGFLChildren(assignments[i], testNodes, treeNum);
 
@@ -2379,24 +2386,24 @@ void bestAssignment(double **par, int root, int treeNum)
 		}
 
 		//printf("\tOG %d and max %d\n", assignments[i], assign_max); 
-		//if (assignments[i] != assign_max)
-		//{
-		//	printf("\tAssignment changed to %d\n", assign_max);
-		//}
-		//else
-		//{
-		//	printf("\tUnchanged\n");
-		//}
+		if (assignments[i] != assign_max)
+		{
+			printf("\tAssignment changed to %d\n", assign_max);
+		}
+		else
+		{
+			printf("\tUnchanged\n");
+		}
 		assignments[i] = assign_max;
 		testNodes[0] = getGFLPar(assignments[i], treeNum);
-		//if (testNodes[0] == root)
-		//{
-		//	printf("\tRoot\n");
-		//}
-		//else
-		//{
-		//	printf("\tNot root\n");
-		//}
+		if (testNodes[0] == root)
+		{
+			printf("\tRoot\n");
+		}
+		else
+		{
+			printf("\tNot root\n");
+		}
 		//TO DO: Something about assignAges does not work with dropReads. Should comeback to see what is going on!!
 		assignAges[i] =  nodeages[treeNum][assign_max] + bls[treeNum][assign_max];
 		// printf("Assigned age of read %i at node %d is %lf\n", i, assign_max, assignAges[i]);
