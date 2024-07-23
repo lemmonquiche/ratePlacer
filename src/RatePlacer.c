@@ -2336,206 +2336,6 @@ void read_data(char *assignfile, char *fraclikefile, char *querydatafile, char *
 	//exit(0);
 }
 
-//void bestAssignment(double **par, int root, int treeNum)
-//{
-//	int i, nfun;
-//	double p[3], invector[3], lowbound[3], upbound[3], eh0=3e-8;
-//
-//	int testNodes[3], assign_max;
-//	double L1, L1_max, L1_a;
-//
-//	printf("Testing assignments\n");
-//
-//	for (i = 0; i < numquery; i++)
-//	{
-//		//Only do the assignment check for the tree that is in memory
-//		//This is definitely a slow thing, but maybe think of better way in future
-//		//that can balance needing to have all the trees in memory...
-//		if(treeAssign[i] != treeNum)
-//		{
-//			continue;
-//		}
-//
-//		//printf("Sequence %d of tree %d and node %d\n", i, treeNum, assignments[i]);
-//
-//		testNodes[0] = assignments[i];
-//		p[0] = i;	//read num does not change
-//		p[1] = treeAssign[i];	//tree num does not change
-//		L1_max = INFINITY;
-//		assign_max = testNodes[0];
-//
-//		//Tronko assignment is the root
-//		if(testNodes[0] == root)
-//		{
-//			//printf("\tRoot\n");
-//			getGFLChildren(assignments[i], testNodes, treeNum);
-//
-//			// Test the two nodes (childNodes)
-//			// Pick the node that gives maximum likelihood
-//			// assignments[usedReads[i]] = max likelihood node
-//			for(int j = 1; j < 3; j++)
-//			{
-//				p[2] = testNodes[j];
-//
-//				invector[1] = 0.5;
-//				invector[2] = bls[treeNum][testNodes[j]]/2.0;
-//				lowbound[1] = eh0;
-//				lowbound[2] = eh0;
-//				upbound[1] = 1.0-eh0;
-//				upbound[2] = bls[treeNum][testNodes[j]]-eh0;
-//				nfun=0;
-//
-//				// TO DO: Make a version of this that only tests like 100 iterations for speed and compare the two versions to see if they agree or not!!
-//				L1 = findmax_amoeba_limited(invector,lowbound, upbound, 2, getlike_gamma_root_in_trifurcation, p, 3);
-//				//L1 = findmax_amoeba_limited(invector,lowbound, upbound, 2, getlike_gamma_root_in_trifurcation_Print_Lik, p, 3);
-//
-//				//printf("\tL of node %d is %.16f with a: %.16f, root: %.16f given age: %.16f and bls: %.16f\n", testNodes[j], L1, invector[1], invector[2], nodeages[treeNum][testNodes[j]], bls[treeNum][testNodes[j]]);
-//				//printf("\tL of node %d is %.16f with a: %.16f, root: %.16f given age: %.16f bls: %.16f, est age: %.16f\n", testNodes[j], L1, invector[1], invector[2], nodeages[treeNum][testNodes[j]], bls[treeNum][testNodes[j]], (1.0-invector[1])*(nodeages[treeNum][testNodes[j]]+invector[2]));
-//				
-//
-//				if(L1 < L1_max)
-//				{
-//					assign_max = testNodes[j];
-//					L1_max = L1;
-//					L1_a = invector[1];
-//				}
-//			}
-//		}
-//		//Tronko assignment is a leaf
-//		else if(testNodes[0] < numseq[treeNum])
-//		{
-//			//Old options for leaf nodes
-//			//getGFLParSib(assignments[i], testNodes);
-//			//continue;
-//			//printf("\tLeaf\n");
-//			//SOME ISSUE WHEN NODE == 0????
-//			while(testNodes[0] != root)
-//			{
-//				p[2] = testNodes[0];
-//
-//				invector[1] = 0.5;
-//				invector[2] = bls[treeNum][testNodes[0]]/2.0;
-//				lowbound[1] = eh0;
-//				lowbound[2] = eh0;
-//				upbound[1] = 1.0-eh0;
-//				upbound[2] = bls[treeNum][testNodes[0]]-eh0;
-//				nfun=0;
-//
-//				// TO DO: Make a version of this that only tests like 100 iterations for speed and compare the two versions to see if they agree or not!!
-//				L1 = findmax_amoeba_limited(invector,lowbound, upbound, 2, getlike_gamma_root_in_trifurcation, p, 3);
-//				//L1 = findmax_amoeba_limited(invector,lowbound, upbound, 2, getlike_gamma_root_in_trifurcation_Print_Lik, p, 3);
-//
-//				//printf("\tL of node %d is %.16f with a %.16f\n", testNodes[0], L1, invector[1]);
-//				//printf("\tL of node %d is %.16f with a: %.16f, root: %.16f given age: %.16f and bls: %.16f\n", testNodes[0], L1, invector[1], invector[2], nodeages[treeNum][testNodes[0]], bls[treeNum][testNodes[0]]);
-//				//printf("\tL of node %d is %.16f with a: %.16f, root: %.16f given age: %.16f bls: %.16f, est age: %.16f\n", testNodes[0], L1, invector[1], invector[2], nodeages[treeNum][testNodes[0]], bls[treeNum][testNodes[0]], (1.0-invector[1])*(nodeages[treeNum][testNodes[0]]+invector[2]));
-//
-//				if(L1 < L1_max)
-//				{
-//					assign_max = testNodes[0];
-//					L1_max = L1;
-//					L1_a = invector[1];
-//				}
-//
-//				testNodes[0] = getGFLPar(testNodes[0], treeNum);
-//				// printf("Testing next node %d when max is %d\n", testNodes[0], assign_max);
-//			}
-//		}
-//		else
-//		{
-//			//printf("\tInternal\n");
-//			// Tronko assignment is internal node
-//			getGFLChildren(assignments[i], testNodes, treeNum);
-//
-//			// Test the three nodes (assignment + childNodes)
-//			// Pick the node that gives maximum likelihood
-//			// assignments[usedReads[i]] = max likelihood node
-//			for(int j = 0; j < 3; j++)
-//			{
-//				p[2] = testNodes[j];
-//
-//				invector[1] = 0.5;
-//				invector[2] = bls[treeNum][testNodes[j]]/2.0;
-//				lowbound[1] = eh0;
-//				lowbound[2] = eh0;
-//				upbound[1] = 1.0-eh0;
-//				upbound[2] = bls[treeNum][testNodes[j]]-eh0;
-//				nfun=0;
-//
-//				// TO DO: Make a version of this that only tests like 100 iterations for speed and compare the two versions to see if they agree or not!!
-//				L1 = findmax_amoeba_limited(invector,lowbound, upbound, 2, getlike_gamma_root_in_trifurcation, p, 3);
-//				//L1 = findmax_amoeba_limited(invector,lowbound, upbound, 2, getlike_gamma_root_in_trifurcation_Print_Lik, p, 3);
-//
-//				//printf("\tL of node %d is %.16f with a %.16f\n", testNodes[0], L1, invector[1]);
-//				//printf("\tL of node %d is %.16f with a: %.16f, root: %.16f given age: %.16f and bls: %.16f\n", testNodes[j], L1, invector[1], invector[2], nodeages[treeNum][testNodes[j]], bls[treeNum][testNodes[j]]);
-//				//printf("\tL of node %d is %.16f with a: %.16f, root: %.16f given age: %.16f bls: %.16f, est age: %.16f\n", testNodes[j], L1, invector[1], invector[2], nodeages[treeNum][testNodes[j]], bls[treeNum][testNodes[j]], (1.0-invector[1])*(nodeages[treeNum][testNodes[j]]+invector[2]));
-//
-//				if(L1 < L1_max)
-//				{
-//					assign_max = testNodes[j];
-//					L1_max = L1;
-//					L1_a = invector[1];
-//				}
-//			}
-//
-//			//NOW CHECK REST OF LINEAGE
-//			testNodes[0] = assign_max;
-//			L1_max = INFINITY;
-//			while(testNodes[0] != root)
-//			{
-//				p[2] = testNodes[0];
-//
-//				invector[1] = 0.5;
-//				invector[2] = bls[treeNum][testNodes[0]]/2.0;
-//				lowbound[1] = eh0;
-//				lowbound[2] = eh0;
-//				upbound[1] = 1.0-eh0;
-//				upbound[2] = bls[treeNum][testNodes[0]]-eh0;
-//				nfun=0;
-//
-//				// TO DO: Make a version of this that only tests like 100 iterations for speed and compare the two versions to see if they agree or not!!
-//				L1 = findmax_amoeba_limited(invector,lowbound, upbound, 2, getlike_gamma_root_in_trifurcation, p, 3);
-//				//L1 = findmax_amoeba_limited(invector,lowbound, upbound, 2, getlike_gamma_root_in_trifurcation_Print_Lik, p, 3);
-//
-//				//printf("\tL of node %d is %.16f with a %.16f\n", testNodes[0], L1, invector[1]);
-//				//printf("\tL of node %d is %.16f with a: %.16f, root: %.16f given age: %.16f bls: %.16f, est age: %.16f\n", testNodes[0], L1, invector[1], invector[2], nodeages[treeNum][testNodes[0]], bls[treeNum][testNodes[0]], (1.0-invector[1])*(nodeages[treeNum][testNodes[0]]+invector[2]));
-//
-//
-//				if(L1 < L1_max)
-//				{
-//					assign_max = testNodes[0];
-//					L1_max = L1;
-//					L1_a = invector[1];
-//				}
-//
-//				testNodes[0] = getGFLPar(testNodes[0], treeNum);
-//			}
-//		}
-//
-//		//printf("\tOG %d and max %d\n", assignments[i], assign_max); 
-//		//if (assignments[i] != assign_max)
-//		//{
-//		//	printf("\tAssignment changed to %d\n", assign_max);
-//		//}
-//		//else
-//		//{
-//		//	printf("\tUnchanged\n");
-//		//}
-//		assignments[i] = assign_max;
-//		testNodes[0] = getGFLPar(assignments[i], treeNum);
-//		//if (testNodes[0] == root)
-//		//{
-//		//	printf("\tRoot\n");
-//		//}
-//		//else
-//		//{
-//		//	printf("\tNot root\n");
-//		//}
-//		//TO DO: Something about assignAges does not work with dropReads. Should comeback to see what is going on!!
-//		assignAges[i] =  nodeages[treeNum][assign_max] + bls[treeNum][assign_max];
-//		// printf("Assigned age of read %i at node %d is %lf\n", i, assign_max, assignAges[i]);
-//	}
-//}
-
 // Recursive search of children subtrees for maximum likelihood assignment
 void searchChildren(double p[3], int *L, double *L_lik, int root)
 {
@@ -2544,6 +2344,8 @@ void searchChildren(double p[3], int *L, double *L_lik, int root)
 	//p[2]: curNode
 	int nfun, testNodes[3];
 	double invector[3], lowbound[3], upbound[3], eh0=3e-8, testLik;
+
+	testNodes[0] = (int)p[2];
 
 	getGFLChildren((int)p[2], testNodes, (int)p[1]);
 
@@ -2610,6 +2412,32 @@ void searchChildren(double p[3], int *L, double *L_lik, int root)
 		//Right child is internal
 		p[2] = (double)testNodes[2];
 		searchChildren(p, L, L_lik, root);
+	}
+
+	//Test curNode
+	//Skip root
+	if (testNodes[0] != root)
+	{
+		p[2] = testNodes[0];
+
+		invector[1] = 0.5;
+		invector[2] = bls[(int)p[1]][testNodes[0]]/2.0;
+		lowbound[1] = eh0;
+		lowbound[2] = eh0;
+		upbound[1] = 1.0-eh0;
+		upbound[2] = bls[(int)p[1]][testNodes[0]]-eh0;
+		nfun=0;
+
+		// TO DO: Make a version of this that only tests like 100 iterations for speed and compare the two versions to see if they agree or not!!
+		testLik = findmax_amoeba_limited(invector,lowbound, upbound, 2, getlike_gamma_root_in_trifurcation, p, 3);
+
+		printf("\tL of node %d is %.16f with a: %.16f, root: %.16f given age: %.16f bls: %.16f, est age: %.16f\n", testNodes[0], testLik, invector[1], invector[2], nodeages[(int)p[1]][testNodes[0]], bls[(int)p[1]][testNodes[0]], (1.0-invector[1])*(nodeages[(int)p[1]][testNodes[0]]+invector[2]));
+
+		if(testLik < *L_lik)
+		{
+			*L = testNodes[0];
+			*L_lik = testLik;
+		}
 	}
 }
 
@@ -2693,30 +2521,12 @@ void bestAssignment(int root, int treeNum)
 		{
 			printf("Internal\n");
 			searchChildren(p, &L1, &L1_lik, root);
+			p[2] = assignments[i]; //So don't double up on nodes
 			searchLineage(p, &L1, &L1_lik, root);
 
 			assignments[i] = L1;
 			assignAges[i] =  nodeages[treeNum][L1] + bls[treeNum][L1];
 		}
-
-		printf("\tOG %d and max %d\n", assignments[i], L1); 
-		if (assignments[i] != L1)
-		{
-			printf("\tAssignment changed to %d\n", L1);
-		}
-		else
-		{
-			printf("\tUnchanged\n");
-		}
-		if (L1 == root)
-		{
-			printf("\tRoot\n");
-		}
-		else
-		{
-			printf("\tNot root\n");
-		}
-		 printf("Assigned age of read %i at node %d is %lf\n", i, L1, assignAges[i]);
 	}
 }
 
