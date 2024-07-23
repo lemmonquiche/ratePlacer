@@ -363,7 +363,7 @@ void amoeba_limited(double **p, double y[], int ndim, double ftol,
 					for (i=1;i<=ndim;i++) SWAP(p[1][i],p[ilo][i])
 						break;
 			}
-			if (*nfunk >= 50)
+			if (*nfunk >= 100)
 			{
 				SWAP(y[1],y[ilo])
 					for (i=1;i<=ndim;i++) SWAP(p[1][i],p[ilo][i])
