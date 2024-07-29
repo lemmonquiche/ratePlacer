@@ -1472,9 +1472,12 @@ void makeposterior(int node, int site)
 	    for (j=0; j<STATESPACE; j++)
 		templike[i]=templike[i]+tree[otherb].like[j]*PMAT2[i][j];
         }
-        else
-	    // If sibling is leaf
+        else if (tree[otherb].seq[site] > -1)
+	    // If sibling is leaf and base is known (a,c,g,t)
             templike[i]=PMAT2[i][tree[otherb].seq[site]];//edited here as well
+        else
+	    // When sibling is leaf and base is unknown (n, -, ~)
+	    templike[i] = 1.0;
 
 	// Multiply sibling's subtree * parent's posterior (ie rest of tree to parent's node)
         templike[i]=templike[i]*tree[parent].posterior[i];
@@ -1514,12 +1517,6 @@ void makeposterior(int node, int site)
     	makeposterior(tree[node].up[1], site);
     }
 }
-
-
-
-
-
-
 
 //finds the fractional likelihoods for all nodes 
 double get_likes(int numleaves, int root, int site, double pi[4])
