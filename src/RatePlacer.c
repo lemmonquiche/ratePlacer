@@ -1478,7 +1478,7 @@ double getlike_gamma_root_in_trifurcation(double times[3], double parameters[7])
 					B[k] = logSumExp(A);
 					//B[k] = pi[treeNum][b] + PMAT[0][j][b][k];
 					// printf("\t\t\t\t\tB:%lf\tpi:%lf\tPMAT[0]:%lf\n", B[k], pi[treeNum][b], PMAT[0][j][b][k]);
-					if (node>=numseq[treeNum]){//If not leaf node. Assumes the leaf nodes are numbered from 0 to numseq-1
+					if (node>=numseq[treeNum]){//If not leaf node. Assumes t,c,g,t)leaf nodes are numbered from 0 to numseq-1
 						for (v=0; v<4; v++)
 						{
 							// printf("\t\t\t\t\tPMAT[1] is %.16f and FRACLIKE[%d] is %.16f\n", PMAT[1][j][k][v], v+4, FRACLIKE[treeNum][i][node][j][v+4]);
@@ -2007,8 +2007,8 @@ void make_readfraclike()
 
 	// TO DO: fix this with more reasonable general errors
 	// Should probably make this an option for users, so need to update
-	e = log(0.01);	//Error for parts of sequence not covered by errorProfile
-	ec = log(1.0000 - 0.01);
+	e = log(0.01/3.0);	//Error for parts of sequence not covered by errorProfile, 0.01 probability of error and equal across bases?
+	ec = log(1.0000 - 0.01);	//Correct probability 0.99
 
 	readlike = malloc(numquery*(sizeof(double**)));
 
@@ -2039,43 +2039,27 @@ void make_readfraclike()
 
 	// fix error based on error profile
 	// Should be more flexible to custom error profiles even if not the most efficient
-	//while (fscanf(infile,"%d %d %lf %lf %lf %lf", &read, &pos, &err0, &err1, &err2, &err3) == 6)
-	//{
-	//	if(QUERYDATA[read][pos] != -1)
-	//	{
-	//		readlike[read][pos][0] = err0;
-	//		readlike[read][pos][1] = err1;
-	//		readlike[read][pos][2] = err2;
-	//		readlike[read][pos][3] = err3;
-	//	}
-	//	else
-	//	{
-	//		printf("Warning, error profile includes positions not in query alignment. Please review error profile, but ratePlacer is proceeding.\n");
-	//	}
-    	//}	
-
-	////// Use for a test function in the future
-	////for (i = 0; i < numquery; i++)
-	////{
-	////	for (j = 0; j < readlength[i]; j++)
-	////	{
-	////		if (QUERYDATA[i][j] != -1)
-	////		{
-	////			printf("Read %d pos %d QUERY %d a: %f c: %f g: %f t: %f\n", i, j, QUERYDATA[i][j], readlike[i][j][0], readlike[i][j][1], readlike[i][j][2], readlike[i][j][3]);
-	////		}
-	////		else
-	////		{
-	////			printf("Read %d pos %d QUERY %d no profile\n", i, j, QUERYDATA[i][j]);
-	////		}
-	////	}
-	////}
-	//
-	//// Last line read in was not properly read in
-	//if(fscanf(infile, "%d", &read) != EOF)
-	//{
-	//	printf("Error in reading in error profile\n");
-	//	exit(0);
-	//}
+	while (fscanf(infile,"%d %d %lf %lf %lf %lf", &read, &pos, &err0, &err1, &err2, &err3) == 6)
+	{
+		if(QUERYDATA[read][pos] != -1)
+		{
+			readlike[read][pos][0] = err0;
+			readlike[read][pos][1] = err1;
+			readlike[read][pos][2] = err2;
+			readlike[read][pos][3] = err3;
+		}
+		else
+		{
+			printf("Warning, error profile includes positions not in query alignment. Please review error profile, but ratePlacer is proceeding.\n");
+		}
+    	}	
+	
+	// Last line read in was not properly read in
+	if(fscanf(infile, "%d", &read) != EOF)
+	{
+		printf("Error in reading in error profile\n");
+		exit(0);
+	}
 }
 
 //numseq: number of sequences in reference data set
@@ -2366,7 +2350,7 @@ void searchChildren(double p[3], int *L, double *L_lik, int root)
 		// TO DO: Make a version of this that only tests like 100 iterations for speed and compare the two versions to see if they agree or not!!
 		testLik = findmax_amoeba_limited(invector,lowbound, upbound, 2, getlike_gamma_root_in_trifurcation, p, 3);
 
-		printf("\tL of node %d is %.16f with a: %.16f, root: %.16f given age: %.16f bls: %.16f, est age: %.16f\n", testNodes[1], testLik, invector[1], invector[2], nodeages[(int)p[1]][testNodes[1]], bls[(int)p[1]][testNodes[1]], (1.0-invector[1])*(nodeages[(int)p[1]][testNodes[1]]+invector[2]));
+		//printf("\tL of node %d is %.16f with a: %.16f, root: %.16f given age: %.16f bls: %.16f, est age: %.16f\n", testNodes[1], testLik, invector[1], invector[2], nodeages[(int)p[1]][testNodes[1]], bls[(int)p[1]][testNodes[1]], (1.0-invector[1])*(nodeages[(int)p[1]][testNodes[1]]+invector[2]));
 
 		if(testLik < *L_lik)
 		{
@@ -2398,7 +2382,7 @@ void searchChildren(double p[3], int *L, double *L_lik, int root)
 		// TO DO: Make a version of this that only tests like 100 iterations for speed and compare the two versions to see if they agree or not!!
 		testLik = findmax_amoeba_limited(invector,lowbound, upbound, 2, getlike_gamma_root_in_trifurcation, p, 3);
 
-		printf("\tL of node %d is %.16f with a: %.16f, root: %.16f given age: %.16f bls: %.16f, est age: %.16f\n", testNodes[2], testLik, invector[1], invector[2], nodeages[(int)p[1]][testNodes[2]], bls[(int)p[1]][testNodes[2]], (1.0-invector[1])*(nodeages[(int)p[1]][testNodes[2]]+invector[2]));
+		//printf("\tL of node %d is %.16f with a: %.16f, root: %.16f given age: %.16f bls: %.16f, est age: %.16f\n", testNodes[2], testLik, invector[1], invector[2], nodeages[(int)p[1]][testNodes[2]], bls[(int)p[1]][testNodes[2]], (1.0-invector[1])*(nodeages[(int)p[1]][testNodes[2]]+invector[2]));
 
 		if(testLik < *L_lik)
 		{
@@ -2431,7 +2415,7 @@ void searchChildren(double p[3], int *L, double *L_lik, int root)
 		// TO DO: Make a version of this that only tests like 100 iterations for speed and compare the two versions to see if they agree or not!!
 		testLik = findmax_amoeba_limited(invector,lowbound, upbound, 2, getlike_gamma_root_in_trifurcation, p, 3);
 
-		printf("\tL of node %d is %.16f with a: %.16f, root: %.16f given age: %.16f bls: %.16f, est age: %.16f\n", testNodes[0], testLik, invector[1], invector[2], nodeages[(int)p[1]][testNodes[0]], bls[(int)p[1]][testNodes[0]], (1.0-invector[1])*(nodeages[(int)p[1]][testNodes[0]]+invector[2]));
+		//printf("\tL of node %d is %.16f with a: %.16f, root: %.16f given age: %.16f bls: %.16f, est age: %.16f\n", testNodes[0], testLik, invector[1], invector[2], nodeages[(int)p[1]][testNodes[0]], bls[(int)p[1]][testNodes[0]], (1.0-invector[1])*(nodeages[(int)p[1]][testNodes[0]]+invector[2]));
 
 		if(testLik < *L_lik)
 		{
@@ -2450,18 +2434,19 @@ void searchLineage(double p[3], int *L, double *L_lik, int root)
 
 	while(testNode != root)
 	{
+		p[2] = testNode;
 		invector[1] = 0.5;
 		invector[2] = bls[treeNum][testNode]/2.0;
 		lowbound[1] = eh0;
 		lowbound[2] = eh0;
 		upbound[1] = 1.0-eh0;
 		upbound[2] = bls[treeNum][testNode]-eh0;
-		nfun=0;
+		nfun=0;	
 
 		// TO DO: Make a version of this that only tests like 100 iterations for speed and compare the two versions to see if they agree or not!!
 		testLik = findmax_amoeba_limited(invector,lowbound, upbound, 2, getlike_gamma_root_in_trifurcation, p, 3);
 
-		printf("\tL of node %d is %.16f with a: %.16f, root: %.16f given age: %.16f bls: %.16f, est age: %.16f\n", testNode, testLik, invector[1], invector[2], nodeages[treeNum][testNode], bls[treeNum][testNode], (1.0-invector[1])*(nodeages[treeNum][testNode]+invector[2]));
+		//printf("\tL of node %d is %.16f with a: %.16f, root: %.16f given age: %.16f bls: %.16f, est age: %.16f\n", testNode, testLik, invector[1], invector[2], nodeages[treeNum][testNode], bls[treeNum][testNode], (1.0-invector[1])*(nodeages[treeNum][testNode]+invector[2]));
 
 		if(testLik < *L_lik)
 		{
@@ -2470,7 +2455,7 @@ void searchLineage(double p[3], int *L, double *L_lik, int root)
 		}
 
 		testNode = getGFLPar(testNode, treeNum);
-		printf("Testing next node %d when max is %d\n", testNode, *L);
+		//printf("Testing next node %d when max is %d\n", testNode, *L);
 	}
 
 }
@@ -2491,7 +2476,7 @@ void bestAssignment(int root, int treeNum)
 			continue;
 		}
 
-		printf("Sequence %d of tree %d and node %d\n", i, treeNum, assignments[i]);
+		//printf("Sequence %d of tree %d and node %d\n", i, treeNum, assignments[i]);
 
 		p[0] = i;	//read num does not change
 		p[1] = treeAssign[i];	//tree num does not change
@@ -2502,7 +2487,7 @@ void bestAssignment(int root, int treeNum)
 		//Tronko assignment is the root
 		if(p[2] == root)
 		{
-			printf("Root\n");
+			//printf("Root\n");
 			searchChildren(p, &L1, &L1_lik, root);
 
 			assignments[i] = L1;
@@ -2511,7 +2496,7 @@ void bestAssignment(int root, int treeNum)
 		//Tronko assignment is a leaf
 		else if(p[2] < numseq[treeNum])
 		{
-			printf("Leaf\n");
+			//printf("Leaf\n");
 			searchLineage(p, &L1, &L1_lik, root);
 
 			assignments[i] = L1;
@@ -2519,9 +2504,11 @@ void bestAssignment(int root, int treeNum)
 		}
 		else
 		{
-			printf("Internal\n");
+			//printf("Internal\n");
+			//printf("\tchildren search\n");
 			searchChildren(p, &L1, &L1_lik, root);
 			p[2] = assignments[i]; //So don't double up on nodes
+			//printf("\tparental search\n");
 			searchLineage(p, &L1, &L1_lik, root);
 
 			assignments[i] = L1;
@@ -2655,83 +2642,15 @@ double dropReads(int *readStart, double timeInc)
 		test += timeInc;
 		//TO DO: Try to make assignAges work here since that would be faster!! 
 		while(*readStart < numquery-1 && nodeages[treeAssign[usedReads[*readStart]]][assignments[usedReads[*readStart]]] + bls[treeAssign[usedReads[*readStart]]][assignments[usedReads[*readStart]]] <= test) //similar -2 as above
-		//while(*readStart < numquery && assignAges[assignments[usedReads[*readStart]]] <= test)
 		{
 			*readStart = *readStart + 1; 
 			readDropped = 1;
 			//printf("Read dropped!\n");
 		}
-		//if(*readStart >= numquery-1)
-		//{
-		//	readDropped = 1;
-		//}
-		//printf("\tTesting %f\n", test);
-		//test = nodeages[nodeOrder[*nodePointer+1]] + bls[nodeOrder[*nodePointer+1]];
 	}while(*readStart < numquery-1 && readDropped == 0);
 
 
 	return nodeages[treeAssign[usedReads[*readStart]]][assignments[usedReads[*readStart]]] + bls[treeAssign[usedReads[*readStart]]][assignments[usedReads[*readStart]]];
-
-
-	//int readDropped = 0;
-	////double test = testAge;
-	//double test = assignAges[*readStart];
-
-	//do{
-	//	test += timeInc;
-	//	//printf("\tTesting: %lf\n", test);
-	//	while(*readStart < numquery && assignAges[usedReads[*readStart]] <= test)
-	//	{
-	//		*readStart = *readStart + 1;
-	//		readDropped = 1;
-	//	}
-	//}while(readDropped == 0 && *readStart < numquery);
-
-	////printf("New test age of %lf\n", test);
-
-	//if(readDropped == 0)
-	//{
-	//	return(-1);
-	//}
-	//else
-	//{
-	//	//return(test);
-	//	return(assignAges[*readStart]);
-	//}
-	
-	//int readDropped = 0;
-	////int checkNumNodesDropped = 0;
-	//double test =  nodeages[nodeOrder[*nodePointer]] + bls[nodeOrder[*nodePointer]] + timeInc;
-
-	////printf("Test age with node %d is %.16f\n", *nodePointer, test);
-	//do{
-	//	//Remove some nodes so that the age changes	
-	//	while(*nodePointer < 2 * numseq[treeNum] - 1 && nodeages[nodeOrder[*nodePointer]] + bls[nodeOrder[*nodePointer]] <= test)	//makes sure at least one node remains...
-	//	{
-	//		*nodePointer = *nodePointer + 1;
-	//		//checkNumNodesDropped++;
-	//	}
-
-	//	test = nodeages[nodeOrder[*nodePointer]] + bls[nodeOrder[*nodePointer]];
-
-	//	//printf("Test age with node %d is %.16f\n", *nodePointer, test);
-
-	//	while(*readStart < numquery && nodeages[assignments[usedReads[*readStart]]] + bls[assignments[usedReads[*readStart]]] <= test)
-	//	{
-	//		*readStart = *readStart + 1; 
-	//		readDropped = 1;
-	//		//printf("Read dropped!\n");
-	//	}
-
-	//	if(*readStart == numquery)
-	//	{
-	//		printf("Unable to find maximum bound while keeping any reads.\nExiting\n");
-	//		exit(0);
-	//	}	
-	//}while(readDropped == 0 && *nodePointer < 2 * numseq[treeNum] - 1 && *readStart < numquery);
-	//// || nodeages[nodeOrder[*nodePointer]] + bls[nodeOrder[*nodePointer]] > test);
-
-	//return nodeages[nodeOrder[*nodePointer]] + bls[nodeOrder[*nodePointer]];
 }
 
 //merge functionality, using in-place merge sort to reduce memory load
