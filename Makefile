@@ -6,5 +6,5 @@ gfl: src/get_frac_like.c
 	gcc -o gfl src/get_frac_like.c -lm -g
 
 ratePlacer: src/RatePlacer.c
-	gcc -o ratePlacer_Error src/RatePlacer.c -lm -g
+	gcc -o ratePlacer_noError src/RatePlacer.c -lm -g
 

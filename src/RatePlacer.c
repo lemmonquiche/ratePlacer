@@ -1470,13 +1470,13 @@ double getlike_gamma_root_in_trifurcation(double times[3], double parameters[7])
 				// printf("\t\tj: %d\n", j);
 				for (k=0; k<4; k++){
 					//printf("\t\t\tk: %d\n", k);
-					for (v=0; v<4; v++)
-					{
-						A[v] = pi[treeNum][v] + PMAT[0][j][v][k] + readlike[seq][po][v];
-					//	//printf("\t\t\t\tpi[%d] is %.16f anf PMAT[0] is %.16f anf reaflike is %.16f\n", v, pi[treeNum][v], PMAT[0][j][v][k], readlike[seq][po][v]);
-					}
-					B[k] = logSumExp(A);
-					//B[k] = pi[treeNum][b] + PMAT[0][j][b][k];
+					// for (v=0; v<4; v++)
+					// {
+					// 	A[v] = pi[treeNum][v] + PMAT[0][j][v][k] + readlike[seq][po][v];
+					// //	//printf("\t\t\t\tpi[%d] is %.16f anf PMAT[0] is %.16f anf reaflike is %.16f\n", v, pi[treeNum][v], PMAT[0][j][v][k], readlike[seq][po][v]);
+					// }
+					// B[k] = logSumExp(A);
+					B[k] = pi[treeNum][b] + PMAT[0][j][b][k];
 					// printf("\t\t\t\t\tB:%lf\tpi:%lf\tPMAT[0]:%lf\n", B[k], pi[treeNum][b], PMAT[0][j][b][k]);
 					if (node>=numseq[treeNum]){//If not leaf node. Assumes t,c,g,t)leaf nodes are numbered from 0 to numseq-1
 						for (v=0; v<4; v++)
@@ -1739,6 +1739,9 @@ double getlike_gamma_root_in_trifurcation_testAge(double rootPlace, double param
 	{
 		// This means that the testAge > node + T[2], requiring a "negative" branch. So changing to 0 does not make sense and should not be done
 		//printf("\t\ttestAge of %.16f: T[1] < 0.0 of %.16f!!\n", testAge, T[1]); 
+
+
+
 		return 1000000000.0;
 	}
 	else if (T[1] > 1.0)	//This must be between 0 and 1
@@ -2037,29 +2040,29 @@ void make_readfraclike()
 		}
 	}
 
-	// fix error based on error profile
-	// Should be more flexible to custom error profiles even if not the most efficient
-	while (fscanf(infile,"%d %d %lf %lf %lf %lf", &read, &pos, &err0, &err1, &err2, &err3) == 6)
-	{
-		if(QUERYDATA[read][pos] != -1)
-		{
-			readlike[read][pos][0] = err0;
-			readlike[read][pos][1] = err1;
-			readlike[read][pos][2] = err2;
-			readlike[read][pos][3] = err3;
-		}
-		else
-		{
-			printf("Warning, error profile includes positions not in query alignment. Please review error profile, but ratePlacer is proceeding.\n");
-		}
-    	}	
-	
-	// Last line read in was not properly read in
-	if(fscanf(infile, "%d", &read) != EOF)
-	{
-		printf("Error in reading in error profile\n");
-		exit(0);
-	}
+	//// fix error based on error profile
+	//// Should be more flexible to custom error profiles even if not the most efficient
+	//while (fscanf(infile,"%d %d %lf %lf %lf %lf", &read, &pos, &err0, &err1, &err2, &err3) == 6)
+	//{
+	//	if(QUERYDATA[read][pos] != -1)
+	//	{
+	//		readlike[read][pos][0] = err0;
+	//		readlike[read][pos][1] = err1;
+	//		readlike[read][pos][2] = err2;
+	//		readlike[read][pos][3] = err3;
+	//	}
+	//	else
+	//	{
+	//		printf("Warning, error profile includes positions not in query alignment. Please review error profile, but ratePlacer is proceeding.\n");
+	//	}
+    	//}	
+	//
+	//// Last line read in was not properly read in
+	//if(fscanf(infile, "%d", &read) != EOF)
+	//{
+	//	printf("Error in reading in error profile\n");
+	//	exit(0);
+	//}
 }
 
 //numseq: number of sequences in reference data set
@@ -3060,8 +3063,74 @@ void maximize_like_jointly_for_all2D(double **par, int allTrees)
 	}
 }
 
-//Something in here is causing a seg fault :(
-//NEED TO REWRITE AT SOME POINT
+void age_like_distribution_jointly_for_all2D_upperLimit(double **par, double topAge)
+{
+	printf("Creating age likelihood distribution for all\n");
+	int i, k, v, nfun, readStart = 0;
+	int numDrops = 0;
+	double p[3], L1, L2, ageIncr, nextNodeAge, tempAge, tempAge2;
+	double invector[3],lowbound[3], upbound[3], eh0=1e-8, age_like;
+
+	orderReads();
+
+	//An important question here is why was the testAge for below so off?
+	//nodePointer = assignments[usedReads[readStart]];
+	//nextNodeAge = nodeages[nodeOrder[nodePointer]] + bls[nodeOrder[nodePointer]];
+	nextNodeAge = nodeages[treeAssign[usedReads[readStart]]][assignments[usedReads[readStart]]] + bls[treeAssign[usedReads[readStart]]][assignments[usedReads[readStart]]];
+
+	//printf("First node age as old %.16f and by assigning nodePointer %.16f\n")
+	
+	//printf("First node age %.16f\n", nextNodeAge);
+	//printf("First node age %.16f from assignment %d with node age %.16f and branch length %.16f that has order %d\n", nextNodeAge, nodePointer, nodeages[nodeOrder[nodePointer]], bls[nodeOrder[nodePointer]], nodeOrder[nodePointer]);
+
+	ageIncr = topAge/100.0;		// make this an option later
+
+	testAge = eh0;
+
+	onDindic=1;
+
+	// assignmentMode of 0 means single assignment given
+	age_like = 0.0;
+	while (testAge <= totMaxAge && readStart < numquery)
+	{
+		// Trimmed because you can't  actually compare the likelihoods, just the trends.	
+		if (nextNodeAge <= testAge || testAge > topAge)
+		{	
+			// This is probably unneeded due to the while loop condition
+			if(nextNodeAge >= totMaxAge)
+			{
+				break;
+			}
+			nextNodeAge = dropReads(&readStart, 0.01);	//Not sure if this is correct, may want to come back/make two dropReads versions
+			ageIncr = topAge/100.0;
+			numDrops++;
+
+			testAge = eh0;
+		}
+		printf("Testing age %.16f with dropped rounds %d with nextNodeAge %.16f and read start at %d:\n", testAge, numDrops, nextNodeAge, readStart);
+		for (i=readStart; i<numquery; i++)
+		{
+			p[0] = usedReads[i];
+			p[1] = treeAssign[usedReads[i]];
+			p[2] = assignments[usedReads[i]];
+
+			nfun=0;
+			invector[1] = bls[treeAssign[usedReads[i]]][assignments[usedReads[i]]]/2.0;
+			lowbound[1] = eh0;
+			upbound[1] = bls[treeAssign[usedReads[i]]][assignments[usedReads[i]]]-eh0;
+
+			L2 =  GoldenSection(invector,lowbound, upbound, 1, getlike_gamma_root_in_trifurcation_testAge, p, 3); 
+
+			//printf("\tRead %d assigned to %d with likelihood %lf with root placement of %.16f\n", usedReads[i], assignments[usedReads[i]], L2, nodeages[assignments[usedReads[i]]]+invector[1]);
+
+			age_like += L2; //sum of log likelihoods
+		}
+		printf("\tLikelihood: %.16f\n", age_like);
+		age_like = 0.0;
+		testAge += ageIncr;
+	}
+}
+
 void age_like_distribution_jointly_for_all2D(double **par)
 {
 	printf("Creating age likelihood distribution for all\n");
@@ -3075,14 +3144,14 @@ void age_like_distribution_jointly_for_all2D(double **par)
 	//An important question here is why was the testAge for below so off?
 	//nodePointer = assignments[usedReads[readStart]];
 	//nextNodeAge = nodeages[nodeOrder[nodePointer]] + bls[nodeOrder[nodePointer]];
-	nextNodeAge = nodeages[treeAssign[usedReads[i]]][assignments[usedReads[readStart]]] + bls[treeAssign[usedReads[i]]][assignments[usedReads[readStart]]];
+	nextNodeAge = nodeages[treeAssign[usedReads[readStart]]][assignments[usedReads[readStart]]] + bls[treeAssign[usedReads[readStart]]][assignments[usedReads[readStart]]];
 
 	//printf("First node age as old %.16f and by assigning nodePointer %.16f\n")
 	
 	//printf("First node age %.16f\n", nextNodeAge);
 	//printf("First node age %.16f from assignment %d with node age %.16f and branch length %.16f that has order %d\n", nextNodeAge, nodePointer, nodeages[nodeOrder[nodePointer]], bls[nodeOrder[nodePointer]], nodeOrder[nodePointer]);
 
-	ageIncr = nextNodeAge/10000.0;		// make this an option later
+	ageIncr = nextNodeAge/100.0;		// make this an option later
 
 	testAge = eh0;
 
@@ -3090,7 +3159,7 @@ void age_like_distribution_jointly_for_all2D(double **par)
 
 	// assignmentMode of 0 means single assignment given
 	age_like = 0.0;
-	while (testAge <= totMaxAge)
+	while (testAge <= totMaxAge && readStart < numquery)
 	{
 		// Trimmed because you can't  actually compare the likelihoods, just the trends.	
 		if (nextNodeAge <= testAge)
@@ -3101,7 +3170,7 @@ void age_like_distribution_jointly_for_all2D(double **par)
 				break;
 			}
 			nextNodeAge = dropReads(&readStart, 0.01);	//Not sure if this is correct, may want to come back/make two dropReads versions
-			ageIncr = nextNodeAge/10000.0;
+			ageIncr = nextNodeAge/100.0;
 			numDrops++;
 
 			testAge = eh0;
@@ -3309,8 +3378,8 @@ int main(int argc, char *argv[])
 		fclose(infile);
 
 		////printtree(numseq, root);
-		if(mode != 0 && mode != 6)
-		{
+		if(mode != 0 && mode != 6 && mode != 8)
+o		{
 			bestAssignment(root, treeNum);
 		}
 
@@ -3328,12 +3397,15 @@ int main(int argc, char *argv[])
 		maximize_like_seperately_for_all2D(par);
 	else if (mode==2)
 		likelihoodratiotest_for_all(par);
-	else if (mode == 3)
+	else if (mode == 3 || mode == 8)
 		maximize_like_jointly_for_all2D(par, allTrees);
 	else if (mode == 4)
-		printf("Likelihood distribution for all currently broken\n");
-		//age_like_distribution_jointly_for_all2D(par);
+		//printf("Likelihood distribution for all currently broken\n");
+		age_like_distribution_jointly_for_all2D(par);
 	// Should we make a similar function but for each read??
+	else if (mode == 7)
+		// make top age into optional input
+		age_like_distribution_jointly_for_all2D_upperLimit(par, 0.03);
 	else
 		printf("Please specify run mode.\n 1 for age of each read, 2 for LLR of each read, 3 for sample age estimation, and 4 for likelihood surface\n");
 
