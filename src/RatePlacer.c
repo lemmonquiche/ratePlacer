@@ -1338,6 +1338,7 @@ void make_transition_prob_matrices(double t[3], int treeNum)
 {
 	int i, j, k, v, n;
 	double EXPOS[4], T;
+	//double sum;
 
 	for (v=0; v<3; v++)
 	{
@@ -1350,12 +1351,14 @@ void make_transition_prob_matrices(double t[3], int treeNum)
 				EXPOS[k] = exp(T*RRVAL[treeNum][k]);
 			for (i=0; i<4; i++)
 			{
+				//sum = 0.0;
 				for (j=0; j<4; j++)
 				{
 					PMAT[v][n][i][j] = 0.0;
 					for (k=0; k<4; k++)
 						PMAT[v][n][i][j] += RRVEC[treeNum][k * 4 + j]*LRVEC[treeNum][i * 4 + k]*EXPOS[k];
 					//printf("%.16f:",PMAT[v][n][i][j]);
+					//sum += PMAT[v][n][i][j];
 					if(PMAT[v][n][i][j] <= 0.0)
 					{
 						PMAT[v][n][i][j] = 0.00000001;
@@ -1363,7 +1366,9 @@ void make_transition_prob_matrices(double t[3], int treeNum)
 					}
 					PMAT[v][n][i][j] = log(PMAT[v][n][i][j]);
 					//printf("%.16f\t",PMAT[v][n][i][j]);
-				} //printf("\n");
+				}
+				//if (sum > 1.00001 || sum < 0.99999)
+				//	printf("Sum: %.16f\n", sum);
 			}
 		}
 	}
@@ -1584,13 +1589,13 @@ double getlike_gamma_root_in_trifurcation_Print_Lik(double times[3], double para
 				// printf("\t\tj: %d\n", j);
 				for (k=0; k<4; k++){
 					//printf("\t\t\tk: %d\n", k);
-					for (v=0; v<4; v++)
-					{
-						A[v] = pi[treeNum][v] + PMAT[0][j][v][k] + readlike[seq][po][v];
-						//printf("\t\t\t\tpi[%d] is %.16f anf PMAT[0] is %.16f anf reaflike is %.16f\n", v, pi[treeNum][v], PMAT[0][j][v][k], readlike[seq][po][v]);
-					}
-					B[k] = logSumExp(A);
-					//B[k] = pi[treeNum][b] + PMAT[0][j][b][k];
+					//for (v=0; v<4; v++)
+					//{
+					//	A[v] = pi[treeNum][v] + PMAT[0][j][v][k] + readlike[seq][po][v];
+					//	//printf("\t\t\t\tpi[%d] is %.16f anf PMAT[0] is %.16f anf reaflike is %.16f\n", v, pi[treeNum][v], PMAT[0][j][v][k], readlike[seq][po][v]);
+					//}
+					//B[k] = logSumExp(A);
+					B[k] = pi[treeNum][b] + PMAT[0][j][b][k];
 					// printf("\t\t\t\t\tB:%lf\tpi:%lf\tPMAT[0]:%lf\n", B[k], pi[treeNum][b], PMAT[0][j][b][k]);
 					if (node>=numseq[treeNum]){//If not leaf node. Assumes the leaf nodes are numbered from 0 to numseq-1
 						for (v=0; v<4; v++)
@@ -1676,12 +1681,12 @@ double getlike_gamma_root_in_trifurcation_Print(double times[3], double paramete
 		if (b!=-1){
 			for (j=0; j<NUMCAT; j++){
 				for (k=0; k<4; k++){
-					for (v=0; v<4; v++)
-					{
-						A[v] = pi[treeNum][v] + PMAT[0][j][v][k] + readlike[seq][po][v];
-					}
-					B[k] = logSumExp(A);
-					//B[k] = pi[treeNum][b] + PMAT[0][j][b][k];
+					//for (v=0; v<4; v++)
+					//{
+					//	A[v] = pi[treeNum][v] + PMAT[0][j][v][k] + readlike[seq][po][v];
+					//}
+					//B[k] = logSumExp(A);
+					B[k] = pi[treeNum][b] + PMAT[0][j][b][k];
 					if (node>=numseq[treeNum]){//If not leaf node. Assumes the leaf nodes are numbered from 0 to numseq-1
 						for (v=0; v<4; v++)
 						{
@@ -1759,7 +1764,7 @@ void inittransitionmatrix()
 
 {
 	int i, j;
-	double sum, RIVAL[4], RIVEC[4][4],  A[4][4], workspace[8];
+	double sum, RIVAL[4], RIVEC[4][4],  A[4][4], workspace[8], norm;
 
 	//TO DO: Can probably make these a single malloc
 	RRVAL = (double **)malloc(numTrees * sizeof(double *));
@@ -1784,6 +1789,11 @@ void inittransitionmatrix()
 		//	LRVEC[treeNum][i] = (double *)malloc(4 * sizeof(double));
 		//}
 
+		// 2 (a pia pic + b pia pig + c pia pit + d pic pig + e pic pit + f pig pit) 
+    		norm = 2.0 * (par[treeNum][0] * pi[treeNum][0] * pi[treeNum][1] + par[treeNum][1] * pi[treeNum][0] * pi[treeNum][2] + par[treeNum][2] * pi[treeNum][0] * pi[treeNum][3] +
+                    par[treeNum][3] * pi[treeNum][1] * pi[treeNum][2] + par[treeNum][4] * pi[treeNum][1] * pi[treeNum][3] +
+                    par[treeNum][5] * pi[treeNum][2] * pi[treeNum][3]);
+
 		A[0][1]=pi[treeNum][1]*par[treeNum][0];
 		A[0][2]=pi[treeNum][2]*par[treeNum][1];
 		A[0][3]=pi[treeNum][3]*par[treeNum][2];
@@ -1807,8 +1817,11 @@ void inittransitionmatrix()
 			A[i][i]=0.0;
 			sum=0.0;
 			for (j=0; j<4; j++)
+			{
 				sum = sum + A[i][j];
-			A[i][i] = -sum;
+            			A[i][j] = A[i][j]/norm;
+			}
+			A[i][i] = -sum/norm;
 			//printf("%d\t%lf\n", i, A[i][i]);
 		}
 
@@ -2546,7 +2559,7 @@ void maximize_like_seperately_for_all2D_Print(double **par)
 		nfun=0;
 
 		printf("Sequence %d\n", i);
-		L1 = findmax_amoeba(invector,lowbound, upbound, 2, getlike_gamma_root_in_trifurcation, p, 3);	
+		L1 = findmax_amoeba(invector,lowbound, upbound, 2, getlike_gamma_root_in_trifurcation_Print_Lik, p, 3);	
 		printf("\tParameter estimates %.16f %.16f: %.16f\n", invector[1],invector[2],L1);
 		printf("\tAssignment %d of tree %d age: %.16f\n", assignments[i], treeAssign[i], nodeages[treeAssign[i]][assignments[i]]);
 		printf("\tsequence age: %.16f\n",(1.0-invector[1])*(nodeages[treeAssign[i]][assignments[i]]+invector[2]));
@@ -2588,7 +2601,7 @@ void maximize_like_seperately_for_all2D(double **par)
 	}
 }
 
-void likelihoodratiotest_for_all(double **par)
+void likelihoodratiotest_for_all(double **par, double compareAge)
 {
 	printf("Starting maximize seperately with likelihood ratio test for all\n");
 	int i, k, v, nfun;
@@ -2626,12 +2639,66 @@ void likelihoodratiotest_for_all(double **par)
 		onDindic=1;
 
 		// NEEDS TO BE SWITCHED TO GOLDEN SECTION
-		L2 = findmax_amoeba(invector,lowbound, upbound, 1, getlike_gamma_root_in_trifurcation_L0, p, 3); 
+		//L2 = findmax_amoeba(invector,lowbound, upbound, 1, getlike_gamma_root_in_trifurcation_L0, p, 3);
+		if (testAge < eh0)
+		{
+			testAge = eh0;
+		}
+
+		testAge = compareAge;
+		L2 = GoldenSection(invector,lowbound, upbound, 1, getlike_gamma_root_in_trifurcation_testAge, p, 3); 
 		
 		printf("\tParameter estimates llr %.16f: %.16f\n", invector[1],L2);
-		printf("\tLikelihood ratio statistic: %.16f\n",2.0*(L1-L2));
+		printf("\tLikelihood ratio statistic to %.16f: %.16f\n", testAge, 2.0*(L1-L2));
 	}
 }
+
+
+//void likelihoodratiotest_for_all(double **par)
+//{
+//	printf("Starting maximize seperately with likelihood ratio test for all\n");
+//	int i, k, v, nfun;
+//	double p[3], L1, L2;
+//	double invector[3],lowbound[3], upbound[3], eh0=3e-8;
+//
+//	// assignmentMode of 0 means single assignment given
+//	for (i=0; i<numquery; i++)
+//	{
+//		p[0] = i;
+//		p[1] = treeAssign[i];
+//		p[2] = assignments[i];
+//
+//		invector[1] = 0.5;
+//		invector[2] = bls[treeAssign[i]][assignments[i]]/2.0;
+//		lowbound[1] = eh0;
+//		lowbound[2] = eh0;
+//		upbound[1] = 1.0-eh0;
+//		upbound[2] = bls[treeAssign[i]][assignments[i]]-eh0;
+//		//printf("Checking bls %.16f and node age %.16f\n", upbound[2], upbound[1]);
+//		nfun=0;
+//		onDindic=0;
+//		L1 = findmax_amoeba(invector,lowbound, upbound, 2, getlike_gamma_root_in_trifurcation, p, 3);
+//
+//		printf("Sequence %d\n", i);
+//		printf("\tParameter estimates %.16f %.16f (%.16f): %.16f\n", invector[1],invector[2], bls[treeAssign[i]][assignments[i]],L1);
+//		printf("\tAssignment %d age of tree %d: %.16f\n", assignments[i], treeAssign[i], nodeages[treeAssign[i]][assignments[i]]);
+//		printf("\tsequence age: %.16f\n",(1.0-invector[1])*(nodeages[treeAssign[i]][assignments[i]]+invector[2]));
+//
+//		invector[1] = bls[treeAssign[i]][assignments[i]]/2.0;
+//		lowbound[1] = eh0;
+//		upbound[1] = bls[treeAssign[i]][assignments[i]]-eh0;
+//		invector[2]=-1;
+//		nfun=0;
+//		onDindic=1;
+//
+//		// NEEDS TO BE SWITCHED TO GOLDEN SECTION
+//		//L2 = findmax_amoeba(invector,lowbound, upbound, 1, getlike_gamma_root_in_trifurcation_L0, p, 3);
+//		L2 = GoldenSection(invector,lowbound, upbound, 1, getlike_gamma_root_in_trifurcation_L0, p, 3);
+//		
+//		printf("\tParameter estimates llr %.16f: %.16f\n", invector[1],L2);
+//		printf("\tLikelihood ratio statistic: %.16f\n",2.0*(L1-L2));
+//	}
+//}
 
 // Will "drop reads" by changing readStart based on timeInc and test age
 // New update: Will not be based on the node ages themselves as we're now making
@@ -2987,13 +3054,98 @@ void maximize_like_jointly_for_all2D(double **par, int allTrees)
 		readStart = oldReadStart;
 		nodePointer = oldNodePointer;
 
-		printf("Maximum bound found, now finding optimum age\n");
+		printf("Maximum bound found, now finding optimum age.\n%d of %d reads left", numquery - readStart, numquery);
 		//printf("The elapsed time for rough estimation is %.16f seconds\n", ( ((double) clock()) / CLOCKS_PER_SEC) - time2);
 	}
 	else
 	{
 		printf("Not enough reads for bound optimization, using all\n");
 	}
+
+	//Some bounds or fillers added
+	p[0] = readStart;
+	p[1] = nodePointer;
+	p[2] = 0;
+	invector[1] = nextNodeAge/2;
+	lowbound[1] = eh0;
+	upbound[1] = nextNodeAge - eh0;
+	nfun=0;
+	onDindic=0;	// Because of 2nd layer of optimization
+
+	//double time3 = (double) clock()/CLOCKS_PER_SEC;
+
+	// Decide how the inputs may need to change at some point I guess
+	est_age_lik = GoldenSection(invector,lowbound, upbound, 1, getlike_ages, p, 3);
+	//printf("The elapsed time for age estimation is %.16f seconds\n", ( ((double) clock()) / CLOCKS_PER_SEC) - time3);
+
+	est_age = invector[1];
+	
+	if(nextNodeAge - est_age < nextNodeAge/100.0)
+	{
+		printf("Warning! Age estimate was near boundary of %.16f\n", nextNodeAge);
+	}
+
+	printf("Opt found, calculating confidence intervals\n");
+
+	//Use fisher information to get rough confidence interval
+	//Maybe give option for bootstrap confidence interval
+	//double time4 = (double) clock()/CLOCKS_PER_SEC;
+	confI = confidenceIntervalFisher(par, est_age, est_age_lik, readStart);
+	//printf("The elapsed time for confidenceIntervalFisher is %.16f seconds\n", ( ((double) clock()) / CLOCKS_PER_SEC) - time4);
+
+	//Also maybe incorporate more options for the confidence interval, not just 95%
+	//Would need to be able to calculate the z-score from the user given value
+	//confI = 1.96 / sqrt(-secD);
+
+	printf("Estimated age is %.16f with likelihood %.16f and 95%% confidence interval [%.16f,%.16f]\n", est_age, est_age_lik, est_age - confI, est_age + confI);
+
+	//confidenceSearch(bounds, chiValue, maxAge, est_age, -est_age_lik, p);	
+	//printf("Estimated age is %.16f with likelihood %.16f and %.2f%% confidence interval [%.16f,%.16f]\n", est_age, est_age_lik, chiValue, bounds[0], bounds[2]);
+	//printf("Confidence interval is [%.16f, %.16f] with likelihoods %.16f and %.16f\n", bounds[0], bounds[2], bounds[1], bounds[3]);
+	
+	if(allTrees)
+	{
+		for(int i = 0; i < numTrees; i++)
+		{
+			//Some bounds or fillers added
+			p[0] = readStart;
+			p[1] = i;
+			p[2] = 0;
+			invector[1] = nextNodeAge/2;
+			lowbound[1] = eh0;
+			upbound[1] = nextNodeAge - eh0;
+			nfun=0;
+			onDindic=0;	// Because of 2nd layer of optimization
+
+			//double time3 = (double) clock()/CLOCKS_PER_SEC;
+
+			// Decide how the inputs may need to change at some point I guess
+			est_age_lik = GoldenSection(invector,lowbound, upbound, 1, getlike_ages_tree, p, 3);
+			//printf("The elapsed time for age estimation is %.16f seconds\n", ( ((double) clock()) / CLOCKS_PER_SEC) - time3);
+
+			est_age = invector[1];
+
+			printf("Estimated age is %.16f with likelihood %.16f for tree %d\n", est_age, est_age_lik, i);
+		}
+	}
+}
+
+void maximize_like_jointly_for_all_noDrop2D(double **par, int allTrees)
+{
+	printf("Starting maximize jointly for all\n");
+	int i, k, v, nfun, readStart = 0, nodePointer = 0, twice = 0, oldReadStart, oldNodePointer;
+	double p[3], L1, L2, secD, confI;
+	double invector[3],lowbound[3], upbound[3], eh0=3e-8, nextNodeAge, est_age, est_age_lik;
+	double incr = totMaxAge/1000;
+
+	//printf("Max age of %.16f and incr of %.16f\n", totMaxAge, incr);
+
+	orderReads();
+
+	// This nextNodeAge represents the max without dropping reads
+	nextNodeAge = nodeages[treeAssign[usedReads[readStart]]][assignments[usedReads[readStart]]] + bls[treeAssign[usedReads[readStart]]][assignments[usedReads[readStart]]];
+
+	onDindic = 1; 
 
 	//Some bounds or fillers added
 	p[0] = readStart;
@@ -3083,7 +3235,7 @@ void age_like_distribution_jointly_for_all2D_upperLimit(double **par, double top
 	//printf("First node age %.16f\n", nextNodeAge);
 	//printf("First node age %.16f from assignment %d with node age %.16f and branch length %.16f that has order %d\n", nextNodeAge, nodePointer, nodeages[nodeOrder[nodePointer]], bls[nodeOrder[nodePointer]], nodeOrder[nodePointer]);
 
-	ageIncr = topAge/100.0;		// make this an option later
+	ageIncr = topAge/10000.0;		// make this an option later
 
 	testAge = eh0;
 
@@ -3221,16 +3373,16 @@ int main(int argc, char *argv[])
 	//time for whole program:
 	//double time1 = (double) clock()/CLOCKS_PER_SEC;
 
-	double L;
+	double L, compareAge;
 
 	char assignfile[500], fraclikefile[500], querydatafile[500], referencedatafile[500], errorfile[500], strTree[100], tempFileName[500];
 	int mode, allTrees;
 
 	//To do: make a more user friendly command/flag interface
-	if (argc != 10)
+	if (argc != 11)
 	{
 		//printf("Specify name of five infiles: assignmentfile,fractionallikehoodfile, querydatafile, referencedatafile, and GTR+Gamma parameterfile, assingment mode, and a likelihood mode option\nMaximum name length: 30 characters\n");
-		printf("Specify path of sample assignment file, sample alignment file, likelihood directory, parameter/tree directory, number of trees, assignment mode, errorprofile, output file, and 0/1 for each tree age estimate\n");
+		printf("Specify path of sample assignment file, sample alignment file, likelihood directory, parameter/tree directory, number of trees, assignment mode, errorprofile, output file, 0/1 for each tree age estimate, and age for LLR testing (0 if not testing or to modern)\n");
 		exit(-1);
 	}
 
@@ -3243,6 +3395,7 @@ int main(int argc, char *argv[])
 	mode=atoi(argv[6]);
 	sprintf(errorfile, "%s", argv[7]);
 	allTrees = atoi(argv[9]);
+	compareAge = atof(argv[10]);
 	//errorTest = atof(argv[10]);
 	
 	//printf("Mode: %d\n", mode);
@@ -3378,8 +3531,8 @@ int main(int argc, char *argv[])
 		fclose(infile);
 
 		////printtree(numseq, root);
-		if(mode != 0 && mode != 6 && mode != 8)
-o		{
+		if(mode != 0 && mode != 6 && mode != 8 && mode != 10 && mode != 11 && mode != 12 && mode != 13)
+		{
 			bestAssignment(root, treeNum);
 		}
 
@@ -3395,17 +3548,19 @@ o		{
 	}
 	else if (mode==1 || mode == 6)
 		maximize_like_seperately_for_all2D(par);
-	else if (mode==2)
-		likelihoodratiotest_for_all(par);
+	else if (mode==2 || mode == 13)
+		likelihoodratiotest_for_all(par, compareAge);
 	else if (mode == 3 || mode == 8)
 		maximize_like_jointly_for_all2D(par, allTrees);
-	else if (mode == 4)
+	else if (mode == 4 || mode == 11)
 		//printf("Likelihood distribution for all currently broken\n");
 		age_like_distribution_jointly_for_all2D(par);
 	// Should we make a similar function but for each read??
-	else if (mode == 7)
+	else if (mode == 7 || mode == 12)
 		// make top age into optional input
-		age_like_distribution_jointly_for_all2D_upperLimit(par, 0.03);
+		age_like_distribution_jointly_for_all2D_upperLimit(par, 0.1);
+	else if (mode == 9 || mode == 10)
+		maximize_like_jointly_for_all_noDrop2D(par, allTrees);
 	else
 		printf("Please specify run mode.\n 1 for age of each read, 2 for LLR of each read, 3 for sample age estimation, and 4 for likelihood surface\n");
 
