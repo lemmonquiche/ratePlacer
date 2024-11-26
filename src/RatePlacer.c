@@ -13,8 +13,6 @@
 #include <limits.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-
-//For testing, remove!
 #include <time.h>
 
 #define MINBL 0.0000001
@@ -37,6 +35,10 @@ int numbase, numquery, queryagesknown, ***DATA, **QUERYDATA, *assignments, *read
 int onDindic = 0;//hack to avoid passing this indicator around
 int *numseq;
 long numTrees;
+
+// temps for processing of reads
+int ***readsTreeSorted, *numbases, **readLengthTemp, *readOrder, **startposTemp, **tempAssignments, **numReadsPerAssign, tempnumquery;
+double ****readLikeTemp;
 
 int tip,comma=0; /*globals used to read in the tree. Old code - don't ask.*/
 
@@ -1374,15 +1376,15 @@ void make_transition_prob_matrices(double t[3], int treeNum)
 	}
 }
 
-double mydistance(double v1[], double v2[], int start1, int start2, int n)
-{
-	int i;
-	double sum=0.0;
-
-	for (i=0; i<n; i++)
-		sum+=(v1[i+start1]-v2[i+start2])*(v1[i+start1]-v2[i+start2]);
-	return sqrt(sum);
-}
+//double mydistance(double v1[], double v2[], int start1, int start2, int n)
+//{
+//	int i;
+//	double sum=0.0;
+//
+//	for (i=0; i<n; i++)
+//		sum+=(v1[i+start1]-v2[i+start2])*(v1[i+start1]-v2[i+start2]);
+//	return sqrt(sum);
+//}
 
 // log sum exp trick sum(exp(X)-maxX) + maxX
 //Calculates the log sum exp of log like + log prob for the tree calculations
@@ -1479,6 +1481,121 @@ double getlike_gamma_root_in_trifurcation(double times[3], double parameters[7])
 					// {
 					// 	A[v] = pi[treeNum][v] + PMAT[0][j][v][k] + readlike[seq][po][v];
 					// //	//printf("\t\t\t\tpi[%d] is %.16f anf PMAT[0] is %.16f anf reaflike is %.16f\n", v, pi[treeNum][v], PMAT[0][j][v][k], readlike[seq][po][v]);
+					// }
+					// B[k] = logSumExp(A);
+					B[k] = pi[treeNum][b] + PMAT[0][j][b][k];
+					// printf("\t\t\t\t\tB:%lf\tpi:%lf\tPMAT[0]:%lf\n", B[k], pi[treeNum][b], PMAT[0][j][b][k]);
+					if (node>=numseq[treeNum]){//If not leaf node. Assumes t,c,g,t)leaf nodes are numbered from 0 to numseq-1
+						for (v=0; v<4; v++)
+						{
+							// printf("\t\t\t\t\tPMAT[1] is %.16f and FRACLIKE[%d] is %.16f\n", PMAT[1][j][k][v], v+4, FRACLIKE[treeNum][i][node][j][v+4]);
+							A[v] = PMAT[1][j][k][v] + FRACLIKE[treeNum][i][node][j][v+4];
+						}
+						B[k] += logSumExp(A);
+						// printf("\t\t\t\t\tB:%lf\n", logSumExp(A));
+						for (v=0; v<4; v++)
+						{
+							// printf("\t\t\t\t\tPMAT[2] is %.16f and FRACLIKE[%d] is %.16f\n", PMAT[2][j][k][v], v, FRACLIKE[treeNum][i][node][j][v]);
+							A[v] = PMAT[2][j][k][v] + FRACLIKE[treeNum][i][node][j][v];
+						}
+						B[k] += logSumExp(A);
+						// printf("\t\t\t\t\tB:%lf\n", logSumExp(A));
+					}
+					else { //If leaf node
+						if ((c=DATA[treeNum][node][i])>-1)
+						{
+							B[k] += PMAT[1][j][k][c];
+						}
+						for (v=0; v<4; v++)//add position here into fraclike
+						{
+							// printf("\t\t\t\t\tPMAT[2] is %.16f and FRACLIKE[%d] is %.16f\n", PMAT[2][j][k][v], v, FRACLIKE[treeNum][i][node][j][v]);
+							A[v] = PMAT[2][j][k][v] + FRACLIKE[treeNum][i][node][j][v];
+						}
+						B[k] += logSumExp(A);
+						// printf("\t\t\t\t\tB:%lf\n", logSumExp(A));
+					}
+					// printf("\t\t\t\t\tB[%d]: %lf\n", k, B[k]);
+				}
+				// for(int l = 0; l < 4; l++)
+				// {
+				// 	printf("\t\t\t\tB[%d]: %lf\n", l, B[l]);
+				// }
+				C[j] = logSumExp(B);
+				// printf("\t\t\t\tC:%lf\n", logSumExp(B));
+
+			}
+			Like += logSumExp(C);
+			// printf("\t\t\t\tLike:%lf\n", logSumExp(C));
+		}
+	}
+
+	//printf("\tLikelihood: %.16f\n", Like);
+	//printf("\t\t%d,%f,%f,%f,%f\n", seq, (1.0-times[1])*(nodeages[treeNum][seq]+times[2]), times[1], times[2], Like);
+
+	return -Like; //Notice: a scaling factor of NUMCAT^(number of sites) is missing
+}
+
+double getlike_gamma_root_in_trifurcation_reassign(double times[3], double parameters[7])
+{
+	int i, j,k, b, c, v, po, node, seq, treeNum; 
+	double Like, t[3], A[4], B[4], C[4];
+	//diagonalizaiton has previously been done   
+
+	if (onDindic==1) {	// Learn more about what these do, seem to be hitting these values
+		if (times[2] < parameters[3] || times[2] > parameters[4]){
+			//printf("\t\tError 1: %.16f < %.16f or %.16f > %.16f\n", times[2], parameters[3], times[2], parameters[4]);
+			return 1000000000.0;//If an actual likelihood is smaler than this we are screwed
+		}
+	}
+	else {
+		if ((times[2] < parameters[5] || times[2] > parameters[6]) || (times[1] < parameters[3] || times[1] > parameters[4])){
+			//printf("\t\tError 2: (%.16f < %.16f or %.16f > %.16f) or (%.16f < %.16f or %.16f > %.16f)\n", times[2], parameters[5], times[2], parameters[6], times[1], parameters[3], times[1], parameters[4]);
+			return 1000000000.0;//If an actual likelihood is smaler than this we are screwed
+		}
+	}	
+
+	node = (int)parameters[2];
+	seq = (int)parameters[0];
+	treeNum = (int)parameters[1];
+	//	printf("Analysing read %d\n", seq);
+	//Why copy this? TO DO: Remove this copy and change below code to reflect the change
+	//for (i=0; i<4; i++) 
+	//	printf("pi[%d]: %.16lf\t", i, pi[treeNum][i]);
+	//	pi[i]=parameters[i+3];
+	
+	//printf("\n");
+
+	t[1] = times[2];  //length from node to position where query joins
+	t[0] = (times[2]+nodeages[treeNum][node])*times[1]; //length from age of query node to position where query joins
+	t[2] = bls[treeNum][node]-times[2]; //length from position where query joins to parent node
+	
+	// printf("node: %d\tseq: %d\tt0: %.16f\tt1: %.16f\tt2: %.16f\n", node, seq, t[0], t[1], t[2]);
+	//printf("t0: %.16f\tt1: %.16f\tt2: %.16f\n", t[0], t[1], t[2]);
+
+	make_transition_prob_matrices(t, treeNum);
+
+	//printf("Errors setting of %d, sequence %d, assignment %d\n", errors, seq, node);
+
+	Like=0.0;
+
+	// printf("Sequence %d\n", seq);
+
+	for (i=startposTemp[treeNum][seq]; i<readLengthTemp[treeNum][seq]+startposTemp[treeNum][seq]; i++){ 
+		po = i-startposTemp[treeNum][seq];//i keeps track of the positon in the ref sequences while po is the positoon in the read
+		//b = QUERYDATA[seq][po];
+		b = readsTreeSorted[treeNum][seq][po];
+
+		// printf("\tBase %d\n", b);
+
+		if (b!=-1){
+			for (j=0; j<NUMCAT; j++){
+				// printf("\t\tj: %d\n", j);
+				for (k=0; k<4; k++){
+					//printf("\t\t\tk: %d\n", k);
+					// for (v=0; v<4; v++)
+					// {
+					//	 A[v] = pi[treeNum][v] + PMAT[0][j][v][k] + readLikeTemp[treeNum][seq][po][v];
+					// //	//printf("\t\t\t\tpi[%d] is %.16f anf PMAT[0] is %.16f anf reaflike is %.16f\n", v, pi[treeNum][v], PMAT[0][j][v][k], readLikeTemp[treeNum][seq][po][v]);
 					// }
 					// B[k] = logSumExp(A);
 					B[k] = pi[treeNum][b] + PMAT[0][j][b][k];
@@ -1893,26 +2010,39 @@ int isblankorreturn(char c)
 }
 
 // Probably needs same fix as get_frac_like.c
+// Fix so that we read reads into tree sorted datastructure
+// Also move final reads into QUERYDATA
 int read_query_data(int num)
 {
-	int i, j, v, length, k=0, treeNum, assignment;
+	int i, j, v, length, k=0;
 	char c;
+	int *numTreeAssigned = calloc(numTrees, sizeof(int));
 
 	for (i=0; i<num; i++)
 	{
-		fscanf(infile,"%i %i ",&length, &startpos[i]);
-		readlength[i]=length;
-		QUERYDATA[i]=malloc(length*(sizeof(int)));
+		//fscanf(infile,"%i %i ",&length, &startpos[i]);
+		fscanf(infile,"%i %i ",&length, &startposTemp[treeAssign[i]][numTreeAssigned[treeAssign[i]]]);
+		//readlength[i]=length;
+		//QUERYDATA[i]=malloc(length*(sizeof(int)));
+		readLengthTemp[treeAssign[i]][numTreeAssigned[treeAssign[i]]] = length;
+		
+		// Store reads based on tree assignment
+		readsTreeSorted[treeAssign[i]][numTreeAssigned[treeAssign[i]]] = malloc(length*(sizeof(int)));
+		readOrder[i] = numTreeAssigned[treeAssign[i]];
+		tempAssignments[treeAssign[i]][numTreeAssigned[treeAssign[i]]] = assignments[i];
+		numReadsPerAssign[treeAssign[i]][assignments[i]]++;
+		numTreeAssigned[treeAssign[i]]++;
+
 		for (j=0; j<length; j++){
 			do {
 				fscanf(infile,"%c",&c);
 			} while (isblankorreturn(c)==1);
 			c = tolower(c);
-			if (c=='a') QUERYDATA[i][j] = 0;
-			else if (c=='c') QUERYDATA[i][j] = 1;
-			else if (c=='g') QUERYDATA[i][j]  = 2;
-			else if (c=='t') QUERYDATA[i][j]  = 3;
-			else if (c=='n'||c=='-'||c=='~') QUERYDATA[i][j]  = -1;
+			if (c=='a') readsTreeSorted[treeAssign[i]][readOrder[i]][j] = 0;
+			else if (c=='c') readsTreeSorted[treeAssign[i]][readOrder[i]][j] = 1;
+			else if (c=='g') readsTreeSorted[treeAssign[i]][readOrder[i]][j]  = 2;
+			else if (c=='t') readsTreeSorted[treeAssign[i]][readOrder[i]][j]  = 3;
+			else if (c=='n'||c=='-'||c=='~') readsTreeSorted[treeAssign[i]][readOrder[i]][j]  = -1;
 			else{
 				printf("\nBAD BASE (%c) in query %i base %i",c,i+1,j+1);
 				exit(-1);
@@ -1920,6 +2050,26 @@ int read_query_data(int num)
 		}
 		//printf("\n");
 	}
+
+	////print out new reads
+	//for (i = 0; i < num; i++)
+	//{
+	//	for(j = 0; j < readLengthTemp[treeAssign[i]][readOrder[i]]; j++)
+	//	{
+	//		if (readsTreeSorted[treeAssign[i]][readOrder[i]][j] == 0)
+	//			printf("A");
+	//		else if (readsTreeSorted[treeAssign[i]][readOrder[i]][j] == 1)
+	//			printf("C");
+	//		else if (readsTreeSorted[treeAssign[i]][readOrder[i]][j] == 2)
+	//			printf("G");
+	//		else if (readsTreeSorted[treeAssign[i]][readOrder[i]][j] == 3)
+	//			printf("T");
+	//		else
+	//			printf("-");
+	//	}
+	//	printf("\n");
+	//}
+
 	return num;
 	//printf("Errors setting of %d, sequence %d, assignment %d\n", errors, seq, node);
 } 
@@ -2018,7 +2168,7 @@ void get_fractionalike(int treeNum)
 // make default error 0.01
 void make_readfraclike()
 {
-	int i, j, k, pos, read, parseNum;
+	int i, j, k, pos, read, parseNum, treeNum, treeOrder;
 	double e, ec, err0, err1, err2, err3;
 
 	// TO DO: fix this with more reasonable general errors
@@ -2026,48 +2176,68 @@ void make_readfraclike()
 	e = log(0.01/3.0);	//Error for parts of sequence not covered by errorProfile, 0.01 probability of error and equal across bases?
 	ec = log(1.0000 - 0.01);	//Correct probability 0.99
 
-	readlike = malloc(numquery*(sizeof(double**)));
+	//readlike = malloc(numquery*(sizeof(double**)));
 
 	// All reads get general error
 	for (i = 0; i < numquery; i++)
 	{
-		readlike[i] = malloc(readlength[i]*(sizeof(double*)));
-		for (j=0; j<readlength[i]; j++){
-			if (QUERYDATA[i][j] != -1)
+		treeNum = treeAssign[i];
+		treeOrder = readOrder[i];
+		
+		readLikeTemp[treeNum][treeOrder] = (double **)malloc(readLengthTemp[treeNum][treeOrder]*(sizeof(double*)));
+		//readlike[i] = malloc(readlength[i]*(sizeof(double*)));
+		for (j = 0; j < readLengthTemp[treeNum][treeOrder]; j++){
+			if (readsTreeSorted[treeNum][treeOrder][j] != -1)
 			{
-				readlike[i][j] = malloc(4*(sizeof(double)));
+				readLikeTemp[treeNum][treeOrder][j] = malloc(4*(sizeof(double)));
 				for (k=0; k<4; k++)
 				{
-					if (k==QUERYDATA[i][j])
+					if (k==readsTreeSorted[treeNum][treeOrder][j])
 					{
 						//readlike[i][j][k] = ec + errorTestLog;
-						readlike[i][j][k] = ec;
+						readLikeTemp[treeNum][treeOrder][j][k] = ec;
 					}
                         	        else
 					{
 						//readlike[i][j][k] = e + errorTestLog;
-						readlike[i][j][k] = e;
+						readLikeTemp[treeNum][treeOrder][j][k] = e;
 					}
 				}
 			}
 		}
 	}
-
+	
+	// Only rough implementation of new read preprocessing, double check when doing errors again
 	//// fix error based on error profile
 	//// Should be more flexible to custom error profiles even if not the most efficient
 	//while (fscanf(infile,"%d %d %lf %lf %lf %lf", &read, &pos, &err0, &err1, &err2, &err3) == 6)
 	//{
-	//	if(QUERYDATA[read][pos] != -1)
+	//	treeNum = treeAssign[read];
+	//	treeOrder = readOrder[read];
+	//	if(readsTreeSorted[treeNum][treeOrder][pos] != -1)
 	//	{
-	//		readlike[read][pos][0] = err0;
-	//		readlike[read][pos][1] = err1;
-	//		readlike[read][pos][2] = err2;
-	//		readlike[read][pos][3] = err3;
+	//		readLikeTemp[treeNum][treeOrder][pos][0] = err0;
+	//		readLikeTemp[treeNum][treeOrder][pos][1] = err1;
+	//		readLikeTemp[treeNum][treeOrder][pos][2] = err2;
+	//		readLikeTemp[treeNum][treeOrder][pos][3] = err3;
 	//	}
 	//	else
 	//	{
 	//		printf("Warning, error profile includes positions not in query alignment. Please review error profile, but ratePlacer is proceeding.\n");
 	//	}
+
+	////
+	////	if(QUERYDATA[read][pos] != -1)
+	////	{
+	////		readlike[read][pos][0] = err0;
+	////		readlike[read][pos][1] = err1;
+	////		readlike[read][pos][2] = err2;
+	////		readlike[read][pos][3] = err3;
+	////	}
+	////	else
+	////	{
+	////		printf("Warning, error profile includes positions not in query alignment. Please review error profile, but ratePlacer is proceeding.\n");
+	////	}
     	//}	
 	//
 	//// Last line read in was not properly read in
@@ -2076,264 +2246,19 @@ void make_readfraclike()
 	//	printf("Error in reading in error profile\n");
 	//	exit(0);
 	//}
-}
-
-//numseq: number of sequences in reference data set
-//numquery: number of sequences in the query data
-//numbase: total length of alignment of reference sequences
-//NUMCAT: number of categories in the gamma distribution 
-void read_data(char *assignfile, char *fraclikefile, char *querydatafile, char *referencedatafile, char *errorfile)
-{
-	int i, j, k, v, nin, numcat;
-	double a, b, checksum, MINLIKE=-INF;
-	char tempFileName[500], strTree[500];
 	
-	usedTrees = (int *)calloc(numTrees, sizeof(int));
-	if(usedTrees == NULL)
-	{
-		printf("ERROR: Malloc failure for usedTrees\n");
-		exit(0);
-	}
-
-	//This may be a good one to make into single malloc at some point since its a known size
-	pi = (double **)malloc(numTrees * sizeof(double*));
-	par = (double **)malloc(numTrees * sizeof(double*));	
-
-	DATA = (int***)malloc(numTrees*(sizeof(int**)));
-	bls = (double **)malloc(numTrees * sizeof(double*));
-	nodeages = (double **)malloc(numTrees * sizeof(double *));
-	FRACLIKE = (double *****)malloc(numTrees *(sizeof(double****)));
-	maxAges = (double *)malloc(numTrees * sizeof(double));
-	statevector = (double **)malloc(numTrees * sizeof(double*));
-	nodeOrder = (int **)malloc(numTrees * sizeof(int*));
-
-	totMaxAge = -INF;
-
-	//READING IN ASSIGNMENTS
-	if (VERBOSE) printf("Reading in species assignments\n");
-	if (NULL==(infile=fopen(assignfile,"r")))
-	{
-		puts ("Cannot open infile with assignments: ");
-		exit(-1);
-	}
-	fscanf(infile,"%i\n",&numquery); 
-
-	assignments = (int *)malloc(numquery*(sizeof(int)));
-	treeAssign = (int *)malloc(numquery * (sizeof(int)));
-	assignAges = (double *)malloc(numquery * (sizeof(double)));
-
-	// Determine how nodes are stored and determine if script is needed to convert node names etc
-	for (i=0; i<numquery; i++){
-		//read in tree assignment first
-		fscanf(infile,"%i",&v);
-		treeAssign[i] = v;
-		usedTrees[v] = 1;
-		if(treeAssign[i] < 0 || treeAssign[i] >= numTrees)
-		{
-			printf("Error reading assignments for trees with %d\n", treeAssign[i]);
-			exit(-1);
-		}
-		//node assignment
-		fscanf(infile,"%i",&v); 
-		assignments[i] = v-1;   //notice that we here convert from counting from 1 to counting from 0
-	}
-
-	fclose(infile);
-
-	for(int treeNum = 0; treeNum < numTrees; treeNum++)
-	{
-		if(usedTrees[treeNum] == 0)
-		{
-			// no reads were assigned to this tree, don't need to read in or allocate more memory for this tree
-			continue;
-		}
-		//READING IN OUTPUT FROM GET_FRAC_LIKE WITH RACTIONAL LIKELIHOODS, NODE AGES, AND MORE
-		sprintf(strTree, "%01d", treeNum);
-		tempFileName[0] = '\0';
-		strcat(tempFileName, fraclikefile);
-		strcat(tempFileName, "/");
-		strcat(tempFileName, strTree);
-		strcat(tempFileName, "_likelihood.txt");
-		if (NULL==(infile=fopen(tempFileName,"r")))
-		{
-			printf("Cannot open infile with fractional likelihoods: %s\n", tempFileName);
-			exit(-1);
-		}
-		//line 1
-		// THERE IS AN ASSUMPTION THAT NUMBASE AND NUMCAT ALWAYS THE SAME, SHOULD MAKE A CHECK FOR THAT
-		fscanf(infile,"%i %i %i\n",&numseq[treeNum], &numbase, &numcat);
-		if (VERBOSE) printf("Reading in fractional likelihoods for %i sequences\n",numseq[treeNum]);
-		if (NUMCAT != numcat){
-			printf("Wrong number of categories for the discretization of the gamma distribution");
-			exit(-1);
-		}
-		statevector[treeNum] = malloc(NUMCAT*(sizeof(double)));
-		//line 2
-		for (i=0;i<NUMCAT; i++)
-			fscanf(infile,"%lf ",&statevector[treeNum][i]);
-
-		nodeages[treeNum] = (double *)malloc((2 * numseq[treeNum] - 1) * (sizeof(double)));  //nodeages: ages of internal nodes in reference data
-		bls[treeNum] = (double *)malloc((2 * numseq[treeNum] - 1) * (sizeof(double))); //bls: branch lengths associated with each node
-		nodeOrder[treeNum] = (int *)malloc((2 * numseq[treeNum] - 1) * (sizeof(int))); //nodeOrder: order of nodes in likelihood file reflect order based on nodeage + bls
-
-		// line 3 - numseq + 3, node ages
-		for (i=0; i<2*numseq[treeNum]-1; i++){
-			fscanf(infile,"%i",&j);
-			if (j<0 || j>2*numseq[treeNum]-2) {
-				printf("Error reading node ages");
-				exit(-1);
-			}
-			if (fgetc(infile) != ':') {
-				printf("Error reading node ages");
-				exit(-1);}
-			else { 
-				fscanf(infile,"%lf",&a);
-				fscanf(infile,"%lf",&b);
-				nodeages[treeNum][j] = a;
-				bls[treeNum][j] = b;
-				nodeOrder[treeNum][i] = j;
-				//printf("%d\t%.16f\t%.16f\n", j, a, b);
-			}
-		}
-
-		fscanf(infile, "%lf", &maxAges[treeNum]);
-		//printf("%.16f\n", maxAges[treeNum]);
-		//if(treeNum > 0 && maxAges[treeNum] > totMaxAge)
-		if(maxAges[treeNum] > totMaxAge)
-		{
-			totMaxAge = maxAges[treeNum];
-		}
-
-		get_fractionalike(treeNum); //reads in all the fractional likelihoods
-		fclose(infile);
-
-		//READING IN REFRENCE SEQUENCE DATA
-		tempFileName[0] = '\0';
-		strcat(tempFileName, referencedatafile);
-		strcat(tempFileName, "/");
-		strcat(tempFileName, strTree);
-		strcat(tempFileName, "_reference.txt");
-		if (VERBOSE) printf("Reading in reference sequences: ");
-		if (NULL==(infile=fopen(tempFileName,"r")))
-		{
-			printf("Cannot open infile with reference sequence data");
-			exit(-1);
-		}
-
-		// readseq returns num nodes and alters input with number of bases
-		i = readseq(&j, treeNum);
-		if (i!=numseq[treeNum]|| j!=numbase)
-		{
-			printf("Number of sequences and sequencelengths do no match in input files\n");
-			exit(-1);
-		}
-		fclose(infile);
-
-		pi[treeNum] = (double*)malloc(4 * sizeof(double));
-		par[treeNum] = (double*)malloc(6 * sizeof(double));
-
-		//READING IN GTR parameters DATA
-		tempFileName[0] = '\0';
-		strcat(tempFileName, referencedatafile);
-		strcat(tempFileName, "/");
-		strcat(tempFileName, strTree);
-		strcat(tempFileName, "_parameter.txt");
-		if (VERBOSE) printf("Reading in GTR+Gamma parameters\n");
-		if (NULL==(infile=fopen(tempFileName,"r")))
-		{
-			printf("Cannot open infile with GTR+Gamma parameters");
-			exit(-1);
-		}
-		checksum=0.0;
-		// line 1
-		fscanf(infile,"%lf",&a);
-
-		// line 2: nucleotide frequencies
-		for (i=0; i<4; i++){
-			fscanf(infile,"%lf",&pi[treeNum][i]);
-			checksum+=pi[treeNum][i];
-		}
-
-		if (checksum > 1.0 + 3e-7 || checksum < 1.0 - 3e-7){	//TO DO: bring back to -8 and figure out why tolerances are not being met with COI database
-			printf("WARNING: Nucleotide frequencies not properly scaled or not read correctly (checksum: %.15f)\n",checksum);
-			exit(-1);
-		}
-
-		for (i=0; i<6; i++)
-		{
-			fscanf(infile,"%lf",&par[treeNum][i]);
-		}
-
-		fclose(infile);
-
-		// printf("Printing node ages for tree %d\n", treeNum);
-
-		// for(int i = 0; i < numseq[treeNum]; i++)
-		// {
-		// 	printf("\tNode %d: %.16f\n", i, nodeages[treeNum][i]);
-		// }
-	}
-
-
-	//READING IN QUERY DATA
-	if (VERBOSE) printf("Reading in query data: ");
-	if (NULL==(infile=fopen(querydatafile,"r")))
-	{
-		puts ("Cannot open infile with query data\n");
-		exit(-1);
-	}
-	// Line 1, number of queries
-	fscanf(infile,"%i",&numquery);
-	printf("There are %i query sequences\n",numquery);
-	QUERYDATA = malloc(numquery*(sizeof(int*)));
-	startpos = malloc(numquery*(sizeof(int)));
-	readlength = malloc(numquery*(sizeof(int)));
-
-	// This expression also reads in data to QUERYDATA
-	if (read_query_data(numquery) != numquery)
-	{
-		printf(" Different number of query sequences found in query data file and in assignment file\n");      
-		exit(-1);
-	}	
-
-	////This code below needs to be modified if queryages can be specified
-	//// Ask for future I guess
-	//queryagesknown=0;
-
-	//if (queryagesknown)
+	//for (i = 0; i < numquery; i++)
 	//{
-	//	nodeages = malloc(numquery*(sizeof(double)));
-	//	for (i=0; i<numquery; i++)
-	//		fscanf(infile,"%lf",&nodeages[i]);
+	//	treeNum = treeAssign[i];
+	//	treeOrder = readOrder[i];
+	//	
+	//	for (j = 0; j < readLengthTemp[treeNum][treeOrder]; j++){
+	//		for (k=0; k<4; k++)
+	//			printf("%lf,", readLikeTemp[treeNum][treeOrder][j][k]);
+	//		printf("\t");
+	//	}
+	//	printf("\n");
 	//}
-	fclose(infile);
-
-	
-	//Testing if read assignments are valid
-	//Here because we need to know number of references in the tree
-	if (VERBOSE) printf("Testing validity of node assignments.\n");
-	for (i=0; i<numquery; i++){
-		if (assignments[i]<0 || assignments[i] > 2*numseq[treeAssign[i]]-1)
-		{
-			printf("Error reading assignments for read %d with assignment %d from tree %d with %d references\n", i, assignments[i], treeAssign[i], numseq[treeAssign[i]]);
-			exit(-1);    
-		}
-	}
-
-
-
-	//READING IN ERROR
-	if (VERBOSE) printf("Reading in error profile\n");
-	if (NULL==(infile=fopen(errorfile,"r")))
-	{
-		puts ("Cannot open infile with error profile: ");
-		exit(-1);
-	}
-
-	make_readfraclike();
-
-	fclose(infile);
-	//exit(0);
 }
 
 // Recursive search of children subtrees for maximum likelihood assignment
@@ -2348,6 +2273,8 @@ void searchChildren(double p[3], int *L, double *L_lik, int root)
 	testNodes[0] = (int)p[2];
 
 	getGFLChildren((int)p[2], testNodes, (int)p[1]);
+
+	//printf("Child 1: %d Child 2: %d\n", testNodes[1], testNodes[2]);
 
 	//Search left subtree
 	if(testNodes[1] < numseq[(int)p[1]])
@@ -2429,7 +2356,7 @@ void searchChildren(double p[3], int *L, double *L_lik, int root)
 		nfun=0;
 
 		// TO DO: Make a version of this that only tests like 100 iterations for speed and compare the two versions to see if they agree or not!!
-		testLik = findmax_amoeba_limited(invector,lowbound, upbound, 2, getlike_gamma_root_in_trifurcation, p, 3);
+		testLik = findmax_amoeba_limited(invector,lowbound, upbound, 2, getlike_gamma_root_in_trifurcation_reassign, p, 3);
 
 		//printf("\tL of node %d is %.16f with a: %.16f, root: %.16f given age: %.16f bls: %.16f, est age: %.16f\n", testNodes[0], testLik, invector[1], invector[2], nodeages[(int)p[1]][testNodes[0]], bls[(int)p[1]][testNodes[0]], (1.0-invector[1])*(nodeages[(int)p[1]][testNodes[0]]+invector[2]));
 
@@ -2460,7 +2387,7 @@ void searchLineage(double p[3], int *L, double *L_lik, int root)
 		nfun=0;	
 
 		// TO DO: Make a version of this that only tests like 100 iterations for speed and compare the two versions to see if they agree or not!!
-		testLik = findmax_amoeba_limited(invector,lowbound, upbound, 2, getlike_gamma_root_in_trifurcation, p, 3);
+		testLik = findmax_amoeba_limited(invector,lowbound, upbound, 2, getlike_gamma_root_in_trifurcation_reassign, p, 3);
 
 		//printf("\tL of node %d is %.16f with a: %.16f, root: %.16f given age: %.16f bls: %.16f, est age: %.16f\n", testNode, testLik, invector[1], invector[2], nodeages[treeNum][testNode], bls[treeNum][testNode], (1.0-invector[1])*(nodeages[treeNum][testNode]+invector[2]));
 
@@ -2484,20 +2411,15 @@ void bestAssignment(int root, int treeNum)
 
 	printf("Testing assignments\n");
 
-	for (i = 0; i < numquery; i++)
+	// loops for only the number of reads assigned to the tree
+	for (i = 0; i < usedTrees[treeNum]; i++)
 	{
-		//Slow, but better than keeping all trees into memory?
-		if(treeAssign[i] != treeNum)
-		{
-			continue;
-		}
-
-		//printf("Sequence %d of tree %d and node %d\n", i, treeNum, assignments[i]);
+		//printf("Sequence %d of tree %d and node %d\n", i, treeNum, tempAssignments[treeNum][i]);
 
 		p[0] = i;	//read num does not change
-		p[1] = treeAssign[i];	//tree num does not change
-		p[2] = assignments[i]; 
-		L1 = assignments[i];
+		p[1] = treeNum;	//tree num does not change
+		p[2] = tempAssignments[treeNum][i]; 
+		L1 = tempAssignments[treeNum][i];
 		L1_lik = INFINITY;
 
 		//Tronko assignment is the root
@@ -2506,8 +2428,11 @@ void bestAssignment(int root, int treeNum)
 			//printf("Root\n");
 			searchChildren(p, &L1, &L1_lik, root);
 
-			assignments[i] = L1;
-			assignAges[i] =  nodeages[treeNum][L1] + bls[treeNum][L1];
+			// remove an assignment count and then add to new
+			numReadsPerAssign[treeNum][tempAssignments[treeNum][i]]--;
+			numReadsPerAssign[treeNum][L1]++;
+			tempAssignments[treeNum][i] = L1;
+			//assignAges[i] =  nodeages[treeNum][L1] + bls[treeNum][L1]; //done after merging reads now
 		}
 		//Tronko assignment is a leaf
 		else if(p[2] < numseq[treeNum])
@@ -2515,8 +2440,11 @@ void bestAssignment(int root, int treeNum)
 			//printf("Leaf\n");
 			searchLineage(p, &L1, &L1_lik, root);
 
-			assignments[i] = L1;
-			assignAges[i] =  nodeages[treeNum][L1] + bls[treeNum][L1];
+			// remove an assignment count and then add to new
+			numReadsPerAssign[treeNum][tempAssignments[treeNum][i]]--;
+			numReadsPerAssign[treeNum][L1]++;
+			tempAssignments[treeNum][i] = L1;
+			//assignAges[i] =  nodeages[treeNum][L1] + bls[treeNum][L1];
 		}
 		else
 		{
@@ -2527,10 +2455,591 @@ void bestAssignment(int root, int treeNum)
 			//printf("\tparental search\n");
 			searchLineage(p, &L1, &L1_lik, root);
 
-			assignments[i] = L1;
-			assignAges[i] =  nodeages[treeNum][L1] + bls[treeNum][L1];
+			// remove an assignment count and then add to new
+			numReadsPerAssign[treeNum][tempAssignments[treeNum][i]]--;
+			numReadsPerAssign[treeNum][L1]++;
+			tempAssignments[treeNum][i] = L1;
+			//assignAges[i] =  nodeages[treeNum][L1] + bls[treeNum][L1];
 		}
 	}
+}
+
+// This function merges all the reads that have been assigned to the same node
+void mergeReads(int treeNum, int refBases)
+{
+	int **perEdgeReads = (int **)malloc((2*numseq[treeNum]-1) * sizeof(int*));
+	int *perEdgeIndex = (int *)calloc(2*numseq[treeNum]-1, sizeof(int));
+	int firstPos, lastPos;
+	int numSeqs, index;
+	
+	for (int i = 0; i < 2*numseq[treeNum]-1; i++)
+	{
+		if (numReadsPerAssign[treeNum][i] != 0)
+		{
+			perEdgeReads[i] = (int *)malloc(numReadsPerAssign[treeNum][i] * sizeof(int));
+			numSeqs++;
+		}
+	}
+
+	index = tempnumquery;
+	tempnumquery += numSeqs;
+
+	// Not safe, should be testing with temp pointer for NULL to be able to free...
+	QUERYDATA = (int **)realloc(QUERYDATA, tempnumquery*(sizeof(int*)));
+	startpos = realloc(startpos, tempnumquery*(sizeof(int)));
+	readlength = realloc(readlength, tempnumquery*(sizeof(int)));
+	assignAges = (double *)realloc(assignAges, tempnumquery * (sizeof(double)));
+	assignments = realloc(assignments, tempnumquery * (sizeof(int)));
+	treeAssign = realloc(treeAssign, tempnumquery * (sizeof(int)));
+	readlike = (double ***)realloc(readlike, tempnumquery * sizeof(double **));
+
+	for (int i = 0; i < usedTrees[treeNum]; i++)
+	{
+		perEdgeReads[tempAssignments[treeNum][i]][perEdgeIndex[tempAssignments[treeNum][i]]] = i;
+		perEdgeIndex[tempAssignments[treeNum][i]]++;
+	}
+
+	int *baseCounts = (int *)malloc(refBases * 4 * sizeof(int));
+	double *errorSums = (double *)malloc(refBases * 4 * sizeof(double));
+	int readIndex, refPos, baseMax, baseIndex;
+	double base_select;
+
+	for (int i = 0; i < 2*numseq[treeNum]-1; i++)
+	{
+		if (numReadsPerAssign[treeNum][i] != 0)
+		{
+			// allocate memory for ref length * 4 (for 4 bases) to be counts
+			memset(baseCounts, 0, refBases * 4 * sizeof(int));
+			memset(errorSums, 0, refBases * 4 * sizeof(double));
+			for(int j = 0; j < numReadsPerAssign[treeNum][i]; j++)
+			{
+				//count bases used perEdgeReads as read index in readsTreeSorted
+				readIndex = perEdgeReads[i][j];
+				
+				refPos = startposTemp[treeNum][readIndex];
+				for (int pos = 0; pos < readLengthTemp[treeNum][readIndex]; pos++)
+				{
+					//baseCounts[(refPos + pos) * 4 + base] == baseCounts[refPos + pos][base]
+					if (readsTreeSorted[treeNum][readIndex][pos] != -1)
+					{
+						errorSums[(refPos + pos) * 4] += readLikeTemp[treeNum][readIndex][pos][0];
+						errorSums[(refPos + pos) * 4 + 1] += readLikeTemp[treeNum][readIndex][pos][1];
+						errorSums[(refPos + pos) * 4 + 2] += readLikeTemp[treeNum][readIndex][pos][2];
+						errorSums[(refPos + pos) * 4 + 3] += readLikeTemp[treeNum][readIndex][pos][3];
+						if (readsTreeSorted[treeNum][readIndex][pos] == 0)
+							baseCounts[(refPos + pos) * 4]++;
+						else if (readsTreeSorted[treeNum][readIndex][pos] == 1)
+							baseCounts[(refPos + pos) * 4 + 1]++;
+						else if (readsTreeSorted[treeNum][readIndex][pos] == 2)
+							baseCounts[(refPos + pos) * 4 + 2]++;
+						else if (readsTreeSorted[treeNum][readIndex][pos] == 3)
+							baseCounts[(refPos + pos) * 4 + 3]++;
+					}
+				}
+			}
+
+			firstPos = 0;
+			lastPos = 0;
+
+			for (int pos = 0; pos < refBases; pos++)
+			{
+				if (baseCounts[pos * 4] > 0 || baseCounts[pos * 4 + 1] > 0 || baseCounts[pos * 4 + 2] > 0 || baseCounts[pos * 4 +3] > 0) {
+					firstPos = pos;
+					break;
+				}
+			}
+
+			lastPos = firstPos;
+
+			for (int pos = firstPos + 1; pos < refBases; pos++)
+			{
+				if (baseCounts[pos * 4] > 0 || baseCounts[pos * 4 + 1] > 0 || baseCounts[pos * 4 + 2] > 0 || baseCounts[pos * 4 +3] > 0)
+				{
+					lastPos = pos;
+				}
+			}
+
+			readlength[index] = lastPos - firstPos + 1;
+			startpos[index] = firstPos;
+
+			QUERYDATA[index] = (int *)malloc(readlength[index] * sizeof(int *));
+			readlike[index] = (double **)malloc(readlength[index] * sizeof(double *));
+
+			treeAssign[index] = treeNum;
+			assignments[index] = i;
+
+			for (int pos = 0; pos < readlength[index]; pos++)
+			{
+				refPos = pos + firstPos;
+				// no base info here
+				if (baseCounts[refPos * 4] == 0 && baseCounts[refPos * 4 + 1] == 0 && baseCounts[refPos * 4 + 2] == 0 && baseCounts[refPos * 4 + 3] == 0)
+				{
+					QUERYDATA[index][pos] = -1;
+				}	
+				else
+				{
+					readlike[index][pos] = malloc(4 * sizeof(double));
+					readlike[index][pos][0] = errorSums[refPos * 4];
+					readlike[index][pos][1] = errorSums[refPos * 4 + 1];
+					readlike[index][pos][2] = errorSums[refPos * 4 + 2];
+					readlike[index][pos][3] = errorSums[refPos * 4 + 3];
+
+					baseMax = baseCounts[pos * 4];
+					baseIndex = 0;
+					//is biased for later bases... what is best approach for ties?
+					for (int k = 1; k < 4; k++)
+					{
+						if (baseCounts[refPos * 4 + k] > baseMax)
+						{
+							baseMax = baseCounts[refPos * 4 + k];
+							baseIndex = k;
+						}
+					}
+					QUERYDATA[index][pos] = baseIndex;
+				}
+			}
+
+			// assign ages
+			assignAges[index] = nodeages[treeNum][i] + bls[treeNum][i];
+
+			index++;
+		}
+	}
+
+	free(baseCounts);
+	free(errorSums);
+
+	// TO DO: Free per tree temps
+}
+
+//numseq: number of sequences in reference data set
+//numquery: number of sequences in the query data
+//numbase: total length of alignment of reference sequences
+//NUMCAT: number of categories in the gamma distribution 
+//TO DO: Consider which memory allocated data structures should be single continuous chunk (if possible) for best speed
+void read_data(char *assignfile, char *fraclikefile, char *querydatafile, char *referencedatafile, char *errorfile, int mode)
+{
+	int i, j, k, v, nin, numcat;
+	double a, b, checksum, MINLIKE=-INF;
+	char tempFileName[500], strTree[500];
+	
+	usedTrees = (int *)calloc(numTrees, sizeof(int));
+	if(usedTrees == NULL)
+	{
+		printf("ERROR: Malloc failure for usedTrees\n");
+		exit(0);
+	}
+
+	//This may be a good one to make into single malloc at some point since its a known size
+	pi = (double **)malloc(numTrees * sizeof(double*));
+	par = (double **)malloc(numTrees * sizeof(double*));	
+
+	DATA = (int***)malloc(numTrees*(sizeof(int**)));
+	bls = (double **)malloc(numTrees * sizeof(double*));
+	nodeages = (double **)malloc(numTrees * sizeof(double *));
+	FRACLIKE = (double *****)malloc(numTrees *(sizeof(double****)));
+	maxAges = (double *)malloc(numTrees * sizeof(double));
+	statevector = (double **)malloc(numTrees * sizeof(double*));
+	nodeOrder = (int **)malloc(numTrees * sizeof(int*));
+
+	totMaxAge = -INF;
+
+	//READING IN ASSIGNMENTS
+	if (VERBOSE) printf("Reading in species assignments\n");
+	if (NULL==(infile=fopen(assignfile,"r")))
+	{
+		puts ("Cannot open infile with assignments: ");
+		exit(-1);
+	}
+	fscanf(infile,"%i\n",&numquery); 
+
+	assignments = (int *)malloc(numquery*(sizeof(int)));
+	treeAssign = (int *)malloc(numquery * (sizeof(int)));
+	//assignAges = (double *)malloc(numquery * (sizeof(double)));
+
+	// Determine how nodes are stored and determine if script is needed to convert node names etc
+	for (i=0; i<numquery; i++){
+		//read in tree assignment first
+		fscanf(infile,"%i",&v);
+		treeAssign[i] = v;
+		usedTrees[v]++;	//Not only to know if tree is used, but also how many reads
+		if(treeAssign[i] < 0 || treeAssign[i] >= numTrees)
+		{
+			printf("Error reading assignments for trees with %d\n", treeAssign[i]);
+			exit(-1);
+		}
+		//node assignment
+		fscanf(infile,"%i",&v); 
+		assignments[i] = v-1;   //notice that we here convert from counting from 1 to counting from 0
+	}
+
+	fclose(infile);
+
+	// stores reads grouped by tree
+	readsTreeSorted = (int ***)malloc(numTrees * sizeof(int **));
+
+	// stores length of reference in each tree
+	numbases = (int *)malloc(numTrees * sizeof(int));
+
+	// stores the length of each read grouped by tree
+	readLengthTemp = (int **)malloc(numTrees * sizeof(int));
+
+	// stores index of read in tree order data structure
+	readOrder = (int *)malloc(numquery * sizeof(int));
+
+	// stores temp error profile
+	readLikeTemp = (double ****)malloc(numTrees * sizeof(double ***));
+
+	// stores temp start pos
+	startposTemp = (int **)malloc(numTrees * sizeof(int*));
+
+	//stores assignments in tree sort
+	tempAssignments = (int **)malloc(numTrees * sizeof(int *));
+
+	//stores number of assignments per edge in a tree
+	numReadsPerAssign = (int **)malloc(numTrees * sizeof(int *));
+
+	for(int treeNum = 0; treeNum < numTrees; treeNum++)
+	{
+		if(usedTrees[treeNum] == 0)
+		{
+			// no reads were assigned to this tree, don't need to read in or allocate more memory for this tree
+			continue;
+		}
+		//READING IN OUTPUT FROM GET_FRAC_LIKE WITH RACTIONAL LIKELIHOODS, NODE AGES, AND MORE
+
+		readsTreeSorted[treeNum] = (int **)malloc(usedTrees[treeNum] * sizeof(int *));
+		readLengthTemp[treeNum] = (int *)malloc(usedTrees[treeNum] * sizeof(int *));
+		readLikeTemp[treeNum] = (double ***)malloc(usedTrees[treeNum] * sizeof(double **));
+		startposTemp[treeNum] = (int *)malloc(usedTrees[treeNum] * sizeof(int));
+		tempAssignments[treeNum] = (int *)malloc(usedTrees[treeNum] * sizeof(int));
+
+		sprintf(strTree, "%01d", treeNum);
+		tempFileName[0] = '\0';
+		strcat(tempFileName, fraclikefile);
+		strcat(tempFileName, "/");
+		strcat(tempFileName, strTree);
+		strcat(tempFileName, "_likelihood.txt");
+		if (NULL==(infile=fopen(tempFileName,"r")))
+		{
+			printf("Cannot open infile with fractional likelihoods: %s\n", tempFileName);
+			exit(-1);
+		}
+		//line 1
+		// THERE IS AN ASSUMPTION THAT NUMBASE AND NUMCAT ALWAYS THE SAME, SHOULD MAKE A CHECK FOR THAT
+		fscanf(infile,"%i %i %i\n",&numseq[treeNum], &numbase, &numcat);
+		numbases[treeNum] = numbase;
+		if (VERBOSE) printf("Reading in fractional likelihoods for %i sequences\n",numseq[treeNum]);
+		if (NUMCAT != numcat){
+			printf("Wrong number of categories for the discretization of the gamma distribution");
+			exit(-1);
+		}
+		statevector[treeNum] = malloc(NUMCAT*(sizeof(double)));
+		//line 2
+		for (i=0;i<NUMCAT; i++)
+			fscanf(infile,"%lf ",&statevector[treeNum][i]);
+
+		nodeages[treeNum] = (double *)malloc((2 * numseq[treeNum] - 1) * (sizeof(double)));  //nodeages: ages of internal nodes in reference data
+		bls[treeNum] = (double *)malloc((2 * numseq[treeNum] - 1) * (sizeof(double))); //bls: branch lengths associated with each node
+		nodeOrder[treeNum] = (int *)malloc((2 * numseq[treeNum] - 1) * (sizeof(int))); //nodeOrder: order of nodes in likelihood file reflect order based on nodeage + bls
+
+		numReadsPerAssign[treeNum] = (int *)calloc(2 * numseq[treeNum] - 1, sizeof(int));
+
+		// line 3 - numseq + 3, node ages
+		for (i=0; i<2*numseq[treeNum]-1; i++){
+			fscanf(infile,"%i",&j);
+			if (j<0 || j>2*numseq[treeNum]-2) {
+				printf("Error reading node ages");
+				exit(-1);
+			}
+			if (fgetc(infile) != ':') {
+				printf("Error reading node ages");
+				exit(-1);}
+			else { 
+				fscanf(infile,"%lf",&a);
+				fscanf(infile,"%lf",&b);
+				nodeages[treeNum][j] = a;
+				bls[treeNum][j] = b;
+				nodeOrder[treeNum][i] = j;
+				//printf("%d\t%.16f\t%.16f\n", j, a, b);
+			}
+		}
+
+		fscanf(infile, "%lf", &maxAges[treeNum]);
+		//printf("%.16f\n", maxAges[treeNum]);
+		//if(treeNum > 0 && maxAges[treeNum] > totMaxAge)
+		if(maxAges[treeNum] > totMaxAge)
+		{
+			totMaxAge = maxAges[treeNum];
+		}
+
+		get_fractionalike(treeNum); //reads in all the fractional likelihoods
+		fclose(infile);
+
+		//READING IN REFRENCE SEQUENCE DATA
+		tempFileName[0] = '\0';
+		strcat(tempFileName, referencedatafile);
+		strcat(tempFileName, "/");
+		strcat(tempFileName, strTree);
+		strcat(tempFileName, "_reference.txt");
+		if (VERBOSE) printf("Reading in reference sequences: ");
+		if (NULL==(infile=fopen(tempFileName,"r")))
+		{
+			printf("Cannot open infile with reference sequence data");
+			exit(-1);
+		}
+
+		// readseq returns num nodes and alters input with number of bases
+		i = readseq(&j, treeNum);
+		if (i!=numseq[treeNum]|| j!=numbase)
+		{
+			printf("Number of sequences and sequence lengths do no match in input files\n");
+			exit(-1);
+		}
+		fclose(infile);
+
+		pi[treeNum] = (double*)malloc(4 * sizeof(double));
+		par[treeNum] = (double*)malloc(6 * sizeof(double));
+
+		//READING IN GTR parameters DATA
+		tempFileName[0] = '\0';
+		strcat(tempFileName, referencedatafile);
+		strcat(tempFileName, "/");
+		strcat(tempFileName, strTree);
+		strcat(tempFileName, "_parameter.txt");
+		if (VERBOSE) printf("Reading in GTR+Gamma parameters\n");
+		if (NULL==(infile=fopen(tempFileName,"r")))
+		{
+			printf("Cannot open infile with GTR+Gamma parameters");
+			exit(-1);
+		}
+		checksum=0.0;
+		// line 1
+		fscanf(infile,"%lf",&a);
+
+		// line 2: nucleotide frequencies
+		for (i=0; i<4; i++){
+			fscanf(infile,"%lf",&pi[treeNum][i]);
+			checksum+=pi[treeNum][i];
+		}
+
+		if (checksum > 1.0 + 3e-7 || checksum < 1.0 - 3e-7){	//TO DO: bring back to -8 and figure out why tolerances are not being met with COI database
+			printf("WARNING: Nucleotide frequencies not properly scaled or not read correctly (checksum: %.15f)\n",checksum);
+			exit(-1);
+		}
+
+		for (i=0; i<6; i++)
+		{
+			fscanf(infile,"%lf",&par[treeNum][i]);
+		}
+
+		fclose(infile);
+
+		// printf("Printing node ages for tree %d\n", treeNum);
+
+		// for(int i = 0; i < numseq[treeNum]; i++)
+		// {
+		// 	printf("\tNode %d: %.16f\n", i, nodeages[treeNum][i]);
+		// }
+	}
+
+
+	//READING IN QUERY DATA
+	if (VERBOSE) printf("Reading in query data: ");
+	if (NULL==(infile=fopen(querydatafile,"r")))
+	{
+		puts ("Cannot open infile with query data\n");
+		exit(-1);
+	}
+	// Line 1, number of queries
+	fscanf(infile,"%i",&numquery);
+	printf("There are %i query sequences\n",numquery);
+	//QUERYDATA = malloc(numquery*(sizeof(int*)));
+	//startpos = malloc(numquery*(sizeof(int)));
+	//readlength = malloc(numquery*(sizeof(int)));
+
+	// This expression also reads in data to QUERYDATA
+	if (read_query_data(numquery) != numquery)
+	{
+		printf(" Different number of query sequences found in query data file and in assignment file\n");      
+		exit(-1);
+	}	
+
+	fclose(infile);	
+
+	//Testing if read assignments are valid
+	//Here because we need to know number of references in the tree
+	if (VERBOSE) printf("Testing validity of node assignments.\n");
+	for (i=0; i<numquery; i++){
+		if (assignments[i]<0 || assignments[i] > 2*numseq[treeAssign[i]]-1)
+		{
+			printf("Error reading assignments for read %d with assignment %d from tree %d with %d references\n", i, assignments[i], treeAssign[i], numseq[treeAssign[i]]);
+			exit(-1);    
+		}
+	}
+
+	//READING IN ERROR
+	if (VERBOSE) printf("Reading in error profile\n");
+	if (NULL==(infile=fopen(errorfile,"r")))
+	{
+		puts ("Cannot open infile with error profile: ");
+		exit(-1);
+	}
+
+	make_readfraclike();
+
+	fclose(infile);
+	
+	doNRinits(2);
+	inittransitionmatrix();
+	//unrolled
+	// is there a reason I don't add the following to inittransitionmatrix? or into the next forloop?
+	for(int i = 0; i < numTrees; i++)
+	{
+		if(usedTrees[i] == 0)
+		{
+		
+			// no reads were assigned to this tree, skip
+			continue;
+		}
+
+		pi[i][0] = log(pi[i][0]);
+		pi[i][1] = log(pi[i][1]);
+		pi[i][2] = log(pi[i][2]);
+		pi[i][3] = log(pi[i][3]);
+	}
+
+	int numRef, refBases;
+
+	tempnumquery = 0;
+
+	// set to NULL so that realloc does not display undefined behavior
+	// realloc with NULL will act as malloc
+	QUERYDATA = NULL;
+	startpos = NULL;
+	readlength = NULL;
+	assignAges = NULL;
+	readlike = NULL;
+
+	// Is there a way to incorporate with above tree forloop?
+	for(int treeNum = 0; treeNum < numTrees; treeNum++)
+	{
+		if(usedTrees[treeNum] == 0)
+		{
+			// no reads were assigned to this tree, skip
+			continue;
+		}
+		//printf("Testing end of file read\n");
+		sprintf(strTree, "%01d", treeNum);
+		tempFileName[0] = '\0';
+		strcat(tempFileName, referencedatafile);
+		strcat(tempFileName, "/");
+		strcat(tempFileName, strTree);
+		strcat(tempFileName, "_reference.txt");
+
+		if (NULL==(infile=fopen(tempFileName,"r")))
+		{
+			printf("Cannot open infile with tree data\n");
+			exit(-1);
+		}
+
+		fscanf(infile,"%i %i", &numRef, &refBases);
+		// Calculate the file size
+		fseek(infile, 0, SEEK_END);
+		long file_size = ftell(infile);
+
+		// Move the file pointer to the beginning of the last line
+		fseek(infile, 0, SEEK_SET);
+
+		// Read the file character by character
+		char ch;
+		int line_length = 0;
+		int last_line_length = 0;
+
+		while ((ch = fgetc(infile)) != EOF) {
+			line_length++;
+
+			if (ch == '\n') {
+				last_line_length = line_length;
+				line_length = 0;
+			}
+		}
+
+		fseek(infile, -last_line_length, SEEK_END);
+
+		//Globals from Rasmus code, may want to fix...
+		tip,comma=0;
+
+		allocatetreememmory(numseq[treeNum]);
+		int root = getclade(numseq[treeNum]) - 1 + numseq[treeNum];	//converts to ratePlacer node
+
+		fclose(infile);
+
+		////printtree(numseq, root);
+		if(mode != 0 && mode != 6 && mode != 8 && mode != 10 && mode != 11 && mode != 12 && mode != 13)
+		{
+			bestAssignment(root, treeNum);
+		}
+
+		mergeReads(treeNum, refBases);
+
+		free(readsTreeSorted[treeNum]);
+
+		// No need to keep in memory
+		freetreememmory();
+	}
+
+	numquery = tempnumquery;
+
+	printf("After merging, there are now %d sequences\n", numquery);
+
+	//for(int read = 0; read < numquery; read++)
+	//{
+	//	printf("Query %d is length %d starting as pos %d assigned to tree %d and edge %d\n", read, readlength[read], startpos[read], treeAssign[read], assignments[read]);
+	//	for(int pos = 0; pos < readlength[read]; pos++)
+	//	{
+	//		if(QUERYDATA[read][pos] == -1)
+	//			printf("-");
+	//		else if (QUERYDATA[read][pos] == 0)
+	//			printf("A");
+	//		else if (QUERYDATA[read][pos] == 1)
+	//			printf("C");
+	//		else if (QUERYDATA[read][pos] == 2)
+	//			printf("G");
+	//		else if (QUERYDATA[read][pos] == 3)
+	//			printf("T");
+	//		else
+	//		{
+	//			printf("%d is not valid", QUERYDATA[read][pos]);
+	//			exit(0);
+	//		}
+	//		
+	//	}
+	//	printf("\n");
+	//	//for(int pos = 0; pos < readlength[read]; pos++)
+	//	//{
+	//	//	if (QUERYDATA[read][pos] != -1)
+	//	//	{
+	//	//		printf("pos %d:", pos);
+	//	//		for(int k = 0; k < 4; k++)
+	//	//		{
+	//	//			printf("%lf,", readlike[read][pos][k]); 
+	//	//		}
+	//	//		printf("\n");
+	//	//	}
+	//	//}
+	//}
+
+	//exit(0);
+	
+	free(readsTreeSorted);
+	free(readOrder);
+	free(numbases);
+	free(readLengthTemp);
+	free(readLikeTemp);
+	free(startposTemp);
+	free(tempAssignments);
+	free(numReadsPerAssign);
 }
 
 void maximize_like_seperately_for_all2D_Print(double **par)
@@ -3372,7 +3881,7 @@ int main(int argc, char *argv[])
 {
 	//time for whole program:
 	//double time1 = (double) clock()/CLOCKS_PER_SEC;
-
+	
 	double L, compareAge;
 
 	char assignfile[500], fraclikefile[500], querydatafile[500], referencedatafile[500], errorfile[500], strTree[100], tempFileName[500];
@@ -3458,87 +3967,7 @@ int main(int argc, char *argv[])
 	    }
 	}
 	
-
-	
-	read_data(assignfile, fraclikefile, querydatafile, referencedatafile, errorfile);
-
-	doNRinits(2);
-	inittransitionmatrix();
-	//unrolled
-	for(int i = 0; i < numTrees; i++)
-	{
-		if(usedTrees[i] == 0)
-		{
-			// no reads were assigned to this tree, skip
-			continue;
-		}
-
-		pi[i][0] = log(pi[i][0]);
-		pi[i][1] = log(pi[i][1]);
-		pi[i][2] = log(pi[i][2]);
-		pi[i][3] = log(pi[i][3]);
-	}
-
-	for(int treeNum = 0; treeNum < numTrees; treeNum++)
-	{
-		if(usedTrees[treeNum] == 0)
-		{
-			// no reads were assigned to this tree, skip
-			continue;
-		}
-		//printf("Testing end of file read\n");
-		sprintf(strTree, "%01d", treeNum);
-		tempFileName[0] = '\0';
-		strcat(tempFileName, referencedatafile);
-		strcat(tempFileName, "/");
-		strcat(tempFileName, strTree);
-		strcat(tempFileName, "_reference.txt");
-
-		if (NULL==(infile=fopen(tempFileName,"r")))
-		{
-			printf("Cannot open infile with tree data\n");
-			exit(-1);
-		}
-		// Calculate the file size
-		fseek(infile, 0, SEEK_END);
-		long file_size = ftell(infile);
-
-		// Move the file pointer to the beginning of the last line
-		fseek(infile, 0, SEEK_SET);
-
-		// Read the file character by character
-		char ch;
-		int line_length = 0;
-		int last_line_length = 0;
-
-		while ((ch = fgetc(infile)) != EOF) {
-			line_length++;
-
-			if (ch == '\n') {
-				last_line_length = line_length;
-				line_length = 0;
-			}
-		}
-
-		fseek(infile, -last_line_length, SEEK_END);
-
-		//Globals from Rasmus code, may want to fix...
-		tip,comma=0;
-
-		allocatetreememmory(numseq[treeNum]);
-		int root = getclade(numseq[treeNum]) - 1 + numseq[treeNum];	//converts to ratePlacer node
-
-		fclose(infile);
-
-		////printtree(numseq, root);
-		if(mode != 0 && mode != 6 && mode != 8 && mode != 10 && mode != 11 && mode != 12 && mode != 13)
-		{
-			bestAssignment(root, treeNum);
-		}
-
-		// No need to keep in memory
-		freetreememmory();
-	}
+	read_data(assignfile, fraclikefile, querydatafile, referencedatafile, errorfile, mode);
 
 	if (mode == 0 || mode == 5)
 	{
