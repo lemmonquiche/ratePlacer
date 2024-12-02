@@ -3030,42 +3030,42 @@ void read_data(char *assignfile, char *fraclikefile, char *querydatafile, char *
 
 	printf("After merging, there are now %d sequences\n", numquery);
 
-	//for(int read = 0; read < numquery; read++)
-	//{
-	//	printf("Query %d is length %d starting as pos %d assigned to tree %d and edge %d\n", read, readlength[read], startpos[read], treeAssign[read], assignments[read]);
-	//	for(int pos = 0; pos < readlength[read]; pos++)
-	//	{
-	//		if(QUERYDATA[read][pos] == -1)
-	//			printf("-");
-	//		else if (QUERYDATA[read][pos] == 0)
-	//			printf("A");
-	//		else if (QUERYDATA[read][pos] == 1)
-	//			printf("C");
-	//		else if (QUERYDATA[read][pos] == 2)
-	//			printf("G");
-	//		else if (QUERYDATA[read][pos] == 3)
-	//			printf("T");
-	//		else
-	//		{
-	//			printf("%d is not valid", QUERYDATA[read][pos]);
-	//			exit(0);
-	//		}
-	//		
-	//	}
-	//	printf("\n");
-	//	//for(int pos = 0; pos < readlength[read]; pos++)
-	//	//{
-	//	//	if (QUERYDATA[read][pos] != -1)
-	//	//	{
-	//	//		printf("pos %d:", pos);
-	//	//		for(int k = 0; k < 4; k++)
-	//	//		{
-	//	//			printf("%lf,", readlike[read][pos][k]); 
-	//	//		}
-	//	//		printf("\n");
-	//	//	}
-	//	//}
-	//}
+	for(int read = 0; read < numquery; read++)
+	{
+		printf("Query %d is length %d starting as pos %d assigned to tree %d and edge %d\n", read, readlength[read], startpos[read], treeAssign[read], assignments[read]);
+		for(int pos = 0; pos < readlength[read]; pos++)
+		{
+			if(QUERYDATA[read][pos] == -1)
+				printf("-");
+			else if (QUERYDATA[read][pos] == 0)
+				printf("A");
+			else if (QUERYDATA[read][pos] == 1)
+				printf("C");
+			else if (QUERYDATA[read][pos] == 2)
+				printf("G");
+			else if (QUERYDATA[read][pos] == 3)
+				printf("T");
+			else
+			{
+				printf("%d is not valid", QUERYDATA[read][pos]);
+				exit(0);
+			}
+			
+		}
+		printf("\n");
+		//for(int pos = 0; pos < readlength[read]; pos++)
+		//{
+		//	if (QUERYDATA[read][pos] != -1)
+		//	{
+		//		printf("pos %d:", pos);
+		//		for(int k = 0; k < 4; k++)
+		//		{
+		//			printf("%lf,", readlike[read][pos][k]); 
+		//		}
+		//		printf("\n");
+		//	}
+		//}
+	}
 
 	//exit(0);
 	
