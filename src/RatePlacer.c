@@ -2291,7 +2291,7 @@ void searchChildren(double p[3], int *L, double *L_lik, int root)
 		nfun=0;
 
 		// TO DO: Make a version of this that only tests like 100 iterations for speed and compare the two versions to see if they agree or not!!
-		testLik = findmax_amoeba_limited(invector,lowbound, upbound, 2, getlike_gamma_root_in_trifurcation, p, 3);
+		testLik = findmax_amoeba_limited(invector,lowbound, upbound, 2, getlike_gamma_root_in_trifurcation_reassign, p, 3);
 
 		//printf("\tL of node %d is %.16f with a: %.16f, root: %.16f given age: %.16f bls: %.16f, est age: %.16f\n", testNodes[1], testLik, invector[1], invector[2], nodeages[(int)p[1]][testNodes[1]], bls[(int)p[1]][testNodes[1]], (1.0-invector[1])*(nodeages[(int)p[1]][testNodes[1]]+invector[2]));
 
@@ -2323,7 +2323,7 @@ void searchChildren(double p[3], int *L, double *L_lik, int root)
 		nfun=0;
 
 		// TO DO: Make a version of this that only tests like 100 iterations for speed and compare the two versions to see if they agree or not!!
-		testLik = findmax_amoeba_limited(invector,lowbound, upbound, 2, getlike_gamma_root_in_trifurcation, p, 3);
+		testLik = findmax_amoeba_limited(invector,lowbound, upbound, 2, getlike_gamma_root_in_trifurcation_reassign, p, 3);
 
 		//printf("\tL of node %d is %.16f with a: %.16f, root: %.16f given age: %.16f bls: %.16f, est age: %.16f\n", testNodes[2], testLik, invector[1], invector[2], nodeages[(int)p[1]][testNodes[2]], bls[(int)p[1]][testNodes[2]], (1.0-invector[1])*(nodeages[(int)p[1]][testNodes[2]]+invector[2]));
 
@@ -2501,8 +2501,8 @@ void mergeReads(int treeNum, int refBases)
 
 	int *baseCounts = (int *)malloc(refBases * 4 * sizeof(int));
 	double *errorSums = (double *)malloc(refBases * 4 * sizeof(double));
-	int readIndex, refPos, baseMax, baseIndex;
-	double base_select;
+	int readIndex, refPos, baseMax, baseIndex, base_sum;
+	double base_select, base_a, base_c, base_g, base_t;
 
 	for (int i = 0; i < 2*numseq[treeNum]-1; i++)
 	{
@@ -2584,18 +2584,55 @@ void mergeReads(int treeNum, int refBases)
 					readlike[index][pos][2] = errorSums[refPos * 4 + 2];
 					readlike[index][pos][3] = errorSums[refPos * 4 + 3];
 
-					baseMax = baseCounts[pos * 4];
-					baseIndex = 0;
-					//is biased for later bases... what is best approach for ties?
-					for (int k = 1; k < 4; k++)
+					// Revisit when using error versions
+					//baseMax = baseCounts[pos * 4];
+					//baseIndex = 0;
+					////is biased for later bases... what is best approach for ties?
+					//for (int k = 1; k < 4; k++)
+					//{
+					//	if (baseCounts[refPos * 4 + k] > baseMax)
+					//	{
+					//		baseMax = baseCounts[refPos * 4 + k];
+					//		baseIndex = k;
+					//	}
+					//}
+					//QUERYDATA[index][pos] = baseIndex;
+					
+					base_select = drand48();
+					base_sum = baseCounts[refPos * 4] + baseCounts[refPos * 4 + 1] + baseCounts[refPos * 4 + 2] + baseCounts[refPos * 4 + 3];
+					base_a = baseCounts[refPos * 4]/base_sum;
+					base_c = (baseCounts[refPos * 4] + baseCounts[refPos * 4 + 1])/base_sum;
+					base_g = (baseCounts[refPos * 4] + baseCounts[refPos * 4 + 1] + baseCounts[refPos * 4 + 2])/base_sum;
+					base_t = (baseCounts[refPos * 4] + baseCounts[refPos * 4 + 1] + baseCounts[refPos * 4 + 2] + baseCounts[refPos * 4 + 3])/base_sum;
+
+
+					if (base_t != 1.0 || base_select < 0.0 || base_select > 1.0)
 					{
-						if (baseCounts[refPos * 4 + k] > baseMax)
-						{
-							baseMax = baseCounts[refPos * 4 + k];
-							baseIndex = k;
-						}
+						printf("Error in selecting base: %lf, %lf, %lf, %lf, %lf\n", base_a, base_c, base_g, base_t, base_select);
+						exit(0);
 					}
-					QUERYDATA[index][pos] = baseIndex;
+
+					if (base_a > base_select)
+					{
+						QUERYDATA[index][pos] = 0;
+					}
+					else if (base_c > base_select)
+					{
+						QUERYDATA[index][pos] = 1;
+					}
+					else if (base_g > base_select)
+					{
+						QUERYDATA[index][pos] = 2;
+					}
+					else if (base_t >= base_select)
+					{
+						QUERYDATA[index][pos] = 3;
+					}
+					else
+					{
+						printf("Error in base selection\n");
+						exit(0);
+					}
 				}
 			}
 
@@ -3881,6 +3918,7 @@ int main(int argc, char *argv[])
 {
 	//time for whole program:
 	//double time1 = (double) clock()/CLOCKS_PER_SEC;
+	srand(time(NULL));
 	
 	double L, compareAge;
 
