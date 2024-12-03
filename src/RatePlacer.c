@@ -2501,8 +2501,8 @@ void mergeReads(int treeNum, int refBases)
 
 	int *baseCounts = (int *)malloc(refBases * 4 * sizeof(int));
 	double *errorSums = (double *)malloc(refBases * 4 * sizeof(double));
-	int readIndex, refPos, baseMax, baseIndex, base_sum;
-	double base_select, base_a, base_c, base_g, base_t;
+	int readIndex, refPos, baseMax, baseIndex;
+	double base_select, base_a, base_c, base_g, base_t, base_sum;
 
 	for (int i = 0; i < 2*numseq[treeNum]-1; i++)
 	{
@@ -2584,7 +2584,7 @@ void mergeReads(int treeNum, int refBases)
 					readlike[index][pos][2] = errorSums[refPos * 4 + 2];
 					readlike[index][pos][3] = errorSums[refPos * 4 + 3];
 
-					// Revisit when using error versions
+					//// Revisit when using error versions
 					//baseMax = baseCounts[pos * 4];
 					//baseIndex = 0;
 					////is biased for later bases... what is best approach for ties?
@@ -2599,11 +2599,15 @@ void mergeReads(int treeNum, int refBases)
 					//QUERYDATA[index][pos] = baseIndex;
 					
 					base_select = drand48();
-					base_sum = baseCounts[refPos * 4] + baseCounts[refPos * 4 + 1] + baseCounts[refPos * 4 + 2] + baseCounts[refPos * 4 + 3];
-					base_a = baseCounts[refPos * 4]/base_sum;
-					base_c = (baseCounts[refPos * 4] + baseCounts[refPos * 4 + 1])/base_sum;
-					base_g = (baseCounts[refPos * 4] + baseCounts[refPos * 4 + 1] + baseCounts[refPos * 4 + 2])/base_sum;
-					base_t = (baseCounts[refPos * 4] + baseCounts[refPos * 4 + 1] + baseCounts[refPos * 4 + 2] + baseCounts[refPos * 4 + 3])/base_sum;
+					// explicity caste everything to float
+					// Test uniform
+					base_sum = (double)(baseCounts[refPos * 4] + baseCounts[refPos * 4 + 1] + baseCounts[refPos * 4 + 2] + baseCounts[refPos * 4 + 3]);
+					base_a = (double)baseCounts[refPos * 4]/base_sum;
+					base_c = (double)(baseCounts[refPos * 4] + baseCounts[refPos * 4 + 1])/base_sum;
+					base_g = (double)(baseCounts[refPos * 4] + baseCounts[refPos * 4 + 1] + baseCounts[refPos * 4 + 2])/base_sum;
+					base_t = (double)(baseCounts[refPos * 4] + baseCounts[refPos * 4 + 1] + baseCounts[refPos * 4 + 2] + baseCounts[refPos * 4 + 3])/base_sum;
+
+					//printf("Sum: %lf, A: %lf (%d), C: %lf (%d), G: %lf (%d), T: %lf (%d), rand: %lf\n", base_sum, base_a, baseCounts[refPos * 4], base_c, baseCounts[refPos * 4 + 1], base_g, baseCounts[refPos * 4 + 2], base_t, baseCounts[refPos * 4 + 3], base_select);
 
 
 					if (base_t != 1.0 || base_select < 0.0 || base_select > 1.0)
@@ -2614,18 +2618,22 @@ void mergeReads(int treeNum, int refBases)
 
 					if (base_a > base_select)
 					{
+						//printf("\tA selected\n");
 						QUERYDATA[index][pos] = 0;
 					}
 					else if (base_c > base_select)
 					{
+						//printf("\tC selected\n");
 						QUERYDATA[index][pos] = 1;
 					}
 					else if (base_g > base_select)
 					{
+						//printf("\tG selected\n");
 						QUERYDATA[index][pos] = 2;
 					}
 					else if (base_t >= base_select)
 					{
+						//printf("\tT selected\n");
 						QUERYDATA[index][pos] = 3;
 					}
 					else
@@ -3030,42 +3038,42 @@ void read_data(char *assignfile, char *fraclikefile, char *querydatafile, char *
 
 	printf("After merging, there are now %d sequences\n", numquery);
 
-	for(int read = 0; read < numquery; read++)
-	{
-		printf("Query %d is length %d starting as pos %d assigned to tree %d and edge %d\n", read, readlength[read], startpos[read], treeAssign[read], assignments[read]);
-		for(int pos = 0; pos < readlength[read]; pos++)
-		{
-			if(QUERYDATA[read][pos] == -1)
-				printf("-");
-			else if (QUERYDATA[read][pos] == 0)
-				printf("A");
-			else if (QUERYDATA[read][pos] == 1)
-				printf("C");
-			else if (QUERYDATA[read][pos] == 2)
-				printf("G");
-			else if (QUERYDATA[read][pos] == 3)
-				printf("T");
-			else
-			{
-				printf("%d is not valid", QUERYDATA[read][pos]);
-				exit(0);
-			}
-			
-		}
-		printf("\n");
-		//for(int pos = 0; pos < readlength[read]; pos++)
-		//{
-		//	if (QUERYDATA[read][pos] != -1)
-		//	{
-		//		printf("pos %d:", pos);
-		//		for(int k = 0; k < 4; k++)
-		//		{
-		//			printf("%lf,", readlike[read][pos][k]); 
-		//		}
-		//		printf("\n");
-		//	}
-		//}
-	}
+	//for(int read = 0; read < numquery; read++)
+	//{
+	//	printf("Query %d is length %d starting as pos %d assigned to tree %d and edge %d\n", read, readlength[read], startpos[read], treeAssign[read], assignments[read]);
+	//	for(int pos = 0; pos < readlength[read]; pos++)
+	//	{
+	//		if(QUERYDATA[read][pos] == -1)
+	//			printf("-");
+	//		else if (QUERYDATA[read][pos] == 0)
+	//			printf("A");
+	//		else if (QUERYDATA[read][pos] == 1)
+	//			printf("C");
+	//		else if (QUERYDATA[read][pos] == 2)
+	//			printf("G");
+	//		else if (QUERYDATA[read][pos] == 3)
+	//			printf("T");
+	//		else
+	//		{
+	//			printf("%d is not valid", QUERYDATA[read][pos]);
+	//			exit(0);
+	//		}
+	//		
+	//	}
+	//	printf("\n");
+	//	//for(int pos = 0; pos < readlength[read]; pos++)
+	//	//{
+	//	//	if (QUERYDATA[read][pos] != -1)
+	//	//	{
+	//	//		printf("pos %d:", pos);
+	//	//		for(int k = 0; k < 4; k++)
+	//	//		{
+	//	//			printf("%lf,", readlike[read][pos][k]); 
+	//	//		}
+	//	//		printf("\n");
+	//	//	}
+	//	//}
+	//}
 
 	//exit(0);
 	
