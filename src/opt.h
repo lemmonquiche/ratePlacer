@@ -307,6 +307,7 @@ void amoeba(double **p, double y[], int ndim, double ftol,
 				} else if (y[i] > y[inhi] && i != ihi) inhi=i;
 			}
 			rtol=2.0*fabs(y[ihi]-y[ilo])/(fabs(y[ihi])+fabs(y[ilo]));
+			//printf("\t\trtol: %.16f, ftol: %.16f\n", rtol, ftol);
 			if (rtol < ftol) {
 				SWAP(y[1],y[ilo])
 					for (i=1;i<=ndim;i++) SWAP(p[1][i],p[ilo][i])
@@ -525,29 +526,113 @@ double findmax_amoeba(double newinvecter[], double lowbound[], double upbound[],
 	}
 
 	//initialize the simplex
+	// Very rough multiple restart, work to make better
 	like = malloc((n+2)*(sizeof(double)));
 	newinmat = malloc((n+2)*(sizeof(double *)));
 	for (i=1; i<n+2; i++)
 		newinmat[i] = malloc((n+1)*sizeof(double));
-	for (i=1; i<n+2; i++){
-		//printf("Point %i: ",i);
-		for (j=1; j<=n; j++){
-			if (i==j+1 && 2*(i/2)==i) newinmat[i][j] = lowbound[j]+eh0;
-			else if (i==j+1) newinmat[i][j] = upbound[j]-eh0;
-			else newinmat[i][j] = (lowbound[j]+upbound[j])/2.0;
-			//printf("%lf ",newinmat[i][j]);
-		}
-		like[i] = fun(newinmat[i],otherstuff);	
-		//	printf("Like: %lf\n",like[i]);
-	}
-	amoeba(newinmat, like, n, 0.00000001, fun, &nf, otherstuff); 
+	//for (i=1; i<n+2; i++){
+	//	//printf("Point %i: ",i);
+	//	for (j=1; j<=n; j++){
+	//		if (i==j+1 && 2*(i/2)==i) newinmat[i][j] = lowbound[j]+eh0;
+	//		else if (i==j+1) newinmat[i][j] = upbound[j]-eh0;
+	//		else newinmat[i][j] = (lowbound[j]+upbound[j])/2.0;
+	//		//printf("%lf ",newinmat[i][j]);
+	//	}
+	//	like[i] = fun(newinmat[i],otherstuff);	
+	//	//	printf("Like: %lf\n",like[i]);
+	//}
+
+	// Hard coding initialization of vertices of the simplex
+	// Case 1
+	newinmat[1][1] = lowbound[1] + eh0;
+	newinmat[1][2] = lowbound[2] + eh0;
+	
+	newinmat[2][1] = upbound[1] - eh0;
+	newinmat[2][2] = lowbound[2] + eh0;
+	
+	newinmat[3][1] = (lowbound[1]+upbound[1])/2.0;
+	newinmat[3][2] = upbound[2] - eh0;
+	
+	like[1] = fun(newinmat[1],otherstuff);
+	like[2] = fun(newinmat[2],otherstuff);
+	like[3] = fun(newinmat[3],otherstuff);
+
+	amoeba(newinmat, like, n, 0.00000001, fun, &nf, otherstuff);
+	L = like[1];
 	for (i=1; i<n+1; i++)
 		newinvecter[i] = newinmat[1][i];
+	
+	//Case 2
+	newinmat[1][1] = upbound[1] - eh0;
+	newinmat[1][2] = upbound[2] - eh0;
+	
+	newinmat[2][1] = lowbound[1] + eh0;
+	newinmat[2][2] = upbound[2] - eh0;
+	
+	newinmat[3][1] = (lowbound[1]+upbound[1])/2.0;
+	newinmat[3][2] = lowbound[2] + eh0;
+	
+	like[1] = fun(newinmat[1],otherstuff);
+	like[2] = fun(newinmat[2],otherstuff);
+	like[3] = fun(newinmat[3],otherstuff);
+
+	amoeba(newinmat, like, n, 0.00000001, fun, &nf, otherstuff);
+	if (like[1] < L)
+	{
+		L = like[1];
+		for (i=1; i<n+1; i++)
+			newinvecter[i] = newinmat[1][i];
+	}
+
+	//Case 3
+	newinmat[1][1] = lowbound[1] + eh0;
+	newinmat[1][2] = upbound[2] - eh0;
+	
+	newinmat[2][1] = lowbound[1] + eh0;
+	newinmat[2][2] = lowbound[2] + eh0;
+	
+	newinmat[3][1] = upbound[1] - eh0;
+	newinmat[3][2] = (lowbound[2]+upbound[2])/2.0;
+	
+	like[1] = fun(newinmat[1],otherstuff);
+	like[2] = fun(newinmat[2],otherstuff);
+	like[3] = fun(newinmat[3],otherstuff);
+
+	amoeba(newinmat, like, n, 0.00000001, fun, &nf, otherstuff);
+	if (like[1] < L)
+	{
+		L = like[1];
+		for (i=1; i<n+1; i++)
+			newinvecter[i] = newinmat[1][i];
+	}
+	//Case 4
+	newinmat[1][1] = upbound[1] - eh0;
+	newinmat[1][2] = upbound[2] - eh0;
+	
+	newinmat[2][1] = upbound[1] - eh0;
+	newinmat[2][2] = lowbound[2] + eh0;
+	
+	newinmat[3][1] = lowbound[1] + eh0;
+	newinmat[3][2] = (lowbound[2]+upbound[2])/2.0;
+	
+	like[1] = fun(newinmat[1],otherstuff);
+	like[2] = fun(newinmat[2],otherstuff);
+	like[3] = fun(newinmat[3],otherstuff);	
+
+	amoeba(newinmat, like, n, 0.00000001, fun, &nf, otherstuff);
+	if (like[1] < L)
+	{
+		L = like[1];
+		for (i=1; i<n+1; i++)
+			newinvecter[i] = newinmat[1][i];
+	}
+
+
 	for (i=1; i<n+2; i++)
 		free(newinmat[i]);
 	free(newinmat);
 	free(otherstuff);
-	L = like[1];
 	free(like);
 	return L;
 }
@@ -571,24 +656,109 @@ double findmax_amoeba_limited(double newinvecter[], double lowbound[], double up
 	}
 
 	//initialize the simplex
+	// Very rough multiple restart, work to make better
 	like = malloc((n+2)*(sizeof(double)));
 	newinmat = malloc((n+2)*(sizeof(double *)));
 	for (i=1; i<n+2; i++)
 		newinmat[i] = malloc((n+1)*sizeof(double));
-	for (i=1; i<n+2; i++){
-		//printf("Point %i: ",i);
-		for (j=1; j<=n; j++){
-			if (i==j+1 && 2*(i/2)==i) newinmat[i][j] = lowbound[j]+eh0;
-			else if (i==j+1) newinmat[i][j] = upbound[j]-eh0;
-			else newinmat[i][j] = (lowbound[j]+upbound[j])/2.0;
-			//printf("%lf ",newinmat[i][j]);
-		}
-		like[i] = fun(newinmat[i],otherstuff);	
-		//	printf("Like: %lf\n",like[i]);
-	}
-	amoeba_limited(newinmat, like, n, 0.00000001, fun, &nf, otherstuff); 
+	//for (i=1; i<n+2; i++){
+	//	//printf("Point %i: ",i);
+	//	for (j=1; j<=n; j++){
+	//		if (i==j+1 && 2*(i/2)==i) newinmat[i][j] = lowbound[j]+eh0;
+	//		else if (i==j+1) newinmat[i][j] = upbound[j]-eh0;
+	//		else newinmat[i][j] = (lowbound[j]+upbound[j])/2.0;
+	//		//printf("%lf ",newinmat[i][j]);
+	//	}
+	//	like[i] = fun(newinmat[i],otherstuff);	
+	//	//	printf("Like: %lf\n",like[i]);
+	//}
+
+	// Hard coding initialization of vertices of the simplex
+	// Case 1
+	newinmat[1][1] = lowbound[1] + eh0;
+	newinmat[1][2] = lowbound[2] + eh0;
+	
+	newinmat[2][1] = upbound[1] - eh0;
+	newinmat[2][2] = lowbound[2] + eh0;
+	
+	newinmat[3][1] = (lowbound[1]+upbound[1])/2.0;
+	newinmat[3][2] = upbound[2] - eh0;
+	
+	like[1] = fun(newinmat[1],otherstuff);
+	like[2] = fun(newinmat[2],otherstuff);
+	like[3] = fun(newinmat[3],otherstuff);
+
+	amoeba(newinmat, like, n, 0.000001, fun, &nf, otherstuff);
+	L = like[1];
 	for (i=1; i<n+1; i++)
 		newinvecter[i] = newinmat[1][i];
+	
+	//Case 2
+	newinmat[1][1] = upbound[1] - eh0;
+	newinmat[1][2] = upbound[2] - eh0;
+	
+	newinmat[2][1] = lowbound[1] + eh0;
+	newinmat[2][2] = upbound[2] - eh0;
+	
+	newinmat[3][1] = (lowbound[1]+upbound[1])/2.0;
+	newinmat[3][2] = lowbound[2] + eh0;
+	
+	like[1] = fun(newinmat[1],otherstuff);
+	like[2] = fun(newinmat[2],otherstuff);
+	like[3] = fun(newinmat[3],otherstuff);
+
+	amoeba(newinmat, like, n, 0.000001, fun, &nf, otherstuff);
+	if (like[1] < L)
+	{
+		L = like[1];
+		for (i=1; i<n+1; i++)
+			newinvecter[i] = newinmat[1][i];
+	}
+
+	//Case 3
+	newinmat[1][1] = lowbound[1] + eh0;
+	newinmat[1][2] = upbound[2] - eh0;
+	
+	newinmat[2][1] = lowbound[1] + eh0;
+	newinmat[2][2] = lowbound[2] + eh0;
+	
+	newinmat[3][1] = upbound[1] - eh0;
+	newinmat[3][2] = (lowbound[2]+upbound[2])/2.0;
+	
+	like[1] = fun(newinmat[1],otherstuff);
+	like[2] = fun(newinmat[2],otherstuff);
+	like[3] = fun(newinmat[3],otherstuff);
+
+	amoeba(newinmat, like, n, 0.000001, fun, &nf, otherstuff);
+	if (like[1] < L)
+	{
+		L = like[1];
+		for (i=1; i<n+1; i++)
+			newinvecter[i] = newinmat[1][i];
+	}
+	//Case 4
+	newinmat[1][1] = upbound[1] - eh0;
+	newinmat[1][2] = upbound[2] - eh0;
+	
+	newinmat[2][1] = upbound[1] - eh0;
+	newinmat[2][2] = lowbound[2] + eh0;
+	
+	newinmat[3][1] = lowbound[1] + eh0;
+	newinmat[3][2] = (lowbound[2]+upbound[2])/2.0;
+	
+	like[1] = fun(newinmat[1],otherstuff);
+	like[2] = fun(newinmat[2],otherstuff);
+	like[3] = fun(newinmat[3],otherstuff);	
+
+	amoeba(newinmat, like, n, 0.000001, fun, &nf, otherstuff);
+	if (like[1] < L)
+	{
+		L = like[1];
+		for (i=1; i<n+1; i++)
+			newinvecter[i] = newinmat[1][i];
+	}
+
+
 	for (i=1; i<n+2; i++)
 		free(newinmat[i]);
 	free(newinmat);
