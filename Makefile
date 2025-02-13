@@ -6,6 +6,7 @@ gfl: src/get_frac_like.c
 	gcc -o gfl src/get_frac_like.c -lm -g
 
 ratePlacer: src/RatePlacer.c
-	gcc -o ratePlacer_noError_concat_restart src/RatePlacer.c -lm -g
+	#gcc -fsanitize=address -o ratePlacer_noError_concat_bfgs src/RatePlacer.c src/bfgs.c -lm -g
+	gcc -o ratePlacer_noError_concat_goldenTest src/RatePlacer.c src/bfgs.c -lm -g
 
 

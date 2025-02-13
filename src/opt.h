@@ -8,6 +8,7 @@
 #define TOLX (4*EPS)
 #define EPS 3.0e-8
 #define NMAX 5000
+#define INF DBL_MAX
 
 double *dg,*g,*hdg,*pnew,*xi,**hessin; 
 int npar, CENTRALMODE;
@@ -172,7 +173,6 @@ void freeNRinits(int n)
 	free_dvector(xi,1);
 }
 
-
 void dfpmin(double p[], int n, double gtol, int *iter, double *fret,
 		double(*func)(double [], double[]), void (*dfunc)(double [], double [],double [], double [], double(*fu)(double [], double[]), double[]), double lowbound[], double upbound[], double otherstuff[])
 {
@@ -308,69 +308,20 @@ void amoeba(double **p, double y[], int ndim, double ftol,
 			}
 			rtol=2.0*fabs(y[ihi]-y[ilo])/(fabs(y[ihi])+fabs(y[ilo]));
 			//printf("\t\trtol: %.16f, ftol: %.16f\n", rtol, ftol);
-			if (rtol < ftol) {
+			// instead of resulting in error, return current best
+			if (rtol < ftol || *nfunk >= NMAX) {
 				SWAP(y[1],y[ilo])
 					for (i=1;i<=ndim;i++) SWAP(p[1][i],p[ilo][i])
 						break;
 			}
-			if (*nfunk >= NMAX) nrerror("NMAX exceeded");
-			*nfunk += 2;
-			ytry=amotry(p,y,psum,ndim,funk,ihi,-1.0, otherstuff);
-			if (ytry <= y[ilo])
-				ytry=amotry(p,y,psum,ndim,funk,ihi,2.0, otherstuff);
-			else if (ytry >= y[inhi]) {
-				ysave=y[ihi];
-				ytry=amotry(p,y,psum,ndim,funk,ihi,0.5, otherstuff);
-				if (ytry >= ysave) {
-					for (i=1;i<=mpts;i++) {
-						if (i != ilo) {
-							for (j=1;j<=ndim;j++)
-								p[i][j]=psum[j]=0.5*(p[i][j]+p[ilo][j]);
-							y[i]=(*funk)(psum,otherstuff);
-						}
-					}
-					*nfunk += ndim;
-					GET_PSUM
-				}
-			} else --(*nfunk);
-		}
-	free_dvector(psum,1);
-}
-
-void amoeba_limited(double **p, double y[], int ndim, double ftol,
-		double (*funk)(double [], double []), int *nfunk, double *otherstuff)
-{
-	double amotry(double **p, double y[], double psum[], int ndim,
-			double (*funk)(double [], double []), int ihi, double fac, double otherstuff[]);
-	int i,ihi,ilo,inhi,j,mpts=ndim+1;
-	double rtol,sum,swap,ysave,ytry,*psum;
-
-	psum=dvector(1,ndim);
-	*nfunk=0;
-	GET_PSUM
-		for (;;) {
-			ilo=1;
-			ihi = y[1]>y[2] ? (inhi=2,1) : (inhi=1,2);
-			for (i=1;i<=mpts;i++) {
-				if (y[i] <= y[ilo]) ilo=i;
-				if (y[i] > y[ihi]) {
-					inhi=ihi;
-					ihi=i;
-				} else if (y[i] > y[inhi] && i != ihi) inhi=i;
-			}
-			rtol=2.0*fabs(y[ihi]-y[ilo])/(fabs(y[ihi])+fabs(y[ilo]));
-			if (rtol < ftol) {
-				SWAP(y[1],y[ilo])
-					for (i=1;i<=ndim;i++) SWAP(p[1][i],p[ilo][i])
-						break;
-			}
-			if (*nfunk >= 100)
-			{
-				SWAP(y[1],y[ilo])
-					for (i=1;i<=ndim;i++) SWAP(p[1][i],p[ilo][i])
-						break;
-				//break;		//Not sure if this is the correct move, but need to limit the # of iterations. Check with Rasmus later
-			}
+			//if (*nfunk >= NMAX) nrerror("NMAX exceeded");		
+			//if (*nfunk >= NMAX)
+			//{
+			//	SWAP(y[1],y[ilo])
+			//		for (i=1;i<=ndim;i++) SWAP(p[1][i],p[ilo][i])
+			//			break;
+			//	//break;		//Not sure if this is the correct move, but need to limit the # of iterations. Check with Rasmus later
+			//}
 			*nfunk += 2;
 			ytry=amotry(p,y,psum,ndim,funk,ihi,-1.0, otherstuff);
 			if (ytry <= y[ilo])
@@ -422,20 +373,22 @@ void Yanggradient (int n, double x[], double f0, double g[],
 				g[i] = 0.0; 
 		}
 	}
-	else {
+	else {/* (C) Copr. 1986-92 Numerical Recipes Software '$&'3$. */
+
 		for (i=1;i<=n;i++)  {
-			for (j=1;j<=n;j++)  x1[j]=x[j];
+			for (j=1;j<=n;j++)  
+				x1[j]=x[j];
 			/*eh=eh0*(fabs(x[i])+1);*/
 			eh=2.0*pow(eh0*(fabs(x[i])+1), 0.67);
 			if (x1[i]+eh>upbound[i])
 			{
 				x1[i]-=eh;
-				g[i] = (f0-(*fun)(x1,otherstuff))/eh;
+				g[i] = (f0-(*fun)(x1, otherstuff))/eh;
 			}
 			else
 			{
 				x1[i]+=eh;
-				g[i] = ((*fun)(x1,otherstuff)-f0)/eh;
+				g[i] = ((*fun)(x1, otherstuff)-f0)/eh;
 			}
 			if (x[i] <= lowbound[i] && g[i] > 0.0)
 				g[i] = 0.0;
@@ -522,7 +475,7 @@ double findmax_amoeba(double newinvecter[], double lowbound[], double upbound[],
 	for (i=0; i<n; i++){
 		otherstuff[2*i+n_otherstuff] = lowbound[i+1]; //the bounds start counting at 1
 		otherstuff[2*i+n_otherstuff+1] = upbound[i+1]; //the bounds start counting at 1
-		//printf("Bounds: %lf %lf\n",otherstuff[2*i+n_otherstuff] ,otherstuff[2*i+n_otherstuff+1]);
+							       //printf("Bounds: %lf %lf\n",otherstuff[2*i+n_otherstuff] ,otherstuff[2*i+n_otherstuff+1]);
 	}
 
 	//initialize the simplex
@@ -547,13 +500,13 @@ double findmax_amoeba(double newinvecter[], double lowbound[], double upbound[],
 	// Case 1
 	newinmat[1][1] = lowbound[1] + eh0;
 	newinmat[1][2] = lowbound[2] + eh0;
-	
+
 	newinmat[2][1] = upbound[1] - eh0;
 	newinmat[2][2] = lowbound[2] + eh0;
-	
+
 	newinmat[3][1] = (lowbound[1]+upbound[1])/2.0;
 	newinmat[3][2] = upbound[2] - eh0;
-	
+
 	like[1] = fun(newinmat[1],otherstuff);
 	like[2] = fun(newinmat[2],otherstuff);
 	like[3] = fun(newinmat[3],otherstuff);
@@ -562,17 +515,17 @@ double findmax_amoeba(double newinvecter[], double lowbound[], double upbound[],
 	L = like[1];
 	for (i=1; i<n+1; i++)
 		newinvecter[i] = newinmat[1][i];
-	
+
 	//Case 2
 	newinmat[1][1] = upbound[1] - eh0;
 	newinmat[1][2] = upbound[2] - eh0;
-	
+
 	newinmat[2][1] = lowbound[1] + eh0;
 	newinmat[2][2] = upbound[2] - eh0;
-	
+
 	newinmat[3][1] = (lowbound[1]+upbound[1])/2.0;
 	newinmat[3][2] = lowbound[2] + eh0;
-	
+
 	like[1] = fun(newinmat[1],otherstuff);
 	like[2] = fun(newinmat[2],otherstuff);
 	like[3] = fun(newinmat[3],otherstuff);
@@ -588,13 +541,13 @@ double findmax_amoeba(double newinvecter[], double lowbound[], double upbound[],
 	//Case 3
 	newinmat[1][1] = lowbound[1] + eh0;
 	newinmat[1][2] = upbound[2] - eh0;
-	
+
 	newinmat[2][1] = lowbound[1] + eh0;
 	newinmat[2][2] = lowbound[2] + eh0;
-	
+
 	newinmat[3][1] = upbound[1] - eh0;
 	newinmat[3][2] = (lowbound[2]+upbound[2])/2.0;
-	
+
 	like[1] = fun(newinmat[1],otherstuff);
 	like[2] = fun(newinmat[2],otherstuff);
 	like[3] = fun(newinmat[3],otherstuff);
@@ -609,13 +562,13 @@ double findmax_amoeba(double newinvecter[], double lowbound[], double upbound[],
 	//Case 4
 	newinmat[1][1] = upbound[1] - eh0;
 	newinmat[1][2] = upbound[2] - eh0;
-	
+
 	newinmat[2][1] = upbound[1] - eh0;
 	newinmat[2][2] = lowbound[2] + eh0;
-	
+
 	newinmat[3][1] = lowbound[1] + eh0;
 	newinmat[3][2] = (lowbound[2]+upbound[2])/2.0;
-	
+
 	like[1] = fun(newinmat[1],otherstuff);
 	like[2] = fun(newinmat[2],otherstuff);
 	like[3] = fun(newinmat[3],otherstuff);	
@@ -638,12 +591,10 @@ double findmax_amoeba(double newinvecter[], double lowbound[], double upbound[],
 }
 
 //put bounds in otherstuff.  Assume first n entries are the bounds
-double findmax_amoeba_limited(double newinvecter[], double lowbound[], double upbound[], int n, double (*fun)(double x[],double z[]), double in_otherstuff[], int n_otherstuff)
+double findmax_amoeba_rand(double newinvecter[], double lowbound[], double upbound[], int n, double (*fun)(double x[],double z[]), double in_otherstuff[], int n_otherstuff)
 {
 	double **newinmat, *like, *otherstuff, L, eh0=1e-8;
 	int nf, i, j, k;
-
-	//printf("findmax_amoeba called with %i parameters\n",n);
 
 	//first make one vector that contains bounds and other parameters
 	otherstuff = malloc((2*n+n_otherstuff)*(sizeof(double)));
@@ -652,118 +603,114 @@ double findmax_amoeba_limited(double newinvecter[], double lowbound[], double up
 	for (i=0; i<n; i++){
 		otherstuff[2*i+n_otherstuff] = lowbound[i+1]; //the bounds start counting at 1
 		otherstuff[2*i+n_otherstuff+1] = upbound[i+1]; //the bounds start counting at 1
-		//printf("\tBounds: %lf %lf\n",otherstuff[2*i+n_otherstuff] ,otherstuff[2*i+n_otherstuff+1]);
 	}
 
-	//initialize the simplex
-	// Very rough multiple restart, work to make better
 	like = malloc((n+2)*(sizeof(double)));
 	newinmat = malloc((n+2)*(sizeof(double *)));
 	for (i=1; i<n+2; i++)
 		newinmat[i] = malloc((n+1)*sizeof(double));
-	//for (i=1; i<n+2; i++){
-	//	//printf("Point %i: ",i);
-	//	for (j=1; j<=n; j++){
-	//		if (i==j+1 && 2*(i/2)==i) newinmat[i][j] = lowbound[j]+eh0;
-	//		else if (i==j+1) newinmat[i][j] = upbound[j]-eh0;
-	//		else newinmat[i][j] = (lowbound[j]+upbound[j])/2.0;
-	//		//printf("%lf ",newinmat[i][j]);
-	//	}
-	//	like[i] = fun(newinmat[i],otherstuff);	
-	//	//	printf("Like: %lf\n",like[i]);
-	//}
 
-	// Hard coding initialization of vertices of the simplex
-	// Case 1
-	newinmat[1][1] = lowbound[1] + eh0;
-	newinmat[1][2] = lowbound[2] + eh0;
-	
-	newinmat[2][1] = upbound[1] - eh0;
-	newinmat[2][2] = lowbound[2] + eh0;
-	
-	newinmat[3][1] = (lowbound[1]+upbound[1])/2.0;
-	newinmat[3][2] = upbound[2] - eh0;
-	
-	like[1] = fun(newinmat[1],otherstuff);
-	like[2] = fun(newinmat[2],otherstuff);
-	like[3] = fun(newinmat[3],otherstuff);
-
-	amoeba(newinmat, like, n, 0.000001, fun, &nf, otherstuff);
-	L = like[1];
-	for (i=1; i<n+1; i++)
-		newinvecter[i] = newinmat[1][i];
-	
-	//Case 2
-	newinmat[1][1] = upbound[1] - eh0;
-	newinmat[1][2] = upbound[2] - eh0;
-	
-	newinmat[2][1] = lowbound[1] + eh0;
-	newinmat[2][2] = upbound[2] - eh0;
-	
-	newinmat[3][1] = (lowbound[1]+upbound[1])/2.0;
-	newinmat[3][2] = lowbound[2] + eh0;
-	
-	like[1] = fun(newinmat[1],otherstuff);
-	like[2] = fun(newinmat[2],otherstuff);
-	like[3] = fun(newinmat[3],otherstuff);
-
-	amoeba(newinmat, like, n, 0.000001, fun, &nf, otherstuff);
-	if (like[1] < L)
+	// No tests if they are in a line or not
+	L = INF;
+	for(i = 0; i < 1000; i++)
 	{
-		L = like[1];
-		for (i=1; i<n+1; i++)
-			newinvecter[i] = newinmat[1][i];
+		// Case 1
+		newinmat[1][1] = lowbound[1] + ((double)rand()/RAND_MAX) * (upbound[1] - lowbound[1]);
+		newinmat[1][2] = lowbound[2] + ((double)rand()/RAND_MAX) * (upbound[2] - lowbound[2]);
+
+		newinmat[2][1] = lowbound[1] + ((double)rand()/RAND_MAX) * (upbound[1] - lowbound[1]);
+		newinmat[2][2] = lowbound[2] + ((double)rand()/RAND_MAX) * (upbound[2] - lowbound[2]);
+
+		newinmat[3][1] = lowbound[1] + ((double)rand()/RAND_MAX) * (upbound[1] - lowbound[1]);
+		newinmat[3][2] = lowbound[2] + ((double)rand()/RAND_MAX) * (upbound[2] - lowbound[2]);
+
+		like[1] = fun(newinmat[1],otherstuff);
+		like[2] = fun(newinmat[2],otherstuff);
+		like[3] = fun(newinmat[3],otherstuff);
+
+		amoeba(newinmat, like, n, 0.00000001, fun, &nf, otherstuff);
+
+		if (like[1] < L)
+		{
+			L = like[1];
+			for (i=1; i<n+1; i++)
+				newinvecter[i] = newinmat[1][i];
+		}
 	}
-
-	//Case 3
-	newinmat[1][1] = lowbound[1] + eh0;
-	newinmat[1][2] = upbound[2] - eh0;
-	
-	newinmat[2][1] = lowbound[1] + eh0;
-	newinmat[2][2] = lowbound[2] + eh0;
-	
-	newinmat[3][1] = upbound[1] - eh0;
-	newinmat[3][2] = (lowbound[2]+upbound[2])/2.0;
-	
-	like[1] = fun(newinmat[1],otherstuff);
-	like[2] = fun(newinmat[2],otherstuff);
-	like[3] = fun(newinmat[3],otherstuff);
-
-	amoeba(newinmat, like, n, 0.000001, fun, &nf, otherstuff);
-	if (like[1] < L)
-	{
-		L = like[1];
-		for (i=1; i<n+1; i++)
-			newinvecter[i] = newinmat[1][i];
-	}
-	//Case 4
-	newinmat[1][1] = upbound[1] - eh0;
-	newinmat[1][2] = upbound[2] - eh0;
-	
-	newinmat[2][1] = upbound[1] - eh0;
-	newinmat[2][2] = lowbound[2] + eh0;
-	
-	newinmat[3][1] = lowbound[1] + eh0;
-	newinmat[3][2] = (lowbound[2]+upbound[2])/2.0;
-	
-	like[1] = fun(newinmat[1],otherstuff);
-	like[2] = fun(newinmat[2],otherstuff);
-	like[3] = fun(newinmat[3],otherstuff);	
-
-	amoeba(newinmat, like, n, 0.000001, fun, &nf, otherstuff);
-	if (like[1] < L)
-	{
-		L = like[1];
-		for (i=1; i<n+1; i++)
-			newinvecter[i] = newinmat[1][i];
-	}
-
 
 	for (i=1; i<n+2; i++)
 		free(newinmat[i]);
 	free(newinmat);
 	free(otherstuff);
-	L = like[1];
+	free(like);
+	return L;
+}
+
+double transformValue(double value, double max)
+{
+	return(max/(max - value));
+}
+
+double transformBack_amoeba(double value, double max)
+{
+	return(max - (max/value));
+}
+
+double findmax_amoeba_rand_trans(double newinvecter[], double lowbound[], double upbound[], int n, double (*fun)(double x[],double z[]), double in_otherstuff[], int n_otherstuff)
+{
+	double **newinmat, *like, *otherstuff, L, eh0=1e-8;
+	int nf, i, j, k;
+
+	//first make one vector that contains bounds and other parameters
+	otherstuff = malloc((2*n+n_otherstuff+2)*(sizeof(double)));
+	for (i=0; i<n_otherstuff; i++)
+		otherstuff[i] = in_otherstuff[i];
+	for (i=0; i<n; i++){
+		otherstuff[2*i+n_otherstuff] = transformValue(lowbound[i+1], upbound[i+1]); //the bounds start counting at 1
+		otherstuff[2*i+n_otherstuff+1] = transformValue(upbound[i+1]-eh0, upbound[i+1]); //the bounds start counting at 1
+	}
+
+	// this is hardcoded, be careful
+	otherstuff[7] = upbound[1];
+	otherstuff[8] = upbound[2];
+
+	like = malloc((n+2)*(sizeof(double)));
+	newinmat = malloc((n+2)*(sizeof(double *)));
+	for (i=1; i<n+2; i++)
+		newinmat[i] = malloc((n+1)*sizeof(double));
+
+	// No tests if they are in a line or not
+	L = INF;
+	for(i = 0; i < 10000; i++)
+	{
+		// Case 1
+		newinmat[1][1] = otherstuff[3] + ((double)rand()/RAND_MAX) * (otherstuff[4] - otherstuff[3]);
+		newinmat[1][2] = otherstuff[5] + ((double)rand()/RAND_MAX) * (otherstuff[6] - otherstuff[5]);
+
+		newinmat[2][1] = otherstuff[3] + ((double)rand()/RAND_MAX) * (otherstuff[4] - otherstuff[3]);
+		newinmat[2][2] = otherstuff[5] + ((double)rand()/RAND_MAX) * (otherstuff[6] - otherstuff[5]);
+
+		newinmat[3][1] = otherstuff[3] + ((double)rand()/RAND_MAX) * (otherstuff[4] - otherstuff[3]);
+		newinmat[3][2] = otherstuff[5] + ((double)rand()/RAND_MAX) * (otherstuff[6] - otherstuff[5]);
+
+		like[1] = fun(newinmat[1],otherstuff);
+		like[2] = fun(newinmat[2],otherstuff);
+		like[3] = fun(newinmat[3],otherstuff);
+
+		amoeba(newinmat, like, n, 0.00000001, fun, &nf, otherstuff);
+
+		if (like[1] < L)
+		{
+			L = like[1];
+			for (i=1; i<n+1; i++)
+				newinvecter[i] = transformBack_amoeba(newinmat[1][i], upbound[i]);
+		}
+	}
+
+	for (i=1; i<n+2; i++)
+		free(newinmat[i]);
+	free(newinmat);
+	free(otherstuff);
 	free(like);
 	return L;
 }
@@ -788,11 +735,78 @@ double GoldenSection(double newinvecter[], double lowbound[], double upbound[], 
 	//first make one vector that contains bounds and other parameters
 	otherstuff = malloc((2*n+n_otherstuff)*(sizeof(double)));
 	for (i=0; i<n_otherstuff; i++)
+	{
 		otherstuff[i] = in_otherstuff[i];
-	for (i=0; i<n; i++){
+	}
+	for (i=0; i<n; i++)
+	{
 		otherstuff[2*i+n_otherstuff] = lowbound[i+1]; //the bounds start counting at 1
 		otherstuff[2*i+n_otherstuff+1] = upbound[i+1]; //the bounds start counting at 1
-		//printf("Bounds: %lf %lf\n",otherstuff[2*i+n_otherstuff] ,otherstuff[2*i+n_otherstuff+1]);
+							       //printf("Bounds: %lf %lf\n",otherstuff[2*i+n_otherstuff] ,otherstuff[2*i+n_otherstuff+1]);
+	}
+
+	yc = (*fun)(c, otherstuff);
+	yd = (*fun)(d, otherstuff);
+
+	while ( h > tol ){
+		if (yc < yd) 
+		{
+			b = d;
+			d = c;
+			yd = yc;
+			h = invphi * h;
+			c = a + invphi2 * h;
+			yc = (*fun)(c, otherstuff);
+		}
+		else 
+		{
+			a = c;
+			c = d;
+			yc = yd;
+			h = invphi * h;
+			d = a + invphi * h;
+			yd = (*fun)(d, otherstuff);
+		}
+	}
+
+
+	if (yc < yd) 
+	{
+		newinvecter[1] = (a + d)/2;
+		return(yc);
+	}
+	else
+	{
+		newinvecter[1] = (b + c)/2;
+		return(yd);
+	}
+}
+
+// Increase the tolerance value to make this a less stringent golden section to make faster for calls of golden section that don't need high accuracy of the likelihood
+double GoldenSection_rough(double newinvecter[], double lowbound[], double upbound[], int n, double (*fun)(double x,double z[]), double in_otherstuff[], int n_otherstuff)
+{
+	int i;
+	double a = lowbound[1], b = upbound[1];
+	double invphi = (sqrt(5) - 1) / 2;
+	double invphi2 = (3 - sqrt(5)) / 2;
+	double h = b - a;
+	double c = a + invphi2 * h;
+	double d = a + invphi * h;
+	double yc, yd, tol = 0.000001; 	// same as in ameoba
+	double *otherstuff;
+
+	//first make one vector that contains bounds and other parameters
+	otherstuff = malloc((2*n+n_otherstuff)*(sizeof(double)));
+	for (i=0; i<n_otherstuff; i++)
+	{
+		otherstuff[i] = in_otherstuff[i];
+		//printf("otherstuff %d %.16f\n", i, otherstuff[i]); 
+	}
+	for (i=0; i<n; i++)
+	{
+		otherstuff[2*i+n_otherstuff] = lowbound[i+1]; //the bounds start counting at 1
+		otherstuff[2*i+n_otherstuff+1] = upbound[i+1]; //the bounds start counting at 1
+							       //printf("Bounds: %lf %lf\n",otherstuff[2*i+n_otherstuff] ,otherstuff[2*i+n_otherstuff+1]);
 	}
 
 	yc = (*fun)(c, otherstuff);
