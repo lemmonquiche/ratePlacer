@@ -2487,7 +2487,7 @@ void greedyDown(double p[3], int *L, double *L_lik, int root)
 	testLik = GoldenSection(invector, lowbound, upbound, 1, reassign_singleReadAge, p, 3);
 
 	//printf("\t\t\tGreedy down L (%d) L_lik %.16f with child 1 (%d) like %.16f age %.16f and ", *L, *L_lik, testNodes[1], testLik, (1.0-invector[1])*(nodeages[(int)p[1]][(int)p[2]]+invector[2]));
-	printf("\t\t\tGreedy down L (%d) L_lik %.16f with child 1 (%d) like %.16f and ", *L, *L_lik, testNodes[1], testLik);
+	//printf("\t\t\tGreedy down L (%d) L_lik %.16f with child 1 (%d) like %.16f and ", *L, *L_lik, testNodes[1], testLik);
 	
 	//Child 2
 	p[2] = testNodes[2];
@@ -2503,13 +2503,14 @@ void greedyDown(double p[3], int *L, double *L_lik, int root)
 	testLik2 = GoldenSection(invector, lowbound, upbound, 1, reassign_singleReadAge, p, 3);
 
 	 //printf("child 2 (%d) like %.16f age %.16f\n", testNodes[2], testLik2, (1.0-invector[1])*(nodeages[(int)p[1]][(int)p[2]]+invector[2]));
-	printf("child 2 (%d) like %.16f\n", testNodes[2], testLik2);
+	//printf("child 2 (%d) like %.16f\n", testNodes[2], testLik2);
 	
 	// if L_lik best, return
 	// if child r, greedyDown with new root of child r if not leaf. if leaf, return with child r
 	// if child l, greedyDown with new root of child l if not leaf. if leaf, return with child l
 	
 	if (testLik < *L_lik && testLik < testLik2)
+	//if (*L_lik - testLik > 1.0 && testLik < testLik2)
 	{
 		//Child 1 best
 		if (testNodes[1] < numseq[(int)p[1]])
@@ -2527,6 +2528,7 @@ void greedyDown(double p[3], int *L, double *L_lik, int root)
 		}
 	}
 	else if (testLik2 < *L_lik && testLik2 < testLik) 
+	//else if (*L_lik - testLik2 > 1.0 && testLik2 < testLik)
 	{
 		//Child 2 best
 		if (testNodes[2] < numseq[(int)p[1]])
@@ -2582,7 +2584,7 @@ void greedyUp(double p[3], int *L, double *L_lik, int root)
 	}
 
 	//printf("\t\t\tGreedy up L (%d) L_lik %.16f with parent (%d) like %.16f age %.16f ", *L, *L_lik, testNodes[1], testLik2, (1.0-invector[1])*(nodeages[(int)p[1]][(int)p[2]]+invector[2]));
-	printf("\t\t\tGreedy up L (%d) L_lik %.16f with parent (%d) like %.16f ", *L, *L_lik, testNodes[1], testLik2);
+	//printf("\t\t\tGreedy up L (%d) L_lik %.16f with parent (%d) like %.16f ", *L, *L_lik, testNodes[1], testLik2);
 
 	// Sibling
 	p[2] = testNodes[2];
@@ -2598,12 +2600,13 @@ void greedyUp(double p[3], int *L, double *L_lik, int root)
 	testLik = GoldenSection(invector, lowbound, upbound, 1, reassign_singleReadAge, p, 3);
 
 	//printf("and sibling (%d) like %.16f age %.16f\n", testNodes[2], testLik, (1.0-invector[1])*(nodeages[(int)p[1]][(int)p[2]]+invector[2]));
-	printf("and sibling (%d) like %.16f\n", testNodes[2], testLik);
+	//printf("and sibling (%d) like %.16f\n", testNodes[2], testLik);
 
 	// if L_lik best, return
 	// if sibling, greedyDown with new root of sibling if not leaf. if leaf, return with sibling
 	// if parent, greedyUp with new root of parent
 	if (testLik < *L_lik && testLik < testLik2)
+	//if (*L_lik - testLik > 1.0 && testLik < testLik2)
 	{
 		// Sibling is best
 		if (testNodes[2] < numseq[(int)p[1]])
@@ -2621,6 +2624,7 @@ void greedyUp(double p[3], int *L, double *L_lik, int root)
 		}
 	}
 	else if (testLik2 < *L_lik && testLik2 < testLik)
+	//else if (*L_lik - testLik2 > 1.0 && testLik2 < testLik)
 	{
 		// Parent is best, already tested its not root
 		*L = testNodes[1];
@@ -2641,9 +2645,11 @@ void bestAssignment(int root, int treeNum)
 	onDindic = 1;
 
 	// loops for only the number of reads assigned to the tree
+	// Test out .1 cutoff for reassignment
 	for (i = 0; i < usedTrees[treeNum]; i++)
 	{
-		printf("Sequence %d of tree %d and node %d\n", i, treeNum, tempAssignments[treeNum][i]);
+		//printf("Sequence %d of tree %d and node %d\n", i, treeNum, tempAssignments[treeNum][i]);
+		//GET INITIAL BRANCH AND PLACEMENT ESTIMATES
 
 		p[0] = i;	//read num does not change
 		p[1] = treeNum;	//tree num does not change
@@ -2654,7 +2660,7 @@ void bestAssignment(int root, int treeNum)
 		//Tronko assignment is the root
 		if(p[2] == root)
 		{
-			printf("\tRoot\n");
+			//printf("\tRoot\n");
 			//Get two children
 			getGFLChildren(p[2], surNodes, treeNum);
 			
@@ -2674,7 +2680,7 @@ void bestAssignment(int root, int treeNum)
 			L1_lik = GoldenSection(invector, lowbound, upbound, 1, reassign_singleReadAge, p, 3);
 
 			//printf("\t\tChild 1 (%d) like %.16f age %.16f and ", surNodes[1], L1_lik, (1.0-invector[1])*(nodeages[treeNum][testNode]+invector[2]));
-			printf("\t\tChild 1 (%d) like %.16f and ", surNodes[1], L1_lik);
+			//printf("\t\tChild 1 (%d) like %.16f and ", surNodes[1], L1_lik);
 
 			//Child 2
 			testNode = surNodes[2];
@@ -2695,7 +2701,7 @@ void bestAssignment(int root, int treeNum)
 			//Child 1 better (remember these are -loglik outputs)
 
 			 //printf("child 2 (%d) like %.16f age %.16f\n",  surNodes[2], testLik, (1.0-invector[1])*(nodeages[treeNum][testNode]+invector[2]));
-			printf("child 2 (%d) like %.16f\n",  surNodes[2], testLik);
+			//printf("child 2 (%d) like %.16f\n",  surNodes[2], testLik);
 
 			if (L1_lik < testLik)
 			{
@@ -2738,7 +2744,7 @@ void bestAssignment(int root, int treeNum)
 		//Tronko assignment is a leaf
 		else if(p[2] < numseq[treeNum])
 		{
-			printf("\tLeaf\n");
+			//printf("\tLeaf\n");
 			//Get current branch, parent, and sibling
 			getGFLParSib(p[2], surNodes, treeNum);
 			//Test
@@ -2756,7 +2762,7 @@ void bestAssignment(int root, int treeNum)
 			L1_lik = GoldenSection(invector, lowbound, upbound, 1, reassign_singleReadAge, p, 3);
 
 			//printf("\t\tOriginal (%d) like %.16f age %.16f ", L1, L1_lik, (1.0-invector[1])*(nodeages[treeNum][testNode]+invector[2]));
-			printf("\t\tOriginal (%d) like %.16f ", L1, L1_lik);
+			//printf("\t\tOriginal (%d) like %.16f ", L1, L1_lik);
 			
 			//Sibling
 			testNode = surNodes[2];
@@ -2773,7 +2779,7 @@ void bestAssignment(int root, int treeNum)
 			testLik = GoldenSection(invector, lowbound, upbound, 1, reassign_singleReadAge, p, 3);
 
 			//printf("sibling (%d) like %.16f age %.16f and ", surNodes[2], testLik, (1.0-invector[1])*(nodeages[treeNum][testNode]+invector[2]));
-			printf("sibling (%d) like %.16f and ", surNodes[2], testLik);
+			//printf("sibling (%d) like %.16f and ", surNodes[2], testLik);
 
 			// Parent
 			if (surNodes[1] == root)
@@ -2798,7 +2804,7 @@ void bestAssignment(int root, int treeNum)
 			}
 
 			//printf("parent (%d) like %.16f age %.16f\n", surNodes[1], testLik2, (1.0-invector[1])*(nodeages[treeNum][testNode]+invector[2]));
-			printf("parent (%d) like %.16f\n", surNodes[1], testLik2);
+			//printf("parent (%d) like %.16f\n", surNodes[1], testLik2);
 
 			//If current, end
 			//if sibling > parent, go down
@@ -2815,6 +2821,7 @@ void bestAssignment(int root, int treeNum)
 			//	tempAssignments[treeNum][i] = L1;
 			//}
 			if (testLik < L1_lik || testLik2 < L1_lik)
+			//if (L1_lik - testLik > 1.0 || L1_lik - testLik2 > 1.0)
 			{
 				if (testLik < testLik2)
 				{
@@ -2836,7 +2843,7 @@ void bestAssignment(int root, int treeNum)
 				{
 					// Parent is best, already tested its not root
 					L1 = surNodes[1];
-					L1_lik = testLik;
+					L1_lik = testLik2;
 					p[2] = surNodes[1];
 					greedyUp(p, &L1, &L1_lik, root);
 
@@ -2852,7 +2859,7 @@ void bestAssignment(int root, int treeNum)
 		}
 		else
 		{
-			printf("\tInternal\n");
+			//printf("\tInternal\n");
 			//Get two children as we place on branch above node
 			getGFLChildren(p[2], surNodes, treeNum);
 			//Test
@@ -2871,7 +2878,7 @@ void bestAssignment(int root, int treeNum)
 			L1_lik = GoldenSection(invector, lowbound, upbound, 1, reassign_singleReadAge, p, 3); 
 
 			//printf("\t\tOriginal (%d) like %.16f age %.16f ", L1, L1_lik, (1.0-invector[1])*(nodeages[treeNum][testNode]+invector[2]));
-			printf("\t\tOriginal (%d) like %.16f ", L1, L1_lik);
+			//printf("\t\tOriginal (%d) like %.16f ", L1, L1_lik);
 			
 			//Child 1
 			testNode = surNodes[1];
@@ -2888,7 +2895,7 @@ void bestAssignment(int root, int treeNum)
 			testLik = GoldenSection(invector, lowbound, upbound, 1, reassign_singleReadAge, p, 3);
 
  			//printf("child 1 (%d) like %.16f age %.16f and ", surNodes[1], testLik, (1.0-invector[1])*(nodeages[treeNum][testNode]+invector[2]));
-			printf("child 1 (%d) like %.16f and ", surNodes[1], testLik);
+			//printf("child 1 (%d) like %.16f and ", surNodes[1], testLik);
 
 			//Child 2
 			testNode = surNodes[2];
@@ -2905,7 +2912,7 @@ void bestAssignment(int root, int treeNum)
 			testLik2 = GoldenSection(invector, lowbound, upbound, 1, reassign_singleReadAge, p, 3);
 
 			//printf("child 2 (%d) like %.16f age %.16f\n", surNodes[2], testLik2, (1.0-invector[1])*(nodeages[treeNum][testNode]+invector[2]));
-			printf("child 2 (%d) like %.16f\n", surNodes[2], testLik2);
+			//printf("child 2 (%d) like %.16f\n", surNodes[2], testLik2);
 			
 			//If parent > children, go up
 			//If children > parent, go down depending on which child was maximum
@@ -2917,6 +2924,7 @@ void bestAssignment(int root, int treeNum)
 				greedyUp(p, &L1, &L1_lik, root);
 			}
 			else if (testLik < testLik2 && testLik < L1_lik)
+			//else if (L1_lik - testLik > 1.0 && testLik < testLik2)
 			{
 				// Child 1 is best
 				if (surNodes[1] < numseq[treeNum])
@@ -2933,6 +2941,7 @@ void bestAssignment(int root, int treeNum)
 				}
 			}
 			else
+			//else if (L1_lik - testLik2 > 1.0 && testLik2 < testLik)
 			{
 				// Child 2 is best
 				if (surNodes[2] < numseq[treeNum])
@@ -2943,7 +2952,7 @@ void bestAssignment(int root, int treeNum)
 				else
 				{
 					L1 = surNodes[2];
-					L1_lik = testLik;
+					L1_lik = testLik2;
 					p[2] = surNodes[2];
 					greedyDown(p, &L1, &L1_lik, root);
 				}
@@ -2955,7 +2964,9 @@ void bestAssignment(int root, int treeNum)
 			tempAssignments[treeNum][i] = L1;
 			//assignAges[i] =  nodeages[treeNum][L1] + bls[treeNum][L1];
 		}
-		printf("\tNow node %d\n", tempAssignments[treeNum][i]);
+
+		//GET ESTIMATES ABOUT BRANCH AND PLACEMENT HERE FOR FINAL CHOICE
+		//printf("\tNow node %d\n", tempAssignments[treeNum][i]);
 		//printf("\tBest assignment of %d\n", tempAssignments[treeNum][i]);
 	}
 }
@@ -3048,12 +3059,12 @@ void mergeReads(int treeNum, int refBases)
 			//printf("Reference length of %d and coverage of %d (%lf) with %d reads\n", refBases, refCoverage, (double)refCoverage/(double)refBases, numReadsPerAssign[treeNum][i]);	
 
 			// UNCOMMENT THIS IN NORMAL VERSIONS< JUST FOR TESTING SOME CASES
-			//if ((double)refCoverage/(double)refBases < 0.05)
-			//{
-			//	// do I need to do anything else if I abort?
-			//	tempnumquery--;
-			//	continue;	
-			//}
+			if ((double)refCoverage/(double)refBases < 0.05)
+			{
+				// do I need to do anything else if I abort?
+				tempnumquery--;
+				continue;	
+			}
 
 			//printf("Assignment %d has %d bases covered\n", i, refCoverage);
 
@@ -3087,6 +3098,8 @@ void mergeReads(int treeNum, int refBases)
 			treeAssign[index] = treeNum;
 			assignments[index] = i;
 
+			printf("Sequence %d, assignment %d of length %d starting at %d containing %d reads covering %d:\n", index, i, readlength[index], firstPos, numReadsPerAssign[treeNum][i], refCoverage);
+
 			for (int pos = 0; pos < readlength[index]; pos++)
 			{
 				refPos = pos + firstPos;
@@ -3094,6 +3107,7 @@ void mergeReads(int treeNum, int refBases)
 				if (baseCounts[refPos * 4] == 0 && baseCounts[refPos * 4 + 1] == 0 && baseCounts[refPos * 4 + 2] == 0 && baseCounts[refPos * 4 + 3] == 0)
 				{
 					QUERYDATA[index][pos] = -1;
+					printf("-");
 				}	
 				else
 				{
@@ -3137,22 +3151,22 @@ void mergeReads(int treeNum, int refBases)
 
 					if (base_a > base_select)
 					{
-						//printf("\tA selected\n");
+						printf("A");
 						QUERYDATA[index][pos] = 0;
 					}
 					else if (base_c > base_select)
 					{
-						//printf("\tC selected\n");
+						printf("C");
 						QUERYDATA[index][pos] = 1;
 					}
 					else if (base_g > base_select)
 					{
-						//printf("\tG selected\n");
+						printf("G");
 						QUERYDATA[index][pos] = 2;
 					}
 					else if (base_t >= base_select)
 					{
-						//printf("\tT selected\n");
+						printf("T");
 						QUERYDATA[index][pos] = 3;
 					}
 					else
@@ -3160,8 +3174,10 @@ void mergeReads(int treeNum, int refBases)
 						printf("Error in base selection\n");
 						exit(0);
 					}
-				}
+				}	
 			}
+
+			printf("\n");
 
 			// assign ages
 			assignAges[index] = nodeages[treeNum][i] + bls[treeNum][i];
@@ -4221,13 +4237,20 @@ void maximize_like_jointly_for_all2D(double **par, int allTrees)
 		readStart = oldReadStart;
 		nodePointer = oldNodePointer;
 
-		printf("Maximum bound found, now finding optimum age.\n%d of %d reads left", numquery - readStart, numquery);
+		printf("Maximum bound found, now finding optimum age.\n%d of %d reads left\n", numquery - readStart, numquery);
 		//printf("The elapsed time for rough estimation is %.16f seconds\n", ( ((double) clock()) / CLOCKS_PER_SEC) - time2);
 	}
 	else
 	{
 		printf("Not enough reads for bound optimization, using all\n");
 	}
+
+	printf("Remained merged assignments are ");
+	for (int z = readStart; z < numquery; z++)
+	{
+		printf("%d ", assignments[usedReads[z]]);
+	}
+	printf("\n");
 
 	//Some bounds or fillers added
 	p[0] = readStart;
@@ -4264,7 +4287,7 @@ void maximize_like_jointly_for_all2D(double **par, int allTrees)
 	//Would need to be able to calculate the z-score from the user given value
 	//confI = 1.96 / sqrt(-secD);
 
-	//printf("Estimated age is %.16f with likelihood %.16f and 95%% confidence interval [%.16f,%.16f]\n", est_age, est_age_lik, est_age - confI, est_age + confI);
+	printf("Estimated age is %.16f with likelihood %.16f and 95%% confidence interval [%.16f,%.16f]\n", est_age, est_age_lik, est_age - confI, est_age + confI);
 	//printf("%.16f,%.16f\n", est_age, est_age_lik);
 
 	//confidenceSearch(bounds, chiValue, maxAge, est_age, -est_age_lik, p);	
