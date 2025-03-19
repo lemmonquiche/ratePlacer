@@ -32,7 +32,7 @@
 //double LRVEC[4][4], RRVEC[4][4], RRVAL[4], PMAT[3][NUMCAT][4][4];
 double **LRVEC, **RRVEC, **RRVAL;//, PMAT[3][NUMCAT][4][4];;
 double PMAT[3 * NUMCAT * 4 * 4];	//I think
-double **statevector, *****FRACLIKE, **nodeages, **bls, ***readlike, testAge, **pi, **par, *maxAges, totMaxAge, *assignAges, errorTest, rooted;
+double **statevector, **FRACLIKE, **nodeages, **bls, ***readlike, testAge, **pi, **par, *maxAges, totMaxAge, *assignAges, errorTest, rooted;
 int numbase, numquery, queryagesknown, ***DATA, **QUERYDATA, *assignments, *readlength, *startpos, **nodeOrder, *usedReads, *treeAssign, *usedTrees, toMerge;
 int onDindic = 0;//hack to avoid passing this indicator around
 int *numseq;
@@ -1387,46 +1387,6 @@ void make_transition_prob_matrices(double t[3], int treeNum)
 	}
 }
 
-//void make_transition_prob_matrices(double t[3], int treeNum)
-//{
-//	int i, j, k, v, n;
-//	double EXPOS[4], T;
-//	//double sum;
-//
-//	for (v=0; v<3; v++)
-//	{
-//		printf("branch %i\n",v);
-//		for (n=0; n<NUMCAT; n++)
-//		{
-//			printf("Category %i\n",n);
-//			T = statevector[treeNum][n]*t[v];
-//			for (k=0; k<4; k++)
-//				EXPOS[k] = exp(T*RRVAL[treeNum][k]);
-//			for (i=0; i<4; i++)
-//			{
-//				//sum = 0.0;
-//				for (j=0; j<4; j++)
-//				{
-//					PMAT[v][n][i][j] = 0.0;
-//					for (k=0; k<4; k++)
-//						PMAT[v][n][i][j] += RRVEC[treeNum][k * 4 + j]*LRVEC[treeNum][i * 4 + k]*EXPOS[k];
-//					printf("%.16f:",PMAT[v][n][i][j]);
-//					//sum += PMAT[v][n][i][j];
-//					if(PMAT[v][n][i][j] <= 0.0)
-//					{
-//						PMAT[v][n][i][j] = 0.00000001;
-//						printf("%.16f:",PMAT[v][n][i][j]);
-//					}
-//					PMAT[v][n][i][j] = log(PMAT[v][n][i][j]);
-//					printf("%.16f\t",PMAT[v][n][i][j]);
-//				}
-//				//if (sum > 1.00001 || sum < 0.99999)
-//				//	printf("Sum: %.16f\n", sum);
-//			}
-//		}
-//	}
-//}
-
 //double mydistance(double v1[], double v2[], int start1, int start2, int n)
 //{
 //	int i;
@@ -1465,143 +1425,157 @@ double logSumExp(double X[4])
 }
 
 
-//transtion probability matrix has already been diagonalized
-//this function assumes that the only thing that changes between function calls is the branch lengths or the query sequence and its placement
-//node1 and node2 are the nodes around the edge to which the sequence has been assigned
-//seq is the identifer of the sequence
-//pi are the nucletoide frequencies - this could be made a global to avoid passing them around
-//Alignment data should be stored in DATA with -1 indicating missing data
-//upper and lower bounds are parameters 7-10 when 0-counting
-//double getlike_gamma_root_in_trifurcation(double times[3], double parameters[7])
-//{
-//	int i, j,k, b, c, v, po, node, seq, treeNum; 
-//	double Like, t[3], A[4], B[4], C[4];
-//	//diagonalizaiton has previously been done   
-//
-//	if (onDindic==1) {	// Learn more about what these do, seem to be hitting these values
-//		if (times[2] < parameters[3] || times[2] > parameters[4]){
-//			//printf("\t\tError 1: %.16f < %.16f or %.16f > %.16f\n", times[2], parameters[3], times[2], parameters[4]);
-//			return 1000000000.0;//If an actual likelihood is smaler than this we are screwed
-//		}
-//	}
-//	else {
-//		if ((times[2] < parameters[5] || times[2] > parameters[6]) || (times[1] < parameters[3] || times[1] > parameters[4])){
-//			//printf("\t\tError 2: (%.16f < %.16f or %.16f > %.16f) or (%.16f < %.16f or %.16f > %.16f)\n", times[2], parameters[5], times[2], parameters[6], times[1], parameters[3], times[1], parameters[4]);
-//			return 1000000000.0;//If an actual likelihood is smaler than this we are screwed
-//		}
-//	}	
-//
-//	node = (int)parameters[2];
-//	seq = (int)parameters[0];
-//	treeNum = (int)parameters[1];
-//	//	printf("Analysing read %d\n", seq);
-//	//Why copy this? TO DO: Remove this copy and change below code to reflect the change
-//	//for (i=0; i<4; i++) 
-//	//	printf("pi[%d]: %.16lf\t", i, pi[treeNum][i]);
-//	//	pi[i]=parameters[i+3];
-//	
-//	//printf("\n");
-//
-//	t[1] = times[2];  //length from node to position where query joins
-//	t[0] = (times[2]+nodeages[treeNum][node])*times[1]; //length from age of query node to position where query joins
-//	t[2] = bls[treeNum][node]-times[2]; //length from position where query joins to parent node
-//	
-//	// printf("node: %d\tseq: %d\tt0: %.16f\tt1: %.16f\tt2: %.16f\n", node, seq, t[0], t[1], t[2]);
-//	//printf("t0: %.16f\tt1: %.16f\tt2: %.16f\n", t[0], t[1], t[2]);
-//
-//	make_transition_prob_matrices(t, treeNum);
-//
-//	//printf("Errors setting of %d, sequence %d, assignment %d\n", errors, seq, node);
-//
-//	Like=0.0;
-//
-//	// printf("Sequence %d\n", seq);
-//
-//	for (i=startpos[seq]; i<readlength[seq]+startpos[seq]; i++){ 
-//		po = i-startpos[seq];//i keeps track of the positon in the ref sequences while po is the positoon in the read
-//		b = QUERYDATA[seq][po];
-//
-//		// printf("\tBase %d\n", b);
-//
-//		if (b!=-1){
-//			for (j=0; j<NUMCAT; j++){
-//				// printf("\t\tj: %d\n", j);
-//				for (k=0; k<4; k++){
-//					//printf("\t\t\tk: %d\n", k);
-//					// for (v=0; v<4; v++)
-//					// {
-//					// 	A[v] = pi[treeNum][v] + PMAT[0][j][v][k] + readlike[seq][po][v];
-//					// //	//printf("\t\t\t\tpi[%d] is %.16f anf PMAT[0] is %.16f anf reaflike is %.16f\n", v, pi[treeNum][v], PMAT[0][j][v][k], readlike[seq][po][v]);
-//					// }
-//					// B[k] = logSumExp(A);
-//					B[k] = pi[treeNum][b] + PMAT[0][j][b][k];
-//					// printf("\t\t\t\t\tB:%lf\tpi:%lf\tPMAT[0]:%lf\n", B[k], pi[treeNum][b], PMAT[0][j][b][k]);
-//					if (node>=numseq[treeNum]){//If not leaf node. Assumes t,c,g,t)leaf nodes are numbered from 0 to numseq-1
-//						for (v=0; v<4; v++)
-//						{
-//							// printf("\t\t\t\t\tPMAT[1] is %.16f and FRACLIKE[%d] is %.16f\n", PMAT[1][j][k][v], v+4, FRACLIKE[treeNum][i][node][j][v+4]);
-//							A[v] = PMAT[1][j][k][v] + FRACLIKE[treeNum][i][node][j][v+4];
-//						}
-//						B[k] += logSumExp(A);
-//						// printf("\t\t\t\t\tB:%lf\n", logSumExp(A));
-//						for (v=0; v<4; v++)
-//						{
-//							// printf("\t\t\t\t\tPMAT[2] is %.16f and FRACLIKE[%d] is %.16f\n", PMAT[2][j][k][v], v, FRACLIKE[treeNum][i][node][j][v]);
-//							A[v] = PMAT[2][j][k][v] + FRACLIKE[treeNum][i][node][j][v];
-//						}
-//						B[k] += logSumExp(A);
-//						// printf("\t\t\t\t\tB:%lf\n", logSumExp(A));
-//					}
-//					else { //If leaf node
-//						if ((c=DATA[treeNum][node][i])>-1)
-//						{
-//							B[k] += PMAT[1][j][k][c];
-//						}
-//						for (v=0; v<4; v++)//add position here into fraclike
-//						{
-//							// printf("\t\t\t\t\tPMAT[2] is %.16f and FRACLIKE[%d] is %.16f\n", PMAT[2][j][k][v], v, FRACLIKE[treeNum][i][node][j][v]);
-//							A[v] = PMAT[2][j][k][v] + FRACLIKE[treeNum][i][node][j][v];
-//						}
-//						B[k] += logSumExp(A);
-//						// printf("\t\t\t\t\tB:%lf\n", logSumExp(A));
-//					}
-//					// printf("\t\t\t\t\tB[%d]: %lf\n", k, B[k]);
-//				}
-//				// for(int l = 0; l < 4; l++)
-//				// {
-//				// 	printf("\t\t\t\tB[%d]: %lf\n", l, B[l]);
-//				// }
-//				C[j] = logSumExp(B);
-//				// printf("\t\t\t\tC:%lf\n", logSumExp(B));
-//
-//			}
-//			Like += logSumExp(C);
-//			// printf("\t\t\t\tLike:%lf\n", logSumExp(C));
-//		}
-//	}
-//
-//	//printf("\tLikelihood: %.16f\n", Like);
-//	//printf("\t\t%d,%.16f,%.16f,%.16f,%.16f\n", seq, (1.0-times[1])*(nodeages[treeNum][seq]+times[2]), times[1], times[2], Like);
-//
-//	return -Like; //Notice: a scaling factor of NUMCAT^(number of sites) is missing
-//}
+ //transtion probability matrix has already been diagonalized
+ //this function assumes that the only thing that changes between function calls is the branch lengths or the query sequence and its placement
+ //node1 and node2 are the nodes around the edge to which the sequence has been assigned
+ //seq is the identifer of the sequence
+ //pi are the nucletoide frequencies - this could be made a global to avoid passing them around
+ //Alignment data should be stored in DATA with -1 indicating missing data
+ //upper and lower bounds are parameters 7-10 when 0-counting
+ double getlike_gamma_root_in_trifurcation(double times[3], double parameters[7])
+ {
+ 	int i, j,k, b, c, v, po, node, seq, treeNum; 
+ 	double Like, t[3], A[4], B[4], C[4];
+ 	double *PMAT_ptr_0, *PMAT_ptr_1, *PMAT_ptr_2, *FRACLIKE_ptr;
+ 	//diagonalizaiton has previously been done   
+ 
+ 	if (onDindic==1) {	// Learn more about what these do, seem to be hitting these values
+ 		if (times[2] < parameters[3] || times[2] > parameters[4]){
+ 			return 1000000000.0;//If an actual likelihood is smaler than this we are screwed
+ 		}
+ 	}
+ 	else {
+ 		if ((times[2] < parameters[5] || times[2] > parameters[6]) || (times[1] < parameters[3] || times[1] > parameters[4])){
+ 			return 1000000000.0;//If an actual likelihood is smaler than this we are screwed
+ 		}
+ 	}	
+ 
+ 	node = (int)parameters[2];
+ 	seq = (int)parameters[0];
+ 	treeNum = (int)parameters[1];
+ 
+ 	t[1] = times[2];  //length from node to position where query joins
+ 	t[0] = (times[2]+nodeages[treeNum][node])*times[1]; //length from age of query node to position where query joins
+ 	t[2] = bls[treeNum][node]-times[2]; //length from position where query joins to parent node
+ 	
+ 	make_transition_prob_matrices(t, treeNum);
+ 
+ 	Like=0.0;
+	FRACLIKE_ptr = &FRACLIKE[treeNum][node * numbases[treeNum] * NUMCAT * 8 + startpos[seq] * NUMCAT * 8];
+	//printf("%d\t%d\n", numbases[treeNum], node * numbases[treeNum] * NUMCAT * 8 + startpos[seq] * NUMCAT * 8);
+ 
+ 	// printf("Sequence %d\n", seq);
+ 
+ 	for (i=startpos[seq]; i<readlength[seq]+startpos[seq]; i++){ 
+ 		po = i-startpos[seq];//i keeps track of the positon in the ref sequences while po is the positoon in the read
+ 		b = QUERYDATA[seq][po];
+ 
+ 		// printf("\tBase %d\n", b);
+
+		if (b == -1)
+		{
+			FRACLIKE_ptr += NUMCAT * 8;
+		}
+ 		//if (b!=-1){
+		else {
+ 			//PMAT_ptr_0 = PMAT; 		//0*NUMCAT*4*4
+ 			PMAT_ptr_1 = &PMAT[4*4*4]; 	//1*NUMCAT*4*4
+ 			PMAT_ptr_2 = &PMAT[2*4*4*4]; 	//2*NUMCAT*4*4
+ 			for (j=0; j<NUMCAT; j++){
+ 				// printf("\t\tj: %d\n", j);
+ 				PMAT_ptr_0 = &PMAT[j * 4 * 4 + b * 4];
+ 				for (k=0; k<4; k++){
+ 					//printf("\t\t\tk: %d\n", k);
+ 					// for (v=0; v<4; v++)
+ 					// {
+ 					// 	A[v] = pi[treeNum][v] + PMAT[0][j][v][k] + readlike[seq][po][v];
+ 					// //	//printf("\t\t\t\tpi[%d] is %.16f anf PMAT[0] is %.16f anf reaflike is %.16f\n", v, pi[treeNum][v], PMAT[0][j][v][k], readlike[seq][po][v]);
+ 					// }
+ 					// B[k] = logSumExp(A);
+ 					B[k] = pi[treeNum][b] + *PMAT_ptr_0;
+ 					// printf("\t\t\t\t\tB:%lf\tpi:%lf\tPMAT[0]:%lf\n", B[k], pi[treeNum][b], PMAT_ptr_0);
+ 					PMAT_ptr_0++;
+ 					if (node>=numseq[treeNum]){//If not leaf node. Assumes t,c,g,t)leaf nodes are numbered from 0 to numseq-1
+						for (v=0; v<4; v++)
+ 						{
+ 							// printf("\t\t\t\t\tPMAT[2] is %.16f and FRACLIKE[%d] is %.16f\n", PMAT[2][j][k][v], v, FRACLIKE[treeNum][i][node][j][v]);
+ 							//A[v] = *PMAT_ptr_2 + FRACLIKE[treeNum][i][node][j][v];
+							A[v] = *PMAT_ptr_2 + *FRACLIKE_ptr;
+							//printf("%d: %.16f\n", seq * numbases[treeNum] * NUMCAT * 8 + i * NUMCAT * 8 + j * 8 + v, *FRACLIKE_ptr);
+ 							PMAT_ptr_2++;
+							FRACLIKE_ptr++;
+ 						}
+ 						B[k] += logSumExp(A);
+ 						// printf("\t\t\t\t\tB:%lf\n", logSumExp(A));
+ 						for (v=0; v<4; v++)
+ 						{
+ 							// printf("\t\t\t\t\tPMAT[1] is %.16f and FRACLIKE[%d] is %.16f\n", (PMAT_ptr_1, v+4, FRACLIKE[treeNum][i][node][j][v+4]);
+ 							//A[v] = *PMAT_ptr_1 + FRACLIKE[treeNum][i][node][j][v+4];
+							A[v] = *PMAT_ptr_1 + *FRACLIKE_ptr;
+							//printf("%d: %.16f\n", seq * numbases[treeNum] * NUMCAT * 8 + i * NUMCAT * 8 + j * 8 + v, *FRACLIKE_ptr);
+ 							PMAT_ptr_1++;
+							FRACLIKE_ptr++;
+ 						}
+ 						B[k] += logSumExp(A);
+						FRACLIKE_ptr -= 8;
+ 						// printf("\t\t\t\t\tB:%lf\n", logSumExp(A));	
+ 					}
+ 					else { //If leaf node
+ 						if ((c=DATA[treeNum][node][i])>-1)
+ 						{
+ 							B[k] += *(PMAT_ptr_1+c);
+ 							PMAT_ptr_1 += 4;
+ 						}
+ 						for (v=0; v<4; v++)//add position here into fraclike
+ 						{
+ 							// printf("\t\t\t\t\tPMAT[2] is %.16f and FRACLIKE[%d] is %.16f\n", *PMAT_ptr_2, v, FRACLIKE[treeNum][i][node][j][v]);
+ 							//A[v] = *PMAT_ptr_2 + FRACLIKE[treeNum][i][node][j][v];
+							A[v] = *PMAT_ptr_2 + *FRACLIKE_ptr;
+							//printf("%d: %.16f\n", seq * numbases[treeNum] * NUMCAT * 8 + i * NUMCAT * 8 + j * 8 + v, *FRACLIKE_ptr);
+ 							PMAT_ptr_2++;
+							FRACLIKE_ptr++;
+ 						}
+ 						B[k] += logSumExp(A);
+						FRACLIKE_ptr -= 4;
+ 						// printf("\t\t\t\t\tB:%lf\n", logSumExp(A));
+ 					}
+					//FRACLIKE_ptr -= 8;
+ 					// printf("\t\t\t\t\tB[%d]: %lf\n", k, B[k]);
+ 				}
+				FRACLIKE_ptr += 8;
+ 				// for(int l = 0; l < 4; l++)
+ 				// {
+ 				// 	printf("\t\t\t\tB[%d]: %lf\n", l, B[l]);
+ 				// }
+ 				C[j] = logSumExp(B);
+ 				// printf("\t\t\t\tC:%lf\n", logSumExp(B));
+ 
+ 			}
+ 			Like += logSumExp(C);
+ 			// printf("\t\t\t\tLike:%lf\n", logSumExp(C));
+ 		}
+ 	}
+ 
+ 	//printf("\tLikelihood: %.16f\n", Like);
+ 	//printf("\t\t%d,%.16f,%.16f,%.16f,%.16f,%d,%d,%d\n", seq, (1.0-times[1])*(nodeages[treeNum][seq]+times[2]), times[1], times[2], Like, node * numbases[treeNum] * NUMCAT * 8 + startpos[seq] * NUMCAT * 8, startpos[seq],node * numbases[treeNum] * NUMCAT * 8 + numbases[treeNum] * NUMCAT * 8);
+ 
+ 	return -Like; //Notice: a scaling factor of NUMCAT^(number of sites) is missing
+ }
 
 double getlike_gamma_root_in_trifurcation_reassign(double times[3], double parameters[7])
 {
 	int i, j,k, b, c, v, po, node, seq, treeNum; 
 	double Like, t[3], A[4], B[4], C[4];
-	double *PMAT_ptr_0, *PMAT_ptr_1, *PMAT_ptr_2;
+	double *PMAT_ptr_0, *PMAT_ptr_1, *PMAT_ptr_2, *FRACLIKE_ptr;
 	//diagonalizaiton has previously been done 	
 
 	if (onDindic==1) {	// Learn more about what these do, seem to be hitting these values
 		if (times[2] < parameters[3] || times[2] > parameters[4]){
-			//printf("\t\tError 1: %.16f < %.16f or %.16f > %.16f\n", times[2], parameters[3], times[2], parameters[4]);
 			return 1000000000.0;//If an actual likelihood is smaler than this we are screwed
 		}
 	}
 	else {
 		if ((times[2] < parameters[5] || times[2] > parameters[6]) || (times[1] < parameters[3] || times[1] > parameters[4])){
-			//printf("\t\tError 2: (%.16f < %.16f or %.16f > %.16f) or (%.16f < %.16f or %.16f > %.16f)\n", times[2], parameters[5], times[2], parameters[6], times[1], parameters[3], times[1], parameters[4]);
 			return 1000000000.0;//If an actual likelihood is smaler than this we are screwed
 		}
 	}	
@@ -1609,27 +1583,17 @@ double getlike_gamma_root_in_trifurcation_reassign(double times[3], double param
 	node = (int)parameters[2];
 	seq = (int)parameters[0];
 	treeNum = (int)parameters[1];
-	//	printf("Analysing read %d\n", seq);
-	//Why copy this? TO DO: Remove this copy and change below code to reflect the change
-	//for (i=0; i<4; i++) 
-	//	printf("pi[%d]: %.16lf\t", i, pi[treeNum][i]);
-	//	pi[i]=parameters[i+3];
-	
-	//printf("\n");
 
 	t[1] = times[2];  //length from node to position where query joins
 	t[0] = (times[2]+nodeages[treeNum][node])*times[1]; //length from age of query node to position where query joins
 	t[2] = bls[treeNum][node]-times[2]; //length from position where query joins to parent node
 	
-	// printf("node: %d\tseq: %d\tt0: %.16f\tt1: %.16f\tt2: %.16f\n", node, seq, t[0], t[1], t[2]);
-	//printf("t0: %.16f\tt1: %.16f\tt2: %.16f\n", t[0], t[1], t[2]);
-
 	make_transition_prob_matrices(t, treeNum);
 
-	//printf("Errors setting of %d, sequence %d, assignment %d\n", errors, seq, node);
-
 	Like=0.0;
-
+	// fraclike pointer starts where the read starts in the alignment at the right node
+	FRACLIKE_ptr = &FRACLIKE[treeNum][node * numbases[treeNum] * NUMCAT * 8 + startposTemp[treeNum][seq] * NUMCAT * 8];
+	//printf("%d\t%d\n", numbases[treeNum],node * numbases[treeNum] * NUMCAT * 8 + startposTemp[treeNum][seq] * NUMCAT * 8); 
 	// printf("Sequence %d\n", seq);
 
 	for (i=startposTemp[treeNum][seq]; i<readLengthTemp[treeNum][seq]+startposTemp[treeNum][seq]; i++){ 
@@ -1639,7 +1603,12 @@ double getlike_gamma_root_in_trifurcation_reassign(double times[3], double param
 
 		//printf("\tBase %d\n", b);
 
-		if (b!=-1){
+		if (b == -1)
+		{
+			FRACLIKE_ptr += NUMCAT * 8;
+		}
+		else {
+		//if (b!=-1){
 			//PMAT_ptr_0 = PMAT; 		//0*NUMCAT*4*4
 			PMAT_ptr_1 = &PMAT[4*4*4]; 	//1*NUMCAT*4*4
 			PMAT_ptr_2 = &PMAT[2*4*4*4]; 	//2*NUMCAT*4*4
@@ -1660,27 +1629,36 @@ double getlike_gamma_root_in_trifurcation_reassign(double times[3], double param
 					if (node>=numseq[treeNum]){//If not leaf node. Assumes t,c,g,t)leaf nodes are numbered from 0 to numseq-1
 						for (v=0; v<4; v++)
 						{
-							//printf("\t\t\t\t\tPMAT[1] is %.16f and FRACLIKE[%d] is %.16f\n", *PMAT_ptr_1, v+4, FRACLIKE[treeNum][i][node][j][v+4]);
-							//printf("\t\t\t\t\tPMAT[1][%d][%d][%d] is %.16f\n", j, k, v, *PMAT_ptr_1);
-							//A[v] = PMAT[1+j+k+v] + FRACLIKE[treeNum][i][node][j][v+4];
-							A[v] = *PMAT_ptr_1 + FRACLIKE[treeNum][i][node][j][v+4];
-							PMAT_ptr_1++;
+							// printf("\t\t\t\t\tPMAT[2] is %.16f and FRACLIKE[%d] is %.16f\n", *PMAT_ptr_2, v, FRACLIKE[treeNum][i][node][j][v]);
+							//A[v] = *PMAT_ptr_2 + FRACLIKE[treeNum][i][node][j][v];
+							//printf("\t\tFRACLIKE[%d][%d][%d][%d][%d]:%.16f\t%d\n", treeNum, i, node, j, v, *FRACLIKE_ptr, ptr_pos);
+							A[v] = *PMAT_ptr_2 + *FRACLIKE_ptr;
+							PMAT_ptr_2++;
+							FRACLIKE_ptr++;
+							//ptr_pos++;
 						}
 						B[k] += logSumExp(A);
-						// printf("\t\t\t\t\tB:%lf\n", logSumExp(A));
+
 						for (v=0; v<4; v++)
 						{
-							// printf("\t\t\t\t\tPMAT[2] is %.16f and FRACLIKE[%d] is %.16f\n", PMAT[2][j][k][v], v, FRACLIKE[treeNum][i][node][j][v]);
-							A[v] = PMAT[2+j+k+v] + FRACLIKE[treeNum][i][node][j][v];
+							//printf("\t\t\t\t\tPMAT[1] is %.16f and FRACLIKE[%d] is %.16f\n", *PMAT_ptr_1, v+4, FRACLIKE[treeNum][i][node][j][v+4]);
+							//printf("\t\t\t\t\tPMAT[1][%d][%d][%d] is %.16f\n", j, k, v, *PMAT_ptr_1);
+							//A[v] = *PMAT_ptr_1 + FRACLIKE[treeNum][i][node][j][v+4];
+							//printf("\t\tFRACLIKE[%d][%d][%d][%d][%d]:%.16f\t%d\n", treeNum, i, node, j, v, *FRACLIKE_ptr, ptr_pos);
+							A[v] = *PMAT_ptr_1 + *FRACLIKE_ptr;
+							PMAT_ptr_1++;
+							FRACLIKE_ptr++;
+							//ptr_pos++;
 						}
 						B[k] += logSumExp(A);
+						FRACLIKE_ptr -= 8;
+						// printf("\t\t\t\t\tB:%lf\n", logSumExp(A));	
 						// printf("\t\t\t\t\tB:%lf\n", logSumExp(A));
 					}
 					else { //If leaf node
 						if ((c=DATA[treeNum][node][i])>-1)
 						{
-							//B[k] += PMAT[1+j+k+c];
-							B[k] += *PMAT_ptr_1+c;
+							B[k] += *(PMAT_ptr_1+c);
 							//printf("%.16f\t%d %d\n", *(PMAT_ptr_1 + c), c, 5-c);
 							PMAT_ptr_1 += 4;
 							
@@ -1688,15 +1666,21 @@ double getlike_gamma_root_in_trifurcation_reassign(double times[3], double param
 						for (v=0; v<4; v++)//add position here into fraclike
 						{
 							//printf("\t\t\t\t\tPMAT[2] is %.16f and FRACLIKE[%d] is %.16f\n", *PMAT_ptr_2, v, FRACLIKE[treeNum][i][node][j][v]);
-							//A[v] = PMAT[2+j+k+v] + FRACLIKE[treeNum][i][node][j][v];
-							A[v] = *PMAT_ptr_2 + FRACLIKE[treeNum][i][node][j][v];
+							//A[v] = *PMAT_ptr_2 + FRACLIKE[treeNum][i][node][j][v];
+							//printf("\t\tFRACLIKE[%d][%d][%d][%d][%d]:%.16f\t%d\n", treeNum, i, node, j, v, *FRACLIKE_ptr, ptr_pos);
+							A[v] = *PMAT_ptr_2 + *FRACLIKE_ptr;
 							PMAT_ptr_2++;
+							FRACLIKE_ptr++;
+							//ptr_pos++;
 						}
 						B[k] += logSumExp(A);
+						FRACLIKE_ptr-=4; //because no conditional likelihood
+						//ptr_pos+=4;
 						// printf("\t\t\t\t\tB:%lf\n", logSumExp(A));
 					}
 					// printf("\t\t\t\t\tB[%d]: %lf\n", k, B[k]);
 				}
+				FRACLIKE_ptr += 8;
 				// for(int l = 0; l < 4; l++)
 				// {
 				// 	printf("\t\t\t\tB[%d]: %lf\n", l, B[l]);
@@ -1716,325 +1700,249 @@ double getlike_gamma_root_in_trifurcation_reassign(double times[3], double param
 	return -Like; //Notice: a scaling factor of NUMCAT^(number of sites) is missing
 }
 
-//double transformBack(double value, double max)
-//{
-//	return(max - (max/value));
-//}
-//
-//// Needs to be able to determine values to test due to transformation
-//double getlike_gamma_root_in_trifurcation_reassign_transform(double times[3], double parameters[9])
-//{
-//	int i, j,k, b, c, v, po, node, seq, treeNum; 
-//	double Like, t[3], A[4], B[4], C[4];
-//	//diagonalizaiton has previously been done   
-//
-//	if (onDindic==1) {	// Learn more about what these do, seem to be hitting these values
-//		if (times[2] < parameters[3] || times[2] > parameters[4]){
-//			//printf("\t\tError 1: %.16f < %.16f or %.16f > %.16f\n", times[2], parameters[3], times[2], parameters[4]);
-//			return 1000000000.0;//If an actual likelihood is smaler than this we are screwed
-//		}
-//	}
-//	else {
-//		if ((times[2] < parameters[5] || times[2] > parameters[6]) || (times[1] < parameters[3] || times[1] > parameters[4])){
-//			//printf("\t\tError 2: (%.16f < %.16f or %.16f > %.16f) or (%.16f < %.16f or %.16f > %.16f)\n", times[2], parameters[5], times[2], parameters[6], times[1], parameters[3], times[1], parameters[4]);
-//			return 1000000000.0;//If an actual likelihood is smaler than this we are screwed
-//		}
-//	}	
-//
-//	node = (int)parameters[2];
-//	seq = (int)parameters[0];
-//	treeNum = (int)parameters[1];
-//	//	printf("Analysing read %d\n", seq);
-//	//Why copy this? TO DO: Remove this copy and change below code to reflect the change
-//	//for (i=0; i<4; i++) 
-//	//	printf("pi[%d]: %.16lf\t", i, pi[treeNum][i]);
-//	//	pi[i]=parameters[i+3];
-//	
-//	//printf("\n");
-//
-//	t[1] = transformBack(times[2], parameters[8]);  //length from node to position where query joins
-//	t[0] = (times[2]+nodeages[treeNum][node])*transformBack(times[1], parameters[7]); //length from age of query node to position where query joins
-//	t[2] = bls[treeNum][node]-transformBack(times[2], parameters[8]); //length from position where query joins to parent node
-//	
-//	// printf("node: %d\tseq: %d\tt0: %.16f\tt1: %.16f\tt2: %.16f\n", node, seq, t[0], t[1], t[2]);
-//	//printf("t0: %.16f\tt1: %.16f\tt2: %.16f\n", t[0], t[1], t[2]);
-//
-//	make_transition_prob_matrices(t, treeNum);
-//
-//	//printf("Errors setting of %d, sequence %d, assignment %d\n", errors, seq, node);
-//
-//	Like=0.0;
-//
-//	// printf("Sequence %d\n", seq);
-//
-//	for (i=startposTemp[treeNum][seq]; i<readLengthTemp[treeNum][seq]+startposTemp[treeNum][seq]; i++){ 
-//		po = i-startposTemp[treeNum][seq];//i keeps track of the positon in the ref sequences while po is the positoon in the read
-//		//b = QUERYDATA[seq][po];
-//		b = readsTreeSorted[treeNum][seq][po];
-//
-//		// printf("\tBase %d\n", b);
-//
-//		if (b!=-1){
-//			for (j=0; j<NUMCAT; j++){
-//				// printf("\t\tj: %d\n", j);
-//				for (k=0; k<4; k++){
-//					//printf("\t\t\tk: %d\n", k);
-//					// for (v=0; v<4; v++)
-//					// {
-//					//	 A[v] = pi[treeNum][v] + PMAT[0][j][v][k] + readLikeTemp[treeNum][seq][po][v];
-//					// //	//printf("\t\t\t\tpi[%d] is %.16f anf PMAT[0] is %.16f anf reaflike is %.16f\n", v, pi[treeNum][v], PMAT[0][j][v][k], readLikeTemp[treeNum][seq][po][v]);
-//					// }
-//					// B[k] = logSumExp(A);
-//					B[k] = pi[treeNum][b] + PMAT[0][j][b][k];
-//					// printf("\t\t\t\t\tB:%lf\tpi:%lf\tPMAT[0]:%lf\n", B[k], pi[treeNum][b], PMAT[0][j][b][k]);
-//					if (node>=numseq[treeNum]){//If not leaf node. Assumes t,c,g,t)leaf nodes are numbered from 0 to numseq-1
-//						for (v=0; v<4; v++)
-//						{
-//							// printf("\t\t\t\t\tPMAT[1] is %.16f and FRACLIKE[%d] is %.16f\n", PMAT[1][j][k][v], v+4, FRACLIKE[treeNum][i][node][j][v+4]);
-//							A[v] = PMAT[1][j][k][v] + FRACLIKE[treeNum][i][node][j][v+4];
-//						}
-//						B[k] += logSumExp(A);
-//						// printf("\t\t\t\t\tB:%lf\n", logSumExp(A));
-//						for (v=0; v<4; v++)
-//						{
-//							// printf("\t\t\t\t\tPMAT[2] is %.16f and FRACLIKE[%d] is %.16f\n", PMAT[2][j][k][v], v, FRACLIKE[treeNum][i][node][j][v]);
-//							A[v] = PMAT[2][j][k][v] + FRACLIKE[treeNum][i][node][j][v];
-//						}
-//						B[k] += logSumExp(A);
-//						// printf("\t\t\t\t\tB:%lf\n", logSumExp(A));
-//					}
-//					else { //If leaf node
-//						if ((c=DATA[treeNum][node][i])>-1)
-//						{
-//							B[k] += PMAT[1][j][k][c];
-//						}
-//						for (v=0; v<4; v++)//add position here into fraclike
-//						{
-//							// printf("\t\t\t\t\tPMAT[2] is %.16f and FRACLIKE[%d] is %.16f\n", PMAT[2][j][k][v], v, FRACLIKE[treeNum][i][node][j][v]);
-//							A[v] = PMAT[2][j][k][v] + FRACLIKE[treeNum][i][node][j][v];
-//						}
-//						B[k] += logSumExp(A);
-//						// printf("\t\t\t\t\tB:%lf\n", logSumExp(A));
-//					}
-//					// printf("\t\t\t\t\tB[%d]: %lf\n", k, B[k]);
-//				}
-//				// for(int l = 0; l < 4; l++)
-//				// {
-//				// 	printf("\t\t\t\tB[%d]: %lf\n", l, B[l]);
-//				// }
-//				C[j] = logSumExp(B);
-//				// printf("\t\t\t\tC:%lf\n", logSumExp(B));
-//
-//			}
-//			Like += logSumExp(C);
-//			// printf("\t\t\t\tLike:%lf\n", logSumExp(C));
-//		}
-//	}
-//
-//	//printf("\tLikelihood: %.16f\n", Like);
-//	//printf("\t\t%d,%f,%f,%f,%f\n", seq, (1.0-times[1])*(nodeages[treeNum][seq]+times[2]), times[1], times[2], Like);
-//
-//	return -Like; //Notice: a scaling factor of NUMCAT^(number of sites) is missing
-//}
-//
-//double getlike_gamma_root_in_trifurcation_Print_Lik(double times[3], double parameters[7])
-//{
-//	int i, j,k, b, c, v, po, node, seq, treeNum; 
-//	double Like, t[3], A[4], B[4], C[4];
-//	//diagonalizaiton has previously been done   
-//
-//	if (onDindic==1) {	// Learn more about what these do, seem to be hitting these values
-//		if (times[2] < parameters[3] || times[2] > parameters[4]){
-//			//printf("\t\tError 1: %.16f < %.16f or %.16f > %.16f\n", times[2], parameters[3], times[2], parameters[4]);
-//			return 1000000000.0;//If an actual likelihood is smaler than this we are screwed
-//		}
-//	}
-//	else {
-//		if ((times[2] < parameters[5] || times[2] > parameters[6]) || (times[1] < parameters[3] || times[1] > parameters[4])){
-//			//printf("\t\tError 2: (%.16f < %.16f or %.16f > %.16f) or (%.16f < %.16f or %.16f > %.16f)\n", times[2], parameters[5], times[2], parameters[6], times[1], parameters[3], times[1], parameters[4]);
-//			return 1000000000.0;//If an actual likelihood is smaler than this we are screwed
-//		}
-//	}	
-//
-//	node = (int)parameters[2];
-//	seq = (int)parameters[0];
-//	treeNum = (int)parameters[1];
-//	//	printf("Analysing read %d\n", seq);
-//	//Why copy this? TO DO: Remove this copy and change below code to reflect the change
-//	//for (i=0; i<4; i++) 
-//	//	printf("pi[%d]: %.16lf\t", i, pi[treeNum][i]);
-//	//	pi[i]=parameters[i+3];
-//	
-//	//printf("\n");
-//
-//	t[1] = times[2];  //length from node to position where query joins
-//	t[0] = (times[2]+nodeages[treeNum][node])*times[1]; //length from age of query node to position where query joins
-//	t[2] = bls[treeNum][node]-times[2]; //length from position where query joins to parent node
-//	
-//	//printf("node: %d\tseq: %d\ttree: %d\tt0: %.16f\tt1: %.16f\tt2: %.16f\n", node, seq, treeNum, t[0], t[1], t[2]);
-//	//printf("t0: %.16f\tt1: %.16f\tt2: %.16f\n", t[0], t[1], t[2]);
-//
-//	make_transition_prob_matrices(t, treeNum);
-//
-//	//printf("Errors setting of %d, sequence %d, assignment %d\n", errors, seq, node);
-//
-//	Like=0.0;
-//
-//	// printf("Sequence %d\n", seq);
-//
-//	for (i=startpos[seq]; i<readlength[seq]+startpos[seq]; i++){ 
-//		po = i-startpos[seq];//i keeps track of the positon in the ref sequences while po is the positoon in the read
-//		b = QUERYDATA[seq][po];
-//
-//		//printf("\tBase %d of pos %d with start %d and readlength %d\n", b, po, startpos[seq], readlength[seq]);
-//
-//		if (b!=-1){
-//			for (j=0; j<NUMCAT; j++){
-//				// printf("\t\tj: %d\n", j);
-//				for (k=0; k<4; k++){
-//					//printf("\t\t\tk: %d\n", k);
-//					//for (v=0; v<4; v++)
-//					//{
-//					//	A[v] = pi[treeNum][v] + PMAT[0][j][v][k] + readlike[seq][po][v];
-//					//	//printf("\t\t\t\tpi[%d] is %.16f anf PMAT[0] is %.16f anf reaflike is %.16f\n", v, pi[treeNum][v], PMAT[0][j][v][k], readlike[seq][po][v]);
-//					//}
-//					//B[k] = logSumExp(A);
-//					B[k] = pi[treeNum][b] + PMAT[0][j][b][k];
-//					// printf("\t\t\t\t\tB:%lf\tpi:%lf\tPMAT[0]:%lf\n", B[k], pi[treeNum][b], PMAT[0][j][b][k]);
-//					if (node>=numseq[treeNum]){//If not leaf node. Assumes the leaf nodes are numbered from 0 to numseq-1
-//						for (v=0; v<4; v++)
-//						{
-//							// printf("\t\t\t\t\tPMAT[1] is %.16f and FRACLIKE[%d] is %.16f\n", PMAT[1][j][k][v], v+4, FRACLIKE[treeNum][i][node][j][v+4]);
-//							A[v] = PMAT[1][j][k][v] + FRACLIKE[treeNum][i][node][j][v+4];
-//						}
-//						B[k] += logSumExp(A);
-//						// printf("\t\t\t\t\tB:%lf\n", logSumExp(A));
-//						for (v=0; v<4; v++)
-//						{
-//							// printf("\t\t\t\t\tPMAT[2] is %.16f and FRACLIKE[%d] is %.16f\n", PMAT[2][j][k][v], v, FRACLIKE[treeNum][i][node][j][v]);
-//							A[v] = PMAT[2][j][k][v] + FRACLIKE[treeNum][i][node][j][v];
-//						}
-//						B[k] += logSumExp(A);
-//						// printf("\t\t\t\t\tB:%lf\n", logSumExp(A));
-//					}
-//					else { //If leaf node
-//						if ((c=DATA[treeNum][node][i])>-1)
-//						{
-//							B[k] += PMAT[1][j][k][c];
-//						}
-//						for (v=0; v<4; v++)//add position here into fraclike
-//						{
-//							// printf("\t\t\t\t\tPMAT[2] is %.16f and FRACLIKE[%d] is %.16f\n", PMAT[2][j][k][v], v, FRACLIKE[treeNum][i][node][j][v]);
-//							A[v] = PMAT[2][j][k][v] + FRACLIKE[treeNum][i][node][j][v];
-//						}
-//						B[k] += logSumExp(A);
-//						// printf("\t\t\t\t\tB:%lf\n", logSumExp(A));
-//					}
-//					// printf("\t\t\t\t\tB[%d]: %lf\n", k, B[k]);
-//				}
-//				// for(int l = 0; l < 4; l++)
-//				// {
-//				// 	printf("\t\t\t\tB[%d]: %lf\n", l, B[l]);
-//				// }
-//				C[j] = logSumExp(B);
-//				// printf("\t\t\t\tC:%lf\n", logSumExp(B));
-//
-//			}
-//			Like += logSumExp(C);
-//			// printf("\t\t\t\tLike:%lf\n", logSumExp(C));
-//		}
-//	}
-//
-//	//printf("\tLikelihood: %.16f\n", Like);
-//	printf("\t\t%d,%d,%d,%.16f,%.16f,%.16f,%.16f\n", seq, node, treeNum, (1.0-times[1])*(nodeages[treeNum][seq]+times[2]), times[1], times[2], Like);
-//
-//	return -Like; //Notice: a scaling factor of NUMCAT^(number of sites) is missing
-//}
-//
-//// Same as above, but used to print out site scores
-//double getlike_gamma_root_in_trifurcation_Print(double times[3], double parameters[3])
-//{
-//	int i, j,k, b, c, v, po, node, seq, treeNum; 
-//	double Like, t[3], A[4], B[4], C[4];
-//
-//	//Don't need to do the error checking like normally
-//
-//	node = (int)parameters[2];
-//	seq = (int)parameters[0];
-//	treeNum = (int)parameters[1];
-//	//for (i=0; i<4; i++) 
-//	//	pi[i]=parameters[i+3];
-//
-//	t[1] = times[2];  //length from node to position where query joins
-//	t[0] = (times[2]+nodeages[treeNum][node])*times[1]; //length from age of query node to position where query joins
-//	t[2] = bls[treeNum][node]-times[2]; //length from position where query joins to parent node
-//	
-//	//printf("node: %d\tseq: %d\ttree: %d\tt0: %.16f\tt1: %.16f\tt2: %.16f\n", node, seq, treeNum, t[0], t[1], t[2]);
-//
-//	make_transition_prob_matrices(t, treeNum);
-//
-//
-//	Like=0.0;
-//
-//
-//	for (i=startpos[seq]; i<readlength[seq]+startpos[seq]; i++){ 
-//		po = i-startpos[seq];
-//		b = QUERYDATA[seq][po];
-//
-//
-//		if (b!=-1){
-//			for (j=0; j<NUMCAT; j++){
-//				for (k=0; k<4; k++){
-//					//for (v=0; v<4; v++)
-//					//{
-//					//	A[v] = pi[treeNum][v] + PMAT[0][j][v][k] + readlike[seq][po][v];
-//					//}
-//					//B[k] = logSumExp(A);
-//					B[k] = pi[treeNum][b] + PMAT[0][j][b][k];
-//					if (node>=numseq[treeNum]){//If not leaf node. Assumes the leaf nodes are numbered from 0 to numseq-1
-//						for (v=0; v<4; v++)
-//						{
-//							A[v] = PMAT[1][j][k][v] + FRACLIKE[treeNum][i][node][j][v+4];
-//						}
-//						B[k] += logSumExp(A);
-//						for (v=0; v<4; v++)
-//						{
-//							A[v] = PMAT[2][j][k][v] + FRACLIKE[treeNum][i][node][j][v];
-//						}
-//						B[k] += logSumExp(A);
-//					}
-//					else { //If leaf node
-//						if ((c=DATA[treeNum][node][i])>-1)
-//						{
-//							B[k] += PMAT[1][j][k][c];
-//						}
-//						for (v=0; v<4; v++)//add position here into fraclike
-//						{
-//							A[v] = PMAT[2][j][k][v] + FRACLIKE[treeNum][i][node][j][v];
-//						}
-//						B[k] += logSumExp(A);
-//					}
-//				}
-//				C[j] = logSumExp(B);
-//
-//			}
-//			printf("%d, %.16f\n", i, logSumExp(C));
-//			Like += logSumExp(C);
-//		}
-//	}
-//
-//	return -Like; //Notice: a scaling factor of NUMCAT^(number of sites) is missing
-//}
-//
-//double getlike_gamma_root_in_trifurcation_L0(double times[3], double parameters[7])
-//{
-//
-//	double T[3];
-//
-//	T[2] = times[1];  
-//	T[1] = 1.0;
-//	return getlike_gamma_root_in_trifurcation(T, parameters);
-//}
+ double getlike_gamma_root_in_trifurcation_Print_Lik(double times[3], double parameters[7])
+ {
+ 	int i, j,k, b, c, v, po, node, seq, treeNum; 
+ 	double Like, t[3], A[4], B[4], C[4];
+ 	double *PMAT_ptr_0, *PMAT_ptr_1, *PMAT_ptr_2, *FRACLIKE_ptr;
+ 	//diagonalizaiton has previously been done   
+ 
+ 	if (onDindic==1) {	// Learn more about what these do, seem to be hitting these values
+ 		if (times[2] < parameters[3] || times[2] > parameters[4]){
+ 			//printf("\t\tError 1: %.16f < %.16f or %.16f > %.16f\n", times[2], parameters[3], times[2], parameters[4]);
+ 			return 1000000000.0;//If an actual likelihood is smaler than this we are screwed
+ 		}
+ 	}
+ 	else {
+ 		if ((times[2] < parameters[5] || times[2] > parameters[6]) || (times[1] < parameters[3] || times[1] > parameters[4])){
+ 			//printf("\t\tError 2: (%.16f < %.16f or %.16f > %.16f) or (%.16f < %.16f or %.16f > %.16f)\n", times[2], parameters[5], times[2], parameters[6], times[1], parameters[3], times[1], parameters[4]);
+ 			return 1000000000.0;//If an actual likelihood is smaler than this we are screwed
+ 		}
+ 	}	
+ 
+ 	node = (int)parameters[2];
+ 	seq = (int)parameters[0];
+ 	treeNum = (int)parameters[1];
+ 	//	printf("Analysing read %d\n", seq);
+ 	//Why copy this? TO DO: Remove this copy and change below code to reflect the change
+ 	//for (i=0; i<4; i++) 
+ 	//	printf("pi[%d]: %.16lf\t", i, pi[treeNum][i]);
+ 	//	pi[i]=parameters[i+3];
+ 	
+ 	//printf("\n");
+ 
+ 	t[1] = times[2];  //length from node to position where query joins
+ 	t[0] = (times[2]+nodeages[treeNum][node])*times[1]; //length from age of query node to position where query joins
+ 	t[2] = bls[treeNum][node]-times[2]; //length from position where query joins to parent node
+ 	
+ 	//printf("node: %d\tseq: %d\ttree: %d\tt0: %.16f\tt1: %.16f\tt2: %.16f\n", node, seq, treeNum, t[0], t[1], t[2]);
+ 	//printf("t0: %.16f\tt1: %.16f\tt2: %.16f\n", t[0], t[1], t[2]);
+ 
+ 	make_transition_prob_matrices(t, treeNum);
+ 
+ 	//printf("Errors setting of %d, sequence %d, assignment %d\n", errors, seq, node);
+ 
+ 	Like=0.0;
+
+	// fraclike pointer starts where the read starts in the alignment at the right node
+	FRACLIKE_ptr = &FRACLIKE[treeNum][node * numbases[treeNum] * NUMCAT * 8 + startpos[seq] * NUMCAT * 8];
+ 
+ 	// printf("Sequence %d\n", seq);
+ 
+ 	for (i=startpos[seq]; i<readlength[seq]+startpos[seq]; i++){ 
+ 		po = i-startpos[seq];//i keeps track of the positon in the ref sequences while po is the positoon in the read
+ 		b = QUERYDATA[seq][po];
+ 
+ 		//printf("\tBase %d of pos %d with start %d and readlength %d\n", b, po, startpos[seq], readlength[seq]);
+ 
+ 		if (b==-1){
+			FRACLIKE_ptr += 32; // NUMCAT (4) * 8
+		}
+		else{
+ 			//PMAT_ptr_0 = PMAT; 		//0*NUMCAT*4*4
+ 			PMAT_ptr_1 = &PMAT[64]; 	//1*NUMCAT*4*4 (4 * 4 * 4)
+ 			PMAT_ptr_2 = &PMAT[128]; 	//2*NUMCAT*4*4 (2 * 4 * 4 * 4)
+ 			for (j=0; j<NUMCAT; j++){
+ 				PMAT_ptr_0 = &PMAT[j * 16 + b * 4];
+ 				// printf("\t\tj: %d\n", j);
+ 				for (k=0; k<4; k++){
+ 					//printf("\t\t\tk: %d\n", k);
+ 					//for (v=0; v<4; v++)
+ 					//{
+ 					//	A[v] = pi[treeNum][v] + PMAT[0][j][v][k] + readlike[seq][po][v];
+ 					//	//printf("\t\t\t\tpi[%d] is %.16f anf PMAT[0] is %.16f anf reaflike is %.16f\n", v, pi[treeNum][v], PMAT[0][j][v][k], readlike[seq][po][v]);
+ 					//}
+ 					//B[k] = logSumExp(A);
+ 					B[k] = pi[treeNum][b] + *PMAT_ptr_0;
+ 					// printf("\t\t\t\t\tB:%lf\tpi:%lf\tPMAT[0]:%lf\n", B[k], pi[treeNum][b], PMAT[0][j][b][k]);
+ 					PMAT_ptr_0++;
+ 					if (node>=numseq[treeNum]){//If not leaf node. Assumes the leaf nodes are numbered from 0 to numseq-1
+						for (v=0; v<4; v++)
+ 						{
+ 							// printf("\t\t\t\t\tPMAT[2] is %.16f and FRACLIKE[%d] is %.16f\n", PMAT[2][j][k][v], v, FRACLIKE[treeNum][i][node][j][v]);
+ 							//A[v] = *PMAT_ptr_2 + FRACLIKE[treeNum][i][node][j][v];
+							A[v] = *PMAT_ptr_2 + *FRACLIKE_ptr;
+ 							PMAT_ptr_2++;
+							FRACLIKE_ptr++;
+ 						}
+ 						B[k] += logSumExp(A);
+ 						for (v=0; v<4; v++)
+ 						{
+ 							// printf("\t\t\t\t\tPMAT[1] is %.16f and FRACLIKE[%d] is %.16f\n", PMAT[1][j][k][v], v+4, FRACLIKE[treeNum][i][node][j][v+4]);
+ 							//A[v] = *PMAT_ptr_1 + FRACLIKE[treeNum][i][node][j][v+4];
+							A[v] = *PMAT_ptr_1 + *FRACLIKE_ptr;
+ 							PMAT_ptr_1++;
+							FRACLIKE_ptr++;
+ 						}
+ 						B[k] += logSumExp(A);
+						FRACLIKE_ptr -= 8;
+ 						// printf("\t\t\t\t\tB:%lf\n", logSumExp(A));	
+ 						// printf("\t\t\t\t\tB:%lf\n", logSumExp(A));
+ 					}
+ 					else { //If leaf node
+ 						if ((c=DATA[treeNum][node][i])>-1)
+ 						{
+ 							B[k] += *(PMAT_ptr_1+c);
+ 							PMAT_ptr_1 += 4;
+ 						}
+ 						for (v=0; v<4; v++)//add position here into fraclike
+ 						{
+ 							// printf("\t\t\t\t\tPMAT[2] is %.16f and FRACLIKE[%d] is %.16f\n", PMAT[2][j][k][v], v, FRACLIKE[treeNum][i][node][j][v]);
+ 							//A[v] = *PMAT_ptr_2 + FRACLIKE[treeNum][i][node][j][v];
+							A[v] = *PMAT_ptr_2 + *FRACLIKE_ptr;
+ 							PMAT_ptr_2++;
+							FRACLIKE_ptr++;
+ 						}
+ 						B[k] += logSumExp(A);
+						FRACLIKE_ptr-=4;
+ 						// printf("\t\t\t\t\tB:%lf\n", logSumExp(A));
+ 					}
+ 					// printf("\t\t\t\t\tB[%d]: %lf\n", k, B[k]);
+ 				}
+				FRACLIKE_ptr += 8;
+ 				// for(int l = 0; l < 4; l++)
+ 				// {
+ 				// 	printf("\t\t\t\tB[%d]: %lf\n", l, B[l]);
+ 				// }
+ 				C[j] = logSumExp(B);
+ 				// printf("\t\t\t\tC:%lf\n", logSumExp(B));
+ 
+ 			}
+ 			Like += logSumExp(C);
+ 			// printf("\t\t\t\tLike:%lf\n", logSumExp(C));
+ 		}
+ 	}
+ 
+ 	//printf("\tLikelihood: %.16f\n", Like);
+ 	printf("\t\t%d,%d,%d,%.16f,%.16f,%.16f,%.16f\n", seq, node, treeNum, (1.0-times[1])*(nodeages[treeNum][seq]+times[2]), times[1], times[2], Like);
+ 
+ 	return -Like; //Notice: a scaling factor of NUMCAT^(number of sites) is missing
+ }
+ 
+// Same as above, but used to print out site scores
+double getlike_gamma_root_in_trifurcation_Print(double times[3], double parameters[3])
+{
+	int i, j,k, b, c, v, po, node, seq, treeNum; 
+	double Like, t[3], A[4], B[4], C[4];
+	double *PMAT_ptr_0, *PMAT_ptr_1, *PMAT_ptr_2, *FRACLIKE_ptr;
+
+	//Don't need to do the error checking like normally
+
+	node = (int)parameters[2];
+	seq = (int)parameters[0];
+	treeNum = (int)parameters[1];
+	//for (i=0; i<4; i++) 
+	//	pi[i]=parameters[i+3];
+
+	t[1] = times[2];  //length from node to position where query joins
+	t[0] = (times[2]+nodeages[treeNum][node])*times[1]; //length from age of query node to position where query joins
+	t[2] = bls[treeNum][node]-times[2]; //length from position where query joins to parent node
+	
+	//printf("node: %d\tseq: %d\ttree: %d\tt0: %.16f\tt1: %.16f\tt2: %.16f\n", node, seq, treeNum, t[0], t[1], t[2]);
+
+	make_transition_prob_matrices(t, treeNum);
+
+
+	Like=0.0;
+	// fraclike pointer starts where the read starts in the alignment at the right node
+	FRACLIKE_ptr = &FRACLIKE[treeNum][node * numbases[treeNum] * NUMCAT * 8 + startpos[seq] * NUMCAT * 8];
+
+	for (i=startpos[seq]; i<readlength[seq]+startpos[seq]; i++){ 
+		po = i-startpos[seq];
+		b = QUERYDATA[seq][po];
+
+
+		if (b==-1){
+			FRACLIKE_ptr += NUMCAT * 8;
+		}
+		else{
+			//PMAT_ptr_0 = PMAT; 		//0*NUMCAT*4*4
+			PMAT_ptr_1 = &PMAT[4*4*4]; 	//1*NUMCAT*4*4
+			PMAT_ptr_2 = &PMAT[2*4*4*4]; 	//2*NUMCAT*4*4
+
+			for (j=0; j<NUMCAT; j++){
+				PMAT_ptr_0 = &PMAT[j * 4 * 4 + b * 4];
+				for (k=0; k<4; k++){
+					//for (v=0; v<4; v++)
+					//{
+					//	A[v] = pi[treeNum][v] + PMAT[0][j][v][k] + readlike[seq][po][v];
+					//}
+					//B[k] = logSumExp(A);
+					B[k] = pi[treeNum][b] + *PMAT_ptr_0;
+					PMAT_ptr_0++;
+					if (node>=numseq[treeNum]){//If not leaf node. Assumes the leaf nodes are numbered from 0 to numseq-1
+						for (v=0; v<4; v++)
+						{
+							A[v] = *PMAT_ptr_2 + *FRACLIKE_ptr;
+							PMAT_ptr_2++;
+							FRACLIKE_ptr++;
+						}
+						B[k] += logSumExp(A);
+						for (v=0; v<4; v++)
+						{
+							A[v] = *PMAT_ptr_1 + *FRACLIKE_ptr;
+							PMAT_ptr_1++;
+							FRACLIKE_ptr++;
+						}
+						B[k] += logSumExp(A);	
+						FRACLIKE_ptr -= 8;						
+					}
+					else { //If leaf node
+						if ((c=DATA[treeNum][node][i])>-1)
+						{
+							B[k] += *(PMAT_ptr_1+c);
+							PMAT_ptr_1 += 4;
+						}
+						for (v=0; v<4; v++)//add position here into fraclike
+						{
+							A[v] = *PMAT_ptr_2 + *FRACLIKE_ptr;
+							PMAT_ptr_2++;
+						}
+						B[k] += logSumExp(A);
+						FRACLIKE_ptr-=4;
+					}
+				}
+				FRACLIKE_ptr += 8;
+				C[j] = logSumExp(B);
+
+			}
+			printf("%d, %.16f\n", i, logSumExp(C));
+			Like += logSumExp(C);
+		}
+	}
+
+	return -Like; //Notice: a scaling factor of NUMCAT^(number of sites) is missing
+}
+
+double getlike_gamma_root_in_trifurcation_L0(double times[3], double parameters[7])
+{
+
+	double T[3];
+
+	T[2] = times[1];  
+	T[1] = 1.0;
+	return getlike_gamma_root_in_trifurcation(T, parameters);
+}
 
 double getlike_gamma_root_in_trifurcation_testAge_reassign(double rootPlace, double parameters[8])
 {
@@ -2069,53 +1977,53 @@ double getlike_gamma_root_in_trifurcation_testAge_reassign(double rootPlace, dou
 	return getlike_gamma_root_in_trifurcation_reassign(T, param);
 }
 
-//double getlike_gamma_root_in_trifurcation_testAge(double rootPlace, double parameters[7])
-//{
-//	double T[3], returnValue;
-//
-//	T[2] = rootPlace;
-//	T[1] = 1.0 - testAge/(nodeages[(int)parameters[1]][(int)parameters[2]] + T[2]);
-//
-//	// Since its been switched to 2D optimization, allow for the bounds to catch <0 and >1
-//	if (T[1] < 0.0)
-//	{
-//		// This means that the testAge > node + T[2], requiring a "negative" branch. So changing to 0 does not make sense and should not be done
-//		//printf("\t\ttestAge of %.16f: T[1] < 0.0 of %.16f!!\n", testAge, T[1]); 
-//
-//
-//
-//		return 1000000000.0;
-//	}
-//	else if (T[1] > 1.0)	//This must be between 0 and 1
-//	{
-//		// This only would happen if negative T[2] + node age occurs, which shouldn't? Again, makes more sense to penalize heavily with high likelihood instead of changing to 1
-//		//printf("\t\ttestAge of %.16f: T[1] > 1.0 of %.16f!!\n", testAge, T[1]);
-//		return 1000000000.0;
-//	}
-//
-//	return getlike_gamma_root_in_trifurcation(T, parameters);
-//}
-//
-//double getlike_gamma_root_in_trifurcation_testRoot(double branchLength, double parameters[7])
-//{
-//	double T[3], returnValue;
-//
-//	//printf("Branch length %.16f and rooted %.16f\n", branchLength, rooted);
-//
-//	T[2] = rooted;
-//	T[1] = branchLength;
-//
-//	if (T[1] < 0.0)
-//	{
-//		return 1000000000.0;
-//	}
-//	else if (T[1] > 1.0)	//This must be between 0 and 1
-//	{
-//		return 1000000000.0;
-//	}
-//
-//	return getlike_gamma_root_in_trifurcation(T, parameters);
-//}
+double getlike_gamma_root_in_trifurcation_testAge(double rootPlace, double parameters[7])
+{
+	double T[3], returnValue;
+
+	T[2] = rootPlace;
+	T[1] = 1.0 - testAge/(nodeages[(int)parameters[1]][(int)parameters[2]] + T[2]);
+
+	// Since its been switched to 2D optimization, allow for the bounds to catch <0 and >1
+	if (T[1] < 0.0)
+	{
+		// This means that the testAge > node + T[2], requiring a "negative" branch. So changing to 0 does not make sense and should not be done
+		//printf("\t\ttestAge of %.16f: T[1] < 0.0 of %.16f!!\n", testAge, T[1]); 
+
+
+
+		return 1000000000.0;
+	}
+	else if (T[1] > 1.0)	//This must be between 0 and 1
+	{
+		// This only would happen if negative T[2] + node age occurs, which shouldn't? Again, makes more sense to penalize heavily with high likelihood instead of changing to 1
+		//printf("\t\ttestAge of %.16f: T[1] > 1.0 of %.16f!!\n", testAge, T[1]);
+		return 1000000000.0;
+	}
+
+	return getlike_gamma_root_in_trifurcation(T, parameters);
+}
+
+double getlike_gamma_root_in_trifurcation_testRoot(double branchLength, double parameters[7])
+{
+	double T[3], returnValue;
+
+	//printf("Branch length %.16f and rooted %.16f\n", branchLength, rooted);
+
+	T[2] = rooted;
+	T[1] = branchLength;
+
+	if (T[1] < 0.0)
+	{
+		return 1000000000.0;
+	}
+	else if (T[1] > 1.0)	//This must be between 0 and 1
+	{
+		return 1000000000.0;
+	}
+
+	return getlike_gamma_root_in_trifurcation(T, parameters);
+}
 
 
 void inittransitionmatrix()
@@ -2321,22 +2229,9 @@ void get_fractionalike(int treeNum)
 	double a;
 	char c;
 
-	//fractional likelihoods. dimension: [numbase][2*numseq-1][NUMCAT][4 (leaf nodes) or 8 (internal nodes)]
-	FRACLIKE[treeNum] = (double ****)malloc(numbase*(sizeof(double***)));
-	for (i=0; i<numbase; i++){
-		FRACLIKE[treeNum][i] = (double ***) malloc((2 * numseq[treeNum] - 1) * (sizeof(double**)));
-		for (j=0; j < 2 * numseq[treeNum] - 1; j++){
-			FRACLIKE[treeNum][i][j] = (double **)malloc( NUMCAT * (sizeof(double*)));
-			if (j<numseq[treeNum]){
-				for (k=0;k<NUMCAT; k++)
-					FRACLIKE[treeNum][i][j][k] = (double *)malloc(4 * (sizeof(double)));
-			}
-			else {
-				for (k=0;k<NUMCAT; k++)
-					FRACLIKE[treeNum][i][j][k] = (double *)malloc( 8  *(sizeof(double)));
-			}
-		}
-	}
+	//fractional likelihoods. dimension: [2*numseq-1][numbase][NUMCAT][8]
+	FRACLIKE[treeNum] = (double *)calloc((2 * numseq[treeNum] - 1) * numbase * NUMCAT * 8, sizeof(double));
+
 	//read in the fractional likelihoods
 	for (i=0; i<NUMCAT; i++)
 	{
@@ -2352,7 +2247,7 @@ void get_fractionalike(int treeNum)
 			printf("error reading fractional likelihoods (c%i: %i != %i)\n",i,inin,i+1);
 			exit(-1);
 		}
-		for (j=0; j<numbase; j++){
+		for (j=0; j<numbases[treeNum]; j++){
 			do {
 				fscanf(infile,"%c",&c);
 			} while (isblankorreturn(c)==1);
@@ -2378,7 +2273,8 @@ void get_fractionalike(int treeNum)
 			{
 				for (v=0; v<4; v++){
 					fscanf(infile,"%lf",&a);
-					FRACLIKE[treeNum][j][k][i][v]=a;
+					//FRACLIKE[treeNum][j][k][i][v]=a;
+					FRACLIKE[treeNum][k * numbase * NUMCAT * 8 + j * NUMCAT * 8 + i * 8 + v] = a;
 				}
 			}
 
@@ -2388,19 +2284,64 @@ void get_fractionalike(int treeNum)
 				//For fractional likelihood
 				for (v=0; v<4; v++){
 					fscanf(infile,"%lf",&a);
-					FRACLIKE[treeNum][j][k][i][v]=a;
+					//FRACLIKE[treeNum][j][k][i][v]=a;
+					FRACLIKE[treeNum][k * numbase * NUMCAT * 8 + j * NUMCAT * 8 + i * 8 + v] = a;
 				}
 
 				//For conditional likelihood
 				for (v=0; v<4; v++){
 					fscanf(infile,"%lf",&a);
-					FRACLIKE[treeNum][j][k][i][v+4]=a;
+					//FRACLIKE[treeNum][j][k][i][v+4]=a;
+					FRACLIKE[treeNum][k * numbase * NUMCAT * 8 + j * NUMCAT * 8 + i * 8 + v + 4] = a;
 				}
 
 			}
 
 		}
 	}
+
+	//double *test_ptr = &FRACLIKE[treeNum][0];
+	//for(int i = 0; i < 2 * numseq[treeNum] - 1; i++)
+	//{
+	//	//nodes
+	//	for(int j = 0; j < numbases[treeNum]; j++)
+	//	{
+	//		//pos
+	//		for(int k = 0; k < NUMCAT; k++)
+	//		{
+	//			//NUMCAT
+	//			for(int l = 0; l < 8; l++)
+	//			{
+	//				printf("%d %d %d %d %.16f vs %d\n", i, j, k, l, *test_ptr, i * numbases[treeNum] * NUMCAT * 8 + j * NUMCAT * 8 + k * 8 + l);
+	//				test_ptr++;
+	//			}
+	//		}
+	//	}
+	//}
+	
+	//int fracCount = 0;
+	//for(i = 0; i < numTrees; i++)
+	//{
+	//	for(j = 0; j < 2 * numseq[i] - 1; j++)
+	//	{
+	//		for(int l = 0; l < numbases[i]; l++)
+	//		{
+	//			for(k = 0; k < NUMCAT; k++)
+	//			{
+	//				for(v = 0; v < 8; v++)
+	//				{
+	//					printf("%d: %.16f\n", fracCount, 
+	//								FRACLIKE[i][fracCount]);
+	//					fracCount++;
+	//				}
+	//			}
+	//		}
+	//	}
+
+	//}
+
+	//exit(0);
+	
 }
 
 // How likely read is not error
@@ -3166,7 +3107,7 @@ void mergeReads(int treeNum, int refBases)
 			treeAssign[index] = treeNum;
 			assignments[index] = i;
 
-			printf("Sequence %d, assignment %d of length %d starting at %d containing %d reads covering %d:\n", index, i, readlength[index], firstPos, numReadsPerAssign[treeNum][i], refCoverage);
+			//printf("Sequence %d, assignment %d of length %d starting at %d containing %d reads covering %d:\n", index, i, readlength[index], firstPos, numReadsPerAssign[treeNum][i], refCoverage);
 
 			for (int pos = 0; pos < readlength[index]; pos++)
 			{
@@ -3175,7 +3116,7 @@ void mergeReads(int treeNum, int refBases)
 				if (baseCounts[refPos * 4] == 0 && baseCounts[refPos * 4 + 1] == 0 && baseCounts[refPos * 4 + 2] == 0 && baseCounts[refPos * 4 + 3] == 0)
 				{
 					QUERYDATA[index][pos] = -1;
-					printf("-");
+					//printf("-");
 				}	
 				else
 				{
@@ -3219,22 +3160,22 @@ void mergeReads(int treeNum, int refBases)
 
 					if (base_a > base_select)
 					{
-						printf("A");
+						//printf("A");
 						QUERYDATA[index][pos] = 0;
 					}
 					else if (base_c > base_select)
 					{
-						printf("C");
+						//printf("C");
 						QUERYDATA[index][pos] = 1;
 					}
 					else if (base_g > base_select)
 					{
-						printf("G");
+						//printf("G");
 						QUERYDATA[index][pos] = 2;
 					}
 					else if (base_t >= base_select)
 					{
-						printf("T");
+						//printf("T");
 						QUERYDATA[index][pos] = 3;
 					}
 					else
@@ -3245,7 +3186,7 @@ void mergeReads(int treeNum, int refBases)
 				}	
 			}
 
-			printf("\n");
+			//printf("\n");
 
 			// assign ages
 			assignAges[index] = nodeages[treeNum][i] + bls[treeNum][i];
@@ -3308,7 +3249,7 @@ void read_data(char *assignfile, char *fraclikefile, char *querydatafile, char *
 	DATA = (int***)malloc(numTrees*(sizeof(int**)));
 	bls = (double **)malloc(numTrees * sizeof(double*));
 	nodeages = (double **)malloc(numTrees * sizeof(double *));
-	FRACLIKE = (double *****)malloc(numTrees *(sizeof(double****)));
+	FRACLIKE = (double **)malloc(numTrees *(sizeof(double*)));
 	maxAges = (double *)malloc(numTrees * sizeof(double));
 	statevector = (double **)malloc(numTrees * sizeof(double*));
 	nodeOrder = (int **)malloc(numTrees * sizeof(int*));
@@ -3514,6 +3455,8 @@ void read_data(char *assignfile, char *fraclikefile, char *querydatafile, char *
 		// }
 	}
 
+	//exit(0);
+
 
 	//READING IN QUERY DATA
 	if (VERBOSE) printf("Reading in query data: ");
@@ -3652,6 +3595,8 @@ void read_data(char *assignfile, char *fraclikefile, char *querydatafile, char *
 			bestAssignment(root, treeNum);
 		}
 
+		//exit(0);
+
 		// Depending on mode, we don't need to merge! Should make a function/edit mergeReads that just transfers to the correct datastructures for the rest of ratePlacer
 		if (toMerge)
 		{
@@ -3728,7 +3673,6 @@ void read_data(char *assignfile, char *fraclikefile, char *querydatafile, char *
 	
 	free(readsTreeSorted);
 	free(readOrder);
-	free(numbases);
 	free(readLengthTemp);
 	free(readLikeTemp);
 	free(startposTemp);
@@ -3736,916 +3680,922 @@ void read_data(char *assignfile, char *fraclikefile, char *querydatafile, char *
 	free(numReadsPerAssign);
 }
 
-void maximize_like_seperately_for_all2D_Print(double **par)
-{
-	printf("Starting maximize seperately for all\n");
-	int i, k, v, nfun;
-	double p[3];
-	double L1, invector[3],lowbound[3], upbound[3], eh0=3e-8;
-
-	onDindic=0;
-
-
-	// assignmentMode of 0 means single assignment given
-	for (i=0; i<numquery; i++)
-	{
-		p[0] = i;
-		p[1] = treeAssign[i];
-		p[2] = assignments[i];
-
-		invector[1] = 0.5;
-		invector[2] = bls[treeAssign[i]][assignments[i]]/2.0;
-		lowbound[1] = eh0;
-		lowbound[2] = eh0;
-		upbound[1] = 1.0-eh0;
-		upbound[2] = bls[treeAssign[i]][assignments[i]]-eh0;
-		nfun=0;
-
-		printf("Sequence %d\n", i);
-		//L1 = findmax_amoeba(invector,lowbound, upbound, 2, getlike_gamma_root_in_trifurcation_Print_Lik, p, 3);	
-		printf("\tParameter estimates %.16f %.16f: %.16f\n", invector[1],invector[2],L1);
-		printf("\tAssignment %d of tree %d age: %.16f\n", assignments[i], treeAssign[i], nodeages[treeAssign[i]][assignments[i]]);
-		printf("\tsequence age: %.16f\n",(1.0-invector[1])*(nodeages[treeAssign[i]][assignments[i]]+invector[2]));
-		printf("Site scores:\n");
-		//getlike_gamma_root_in_trifurcation_Print(invector,p);
-	}
-}
-
-void maximize_like_seperately_for_all2D(double **par)
-{
-	printf("Starting maximize seperately for all\n");
-	int i, k, v, nfun;
-	double p[3];
-	double L1, invector[3],lowbound[3], upbound[3], eh0=3e-8;
-
-	onDindic=0;
-
-
-	// assignmentMode of 0 means single assignment given
-	for (i=0; i<numquery; i++)
-	{
-		p[0] = i;
-		p[1] = treeAssign[i];
-		p[2] = assignments[i];
-
-		printf("Sequence %d\n", i);
-
-		invector[1] = 0.5;
-		invector[2] = bls[treeAssign[i]][assignments[i]]/2.0;
-		lowbound[1] = eh0;
-		lowbound[2] = eh0;
-		upbound[1] = 1.0-eh0;
-		upbound[2] = bls[treeAssign[i]][assignments[i]]-eh0;
-		nfun=0;
-
-		//printf("\tParameter initial %.16f %.16f\n", invector[1],invector[2]);
-
-		//L1 = findmax_amoeba(invector,lowbound, upbound, 2, getlike_gamma_root_in_trifurcation, p, 3);
-		
-		printf("\tParameter estimates %.16f %.16f: %.16f\n", invector[1],invector[2],L1);
-		printf("\tAssignment %d age: %.16f\n", assignments[i], nodeages[treeAssign[i]][assignments[i]]);
-		printf("\tsequence age: %.16f\n",(1.0-invector[1])*(nodeages[treeAssign[i]][assignments[i]]+invector[2]));
-	}
-}
-
-void likelihoodratiotest_for_all(double **par, double compareAge)
-{
-	printf("Starting maximize seperately with likelihood ratio test for all\n");
-	int i, k, v, nfun;
-	double p[3], L1, L2;
-	double invector[3],lowbound[3], upbound[3], eh0=3e-8;
-
-	// assignmentMode of 0 means single assignment given
-	for (i=0; i<numquery; i++)
-	{
-		p[0] = i;
-		p[1] = treeAssign[i];
-		p[2] = assignments[i];
-
-		invector[1] = 0.5;
-		invector[2] = bls[treeAssign[i]][assignments[i]]/2.0;
-		lowbound[1] = eh0;
-		lowbound[2] = eh0;
-		upbound[1] = 1.0-eh0;
-		upbound[2] = bls[treeAssign[i]][assignments[i]]-eh0;
-		//printf("Checking bls %.16f and node age %.16f\n", upbound[2], upbound[1]);
-		nfun=0;
-		onDindic=0;
-		printf("Sequence %d\n", i);
-		//L1 = findmax_amoeba(invector,lowbound, upbound, 2, getlike_gamma_root_in_trifurcation, p, 3);
-
-		
-		printf("\tParameter estimates %.16f %.16f (%.16f): %.16f\n", invector[1],invector[2], bls[treeAssign[i]][assignments[i]],L1);
-		printf("\tAssignment %d age of tree %d: %.16f\n", assignments[i], treeAssign[i], nodeages[treeAssign[i]][assignments[i]]);
-		printf("\tsequence age: %.16f\n",(1.0-invector[1])*(nodeages[treeAssign[i]][assignments[i]]+invector[2]));
-
-		invector[1] = bls[treeAssign[i]][assignments[i]]/2.0;
-		lowbound[1] = eh0;
-		upbound[1] = bls[treeAssign[i]][assignments[i]]-eh0;
-		invector[2]=-1;
-		nfun=0;
-		onDindic=1;
-
-		// NEEDS TO BE SWITCHED TO GOLDEN SECTION
-		//L2 = findmax_amoeba(invector,lowbound, upbound, 1, getlike_gamma_root_in_trifurcation_L0, p, 3);
-		if (testAge < eh0)
-		{
-			testAge = eh0;
-		}
-
-		testAge = compareAge;
-		//L2 = GoldenSection(invector,lowbound, upbound, 1, getlike_gamma_root_in_trifurcation_testAge, p, 3); 
-		
-		printf("\tParameter estimates llr %.16f: %.16f\n", invector[1],L2);
-		printf("\tLikelihood ratio statistic to %.16f: %.16f\n", testAge, 2.0*(L1-L2));
-	}
-}
-
-void readContour(double **par)
-{
-	printf("Likelihood contour points being generated\n");
-	
-	int i, k, v;
-	double L, parameters[7], times[3], eh0=3e-8, bl_increment, alpha_increment = 0.001;
-
-	onDindic=0;
-
-	// assignmentMode of 0 means single assignment given
-	// parameters[0] = sequence
-	// parameters[1] = treeNumber
-	// parameters[2] = assignment
-	// parameters[3] = lower bound of alpha
-	// parameters[4] = upper bound of alpha
-	// parameters[5] = lower bound of bl
-	// parameters[6] = upper bound of bl
-	// times[0] = ?
-	// times[1] = alpha (in_alpha)
-	// times[2] = root placement (in_bl)
-	
-	parameters[3] = eh0;
-	parameters[4] = 1.0 - eh0;
-	parameters[5] = eh0;
-	
-	for (i=0; i<numquery; i++)
-	{
-		parameters[0] = i;
-		parameters[1] = treeAssign[i];
-		parameters[2] = assignments[i];
-		parameters[6] = bls[treeAssign[i]][assignments[i]];
-
-		times[1] = eh0;
-
-		bl_increment = bls[treeAssign[i]][assignments[i]]/1000;
-
-		for (k = 0; k < 1000; k++)
-		{
-			times[2] = eh0;
-
-			for(v = 0; v < 1000; v++)
-			{	
-				//L = getlike_gamma_root_in_trifurcation(times, parameters);
-
-				printf("%d,%.16f,%.16f,%.16f\n", i, times[1], times[2], L);
-
-				times[2] += bl_increment;
-			}
-			times[1] += alpha_increment;
-		}
-	}
-	
-}
-
-// Will "drop reads" by changing readStart based on timeInc and test age
-// New update: Will not be based on the node ages themselves as we're now making
-// this for across trees
-double dropReads(int *readStart, double timeInc)
-{
-	int readDropped = 0;
-	double test = testAge;
-
-	do{
-		test += timeInc;
-		//TO DO: Try to make assignAges work here since that would be faster!! 
-		while(*readStart < numquery-1 && nodeages[treeAssign[usedReads[*readStart]]][assignments[usedReads[*readStart]]] + bls[treeAssign[usedReads[*readStart]]][assignments[usedReads[*readStart]]] <= test) //similar -2 as above
-		{
-			*readStart = *readStart + 1; 
-			readDropped = 1;
-			//printf("Read dropped!\n");
-		}
-	}while(*readStart < numquery-1 && readDropped == 0);
-
-
-	return nodeages[treeAssign[usedReads[*readStart]]][assignments[usedReads[*readStart]]] + bls[treeAssign[usedReads[*readStart]]][assignments[usedReads[*readStart]]];
-}
-
-//merge functionality, using in-place merge sort to reduce memory load
-// Will base merge on nodeAge[i]+nodebl[i] to get age in which reads assigned to i will need to cut in ratePlacer
-// for reference: https://www.geeksforgeeks.org/merge-sort/ and https://www.geeksforgeeks.org/in-place-merge-sort/
-void merge(int left, int right, int mid)
-{
-	// If already merged, are there cases where this may be true but not sorted?
-	if (assignAges[usedReads[mid]] <= assignAges[usedReads[mid+1]])
-	{
-		return;
-	}
-
-	int midstart = mid + 1;
-
-	while(left <= mid && midstart <= right)
-	{
-		// if elements are in right place (ie left < right)
-		if(assignAges[usedReads[left]] <= assignAges[usedReads[midstart]])
-		{
-			left++;
-		}
-		else
-		{
-			int index = midstart, tempOrder = usedReads[midstart];
-			//double tempAge = assignAges[midstart];
-
-			// shift all elements between left and midstart to right by 1
-			while (index != left)
-			{
-				usedReads[index] = usedReads[index - 1];
-				//assignAges[index] = assignAges[index - 1];
-				index--;
-			}
-			usedReads[left] = tempOrder;
-			//assignAges[left] = tempAge;
-
-			// Update
-			left++;
-			mid++;
-			midstart++;	// may be redundant, but removes some extra calc?
-		}
-	}
-
-}
-
-// merge sort implementation for sort_ages
-void mergeSort(int left, int right)
-{
-	if (left < right)
-	{
-		// Mid point calculation to hopefully avoid overflow
-		int mid = left + (right - left) / 2;
-
-		// recurse down
-		mergeSort(left, mid);
-		mergeSort(mid + 1, right);
-
-		// merge
-		merge(left, right, mid);
-	}
-}
-
-// Initialization where reads are ordered by their assignment node order
-void orderReads()
-{
-	usedReads = (int *)malloc(sizeof(int) * numquery);
-
-	//TO DO: Determine if this is the most efficient way
-	//or if I should have merge sort work on all data associated with
-	//the reads instead
-	for(int i = 0; i < numquery; i++)
-	{
-		usedReads[i] = i;
-	}
-
-	mergeSort(0, numquery-1);
-
-	//for(int i = 0; i < numquery; i++)
-	//{
-	//	printf("%d is age %.16f and %.16f\n", i, assignAges[usedReads[i]], nodeages[treeAssign[usedReads[i]]][assignments[usedReads[i]]] + bls[treeAssign[usedReads[i]]][assignments[usedReads[i]]]);
-	//}
-}
-
-//getlike_ages but for a single tree
-double getlike_ages_tree(double times, double parameters[7])
-{
-	//age for optimization should be times, is redudant and should fix?
-	testAge = times;	
-
-	if(testAge < 0.0)
-	{
-		return 1000000000.0;
-	}
-
-	// The following should be thought about because it would be inconvienent to redo for each age
-	// May want to make userReads a global, but think after this is implemented and working
-	// TO DO TO DO TO DO!!!!
-	int readStart = parameters[0], tree = parameters[1], i, nfun;
-	double invector[3],lowbound[3], upbound[3], eh0=3e-8, age_like = 0.0, ageIncr, L2;
-	double p[3];
-
-	onDindic = 1;
-
-	// Drop any reads that cannot be of test age
-	for (i = readStart; i < numquery; i++)
-	{
-		if(treeAssign[usedReads[i]] != tree)
-		{
-			continue;
-		}
-
-		p[0] = usedReads[i];
-		p[1] = treeAssign[usedReads[i]];
-		p[2] = assignments[usedReads[i]];	
-
-		nfun=0;
-		invector[1] = bls[treeAssign[usedReads[i]]][assignments[usedReads[i]]]/2.0;
-		lowbound[1] = eh0;
-		upbound[1] = bls[treeAssign[usedReads[i]]][assignments[usedReads[i]]]-eh0;
-
-		//L2 =  GoldenSection(invector, lowbound, upbound, 1, getlike_gamma_root_in_trifurcation_testAge, p, 3);
-
-		age_like += L2; //sum of log likelihoods	
-	}	
-
-	return(age_like);
-}
-
-double getlike_ages_rough(double times, double parameters[7])
-{
-	//age for optimization should be times, is redudant and should fix?
-	//printf("Testing age %.16f in getlike\n", times);
-	testAge = times;
-
-	//printf("get like test age of %.16f\n", testAge);
-
-	if(testAge < 0.0)
-	{
-		return 1000000000.0;
-	}
-
-	// The following should be thought about because it would be inconvienent to redo for each age
-	// May want to make userReads a global, but think after this is implemented and working
-	// TO DO TO DO TO DO!!!!
-	int readStart = parameters[0], i, nfun;
-	double invector[3],lowbound[3], upbound[3], eh0=3e-8, age_like = 0.0, ageIncr, L2;
-	double p[3];
-
-	onDindic = 1;
-
-	// Drop any reads that cannot be of test age
-	for (i = readStart; i < numquery; i++)
-	{
-		//if(usedReads[i] != 85)
-		//	continue;
-		p[0] = usedReads[i];
-		p[1] = treeAssign[usedReads[i]];
-		p[2] = assignments[usedReads[i]];	
-
-		nfun=0;
-		invector[1] = bls[treeAssign[usedReads[i]]][assignments[usedReads[i]]]/2.0;
-		lowbound[1] = eh0;
-		upbound[1] = bls[treeAssign[usedReads[i]]][assignments[usedReads[i]]]-eh0;
-
-		//L2 =  GoldenSection_rough(invector, lowbound, upbound, 1, getlike_gamma_root_in_trifurcation_testAge, p, 3);
-
-		//printf("Read %d\tTime: %.16f\tLikelihood: %.16f\n", usedReads[i], testAge, L2);
-
-		//printf("\tRead %d assigned to tree %d and node %d with likelihood %.16f with root placement of %.16f\n", usedReads[i], treeAssign[usedReads[i]], assignments[usedReads[i]], L2, nodeages[treeAssign[usedReads[i]]][assignments[usedReads[i]]]+invector[1]);
-
-
-		age_like += L2; //sum of log likelihoods
-		//printf("\t\tassignment %d like contribution %.16f\n", assignments[usedReads[i]], L2);
-	}
-	//printf("Likelihood of age %.16f: %.16f\n", testAge, age_like);
-	
-	//printf("\tlikelihood sum of %.16f\n", age_like);
-
-	return(age_like);
-}
-
-double getlike_ages(double times, double parameters[7])
-{
-	//age for optimization should be times, is redudant and should fix?
-	//printf("Testing age %.16f in getlike\n", times);
-	testAge = times;
-
-	//printf("get like test age of %.16f\n", testAge);
-
-	if(testAge < 0.0)
-	{
-		return 1000000000.0;
-	}
-
-	// The following should be thought about because it would be inconvienent to redo for each age
-	// May want to make userReads a global, but think after this is implemented and working
-	// TO DO TO DO TO DO!!!!
-	int readStart = parameters[0], i, nfun;
-	double invector[3],lowbound[3], upbound[3], eh0=3e-8, age_like = 0.0, ageIncr, L2;
-	double p[3];
-
-	onDindic = 1;
-
-	// Drop any reads that cannot be of test age
-	for (i = readStart; i < numquery; i++)
-	{
-		//if(usedReads[i] != 85)
-		//	continue;
-		p[0] = usedReads[i];
-		p[1] = treeAssign[usedReads[i]];
-		p[2] = assignments[usedReads[i]];	
-
-		nfun=0;
-		invector[1] = bls[treeAssign[usedReads[i]]][assignments[usedReads[i]]]/2.0;
-		lowbound[1] = eh0;
-		upbound[1] = bls[treeAssign[usedReads[i]]][assignments[usedReads[i]]]-eh0;
-
-		//L2 =  GoldenSection(invector, lowbound, upbound, 1, getlike_gamma_root_in_trifurcation_testAge, p, 3);
-
-		//printf("Read %d\tTime: %.16f\tLikelihood: %.16f\n", usedReads[i], testAge, L2);
-
-		//printf("\tRead %d assigned to tree %d and node %d with likelihood %.16f with root placement of %.16f\n", usedReads[i], treeAssign[usedReads[i]], assignments[usedReads[i]], L2, nodeages[treeAssign[usedReads[i]]][assignments[usedReads[i]]]+invector[1]);
-
-
-		age_like += L2; //sum of log likelihoods
-		//printf("\t\tassignment %d like contribution %.16f\n", assignments[usedReads[i]], L2);
-	}
-	//printf("Likelihood of age %.16f: %.16f\n", testAge, age_like);
-	
-	//printf("\tlikelihood sum of %.16f\n", age_like);
-
-	return(age_like);
-}
-
-//Gets Fisher information bounds for confidence interval
-//finite method for second derivative
-//(f(x+h) - 2f(x) + f(x-h))/h^2
-// optAge is x, f(x) is optLik
-// We are giving -lik, so remember (and test) to convert back again. Test if this is really needed
-double confidenceIntervalFisher(double **par, double optAge, double optLik, int readStart)
-{
-	//Need to figure out good h!
-	double h = optAge/100000, f_hx = 0.0, fx_h = 0.0, nSecondDeriv;
-	int i, k, v, nfun;
-	double p[3];
-	double invector[3],lowbound[3], upbound[3], eh0=3e-8;
-
-	// Drop any reads that cannot be of test age
-	for (i = readStart; i < numquery; i++)
-	{
-		p[0] = usedReads[i];
-		p[1] = treeAssign[usedReads[i]];
-		p[2] = assignments[usedReads[i]];
-
-		nfun=0;
-		invector[1] = bls[treeAssign[usedReads[i]]][assignments[usedReads[i]]]/2.0;
-		lowbound[1] = eh0;
-		upbound[1] = bls[treeAssign[usedReads[i]]][assignments[usedReads[i]]]-eh0;
-
-		//Does there need to be a test if this passes some internal node that reads need to be dropped in?
-		testAge = optAge + h;
-		//f_hx += GoldenSection(invector,lowbound, upbound, 1, getlike_gamma_root_in_trifurcation_testAge, p, 3);
-
-		invector[1] = bls[treeAssign[usedReads[i]]][assignments[usedReads[i]]]/2.0;
-		lowbound[1] = eh0;
-		upbound[1] = bls[treeAssign[usedReads[i]]][assignments[usedReads[i]]]-eh0;
-
-		testAge = optAge - h;
-		//fx_h +=	GoldenSection(invector,lowbound, upbound, 1, getlike_gamma_root_in_trifurcation_testAge, p, 3); 
-	}
-
-	//printf("f(x-h): %.16f\nf(x+h):%.16f\nf(x) - f(x-h): %.16f\nf(x) - f(x+h): %.16f\nSec Deriv: %.16f\n", fx_h, f_hx, optLik - fx_h, optLik - f_hx, (2 * optLik - fx_h - f_hx)/(pow(h,2.0)));
-
-	//equivalent to f_hx - 2*f_x + fx_h if getlike_gamma didn't return -Lik
-	//Potentially implement as f_xh - 2 * f_x + fx_h so that -1 already incorporated to take the second derivate for
-	//return((2 * optLik - fx_h - f_hx)/(pow(h,2.0)));
-	
-	//-1 * second derivative
-	nSecondDeriv = (f_hx - 2 * optLik + fx_h)/(pow(h,2.0));
-
-	//printf("%.16f\n", nSecondDeriv);
-
-	return(1.96 / sqrt(nSecondDeriv));
-}
-
-void maximize_like_jointly_for_all2D(double **par, int allTrees)
-{
-	printf("Starting maximize jointly for all\n");
-	int i, k, v, nfun, readStart = 0, nodePointer = 0, twice = 0, oldReadStart, oldNodePointer;
-	double p[3], L1, L2, secD, confI;
-	double invector[3],lowbound[3], upbound[3], eh0=3e-8, nextNodeAge, est_age, est_age_lik;
-	double incr = totMaxAge/1000;
-
-	//printf("Max age of %.16f and incr of %.16f\n", totMaxAge, incr);
-
-	orderReads();
-
-	// This nextNodeAge represents the max without dropping reads
-	nextNodeAge = nodeages[treeAssign[usedReads[readStart]]][assignments[usedReads[readStart]]] + bls[treeAssign[usedReads[readStart]]][assignments[usedReads[readStart]]];
-
-	onDindic = 1; 
-
-	if (numquery > 1)
-	{
-		printf("Starting rough estimation for maximum bound\n");
-		//double time2 = (double) clock()/CLOCKS_PER_SEC;
-		// Rough optimization to find upper bound and reads to drop without running too much optimization
-		// To change: Instread of making this per assigned node, do it via time slices to make a little faster
-		// 		Also maybe a GoldenSection search that is a little less stringent?
-		// 		Am just trying to do a rough optimization - maybe if time is still long despite time slice change
-		do{
-			//printf("Testing max age of %.16f\n", nextNodeAge);
-			//add fillers
-			p[0] = readStart;
-			p[1] = nodePointer;
-			p[2] = 0;
-
-			//Should consider the best way to pick these values...
-			L1 = getlike_ages_rough(nextNodeAge - nextNodeAge/100.0, p); 
-			L2 = getlike_ages_rough(nextNodeAge - nextNodeAge/10.0, p);
-			//printf("Results of L1 %.16f and L2 %.16f with max at %.16f with readStart at %d\n", L1, L2, nextNodeAge, readStart);
-			// Likelihood near bound is better, so drop and test next age range
-			if(L1 <= L2)
-			{
-				// TO DO: scale time increase by maxAge
-				oldNodePointer = nodePointer;
-				oldReadStart = readStart;
-				testAge = nextNodeAge;
-				nextNodeAge = dropReads(&readStart, incr);
-				//printf("%d of %d\n", readStart, numquery);
-				if(readStart >= numquery - 1)	//no reads left 
-				{
-					//maybe exit if the likelihoods are still very different...
-					if(L2 - L1 < 1.0)
-					{
-						printf("Warning: Using last round of dropped reads\n");
-						break;
-					}
-					else
-					{
-						printf("Error: Could not optimize for bounds.\n");
-						exit(0);
-					}
-				}
-				twice = 0;
-			} 
-			if(L1 > L2)
-			{
-				twice++;
-				oldNodePointer = nodePointer;
-				oldReadStart = readStart;
-				testAge = nextNodeAge;
-				nextNodeAge = dropReads(&readStart, incr);
-				if(readStart == numquery)	//no reads left 
-				{
-					//I think this is ok as it means the last set of reads had the right trend
+ void maximize_like_seperately_for_all2D_Print(double **par)
+ {
+ 	printf("Starting maximize seperately for all\n");
+ 	int i, k, v, nfun;
+ 	double p[3];
+ 	double L1, invector[3],lowbound[3], upbound[3], eh0=3e-8;
+ 
+ 	onDindic=0;
+ 
+ 
+ 	// assignmentMode of 0 means single assignment given
+ 	for (i=0; i<numquery; i++)
+ 	{
+ 		p[0] = i;
+ 		p[1] = treeAssign[i];
+ 		p[2] = assignments[i];
+ 
+ 		invector[1] = 0.5;
+ 		invector[2] = bls[treeAssign[i]][assignments[i]]/2.0;
+ 		lowbound[1] = eh0;
+ 		lowbound[2] = eh0;
+ 		upbound[1] = 1.0-eh0;
+ 		upbound[2] = bls[treeAssign[i]][assignments[i]]-eh0;
+ 		nfun=0;
+ 
+ 		printf("Sequence %d\n", i);
+ 		L1 = findmax_amoeba(invector,lowbound, upbound, 2, getlike_gamma_root_in_trifurcation_Print_Lik, p, 3);	
+ 		printf("\tParameter estimates %.16f %.16f: %.16f\n", invector[1],invector[2],L1);
+ 		printf("\tAssignment %d of tree %d age: %.16f\n", assignments[i], treeAssign[i], nodeages[treeAssign[i]][assignments[i]]);
+ 		printf("\tsequence age: %.16f\n",(1.0-invector[1])*(nodeages[treeAssign[i]][assignments[i]]+invector[2]));
+ 		printf("Site scores:\n");
+ 		getlike_gamma_root_in_trifurcation_Print(invector,p);
+ 	}
+ }
+ 
+ void maximize_like_seperately_for_all2D(double **par)
+ {
+ 	printf("Starting maximize seperately for all\n");
+ 	int i, k, v, nfun;
+ 	double p[3];
+ 	double L1, invector[3],lowbound[3], upbound[3], eh0=3e-8;
+ 
+ 	onDindic=0;
+ 
+ 
+ 	// assignmentMode of 0 means single assignment given
+ 	for (i=0; i<numquery; i++)
+ 	{
+ 		p[0] = i;
+ 		p[1] = treeAssign[i];
+ 		p[2] = assignments[i];
+ 
+ 		printf("Sequence %d\n", i);
+ 
+ 		invector[1] = 0.5;
+ 		invector[2] = bls[treeAssign[i]][assignments[i]]/2.0;
+ 		lowbound[1] = eh0;
+ 		lowbound[2] = eh0;
+ 		upbound[1] = 1.0-eh0;
+ 		upbound[2] = bls[treeAssign[i]][assignments[i]]-eh0;
+ 		nfun=0;
+ 
+ 		//printf("\tParameter initial %.16f %.16f\n", invector[1],invector[2]);
+ 
+ 		L1 = findmax_amoeba(invector,lowbound, upbound, 2, getlike_gamma_root_in_trifurcation, p, 3);
+ 		
+ 		printf("\tParameter estimates %.16f %.16f: %.16f\n", invector[1],invector[2],L1);
+ 		printf("\tAssignment %d age: %.16f\n", assignments[i], nodeages[treeAssign[i]][assignments[i]]);
+ 		printf("\tsequence age: %.16f\n",(1.0-invector[1])*(nodeages[treeAssign[i]][assignments[i]]+invector[2]));
+ 	}
+ }
+ 
+ void likelihoodratiotest_for_all(double **par, double compareAge)
+ {
+ 	printf("Starting maximize seperately with likelihood ratio test for all\n");
+ 	int i, k, v, nfun;
+ 	double p[3], L1, L2;
+ 	double invector[3],lowbound[3], upbound[3], eh0=3e-8;
+ 
+ 	// assignmentMode of 0 means single assignment given
+ 	for (i=0; i<numquery; i++)
+ 	{
+ 		p[0] = i;
+ 		p[1] = treeAssign[i];
+ 		p[2] = assignments[i];
+ 
+ 		invector[1] = 0.5;
+ 		invector[2] = bls[treeAssign[i]][assignments[i]]/2.0;
+ 		lowbound[1] = eh0;
+ 		lowbound[2] = eh0;
+ 		upbound[1] = 1.0-eh0;
+ 		upbound[2] = bls[treeAssign[i]][assignments[i]]-eh0;
+ 		//printf("Checking bls %.16f and node age %.16f\n", upbound[2], upbound[1]);
+ 		nfun=0;
+ 		onDindic=0;
+ 		printf("Sequence %d\n", i);
+ 		L1 = findmax_amoeba(invector,lowbound, upbound, 2, getlike_gamma_root_in_trifurcation, p, 3);
+ 
+ 		
+ 		printf("\tParameter estimates %.16f %.16f (%.16f): %.16f\n", invector[1],invector[2], bls[treeAssign[i]][assignments[i]],L1);
+ 		printf("\tAssignment %d age of tree %d: %.16f\n", assignments[i], treeAssign[i], nodeages[treeAssign[i]][assignments[i]]);
+ 		printf("\tsequence age: %.16f\n",(1.0-invector[1])*(nodeages[treeAssign[i]][assignments[i]]+invector[2]));
+ 
+ 		invector[1] = bls[treeAssign[i]][assignments[i]]/2.0;
+ 		lowbound[1] = eh0;
+ 		upbound[1] = bls[treeAssign[i]][assignments[i]]-eh0;
+ 		invector[2]=-1;
+ 		nfun=0;
+ 		onDindic=1;
+ 
+ 		// NEEDS TO BE SWITCHED TO GOLDEN SECTION
+ 		//L2 = findmax_amoeba(invector,lowbound, upbound, 1, getlike_gamma_root_in_trifurcation_L0, p, 3);
+ 		if (testAge < eh0)
+ 		{
+ 			testAge = eh0;
+ 		}
+ 
+ 		testAge = compareAge;
+ 		L2 = GoldenSection(invector,lowbound, upbound, 1, getlike_gamma_root_in_trifurcation_testAge, p, 3); 
+ 		
+ 		printf("\tParameter estimates llr %.16f: %.16f\n", invector[1],L2);
+ 		printf("\tLikelihood ratio statistic to %.16f: %.16f\n", testAge, 2.0*(L1-L2));
+ 	}
+ }
+ 
+ void readContour(double **par)
+ {
+ 	printf("Likelihood contour points being generated\n");
+ 	
+ 	int i, k, v;
+ 	double L, parameters[7], times[3], eh0=3e-8, bl_increment, alpha_increment = 0.001;
+ 
+ 	onDindic=0;
+ 
+ 	// assignmentMode of 0 means single assignment given
+ 	// parameters[0] = sequence
+ 	// parameters[1] = treeNumber
+ 	// parameters[2] = assignment
+ 	// parameters[3] = lower bound of alpha
+ 	// parameters[4] = upper bound of alpha
+ 	// parameters[5] = lower bound of bl
+ 	// parameters[6] = upper bound of bl
+ 	// times[0] = ?
+ 	// times[1] = alpha (in_alpha)
+ 	// times[2] = root placement (in_bl)
+ 	
+ 	parameters[3] = eh0;
+ 	parameters[4] = 1.0 - eh0;
+ 	parameters[5] = eh0;
+ 	
+ 	for (i=0; i<numquery; i++)
+ 	{
+ 		parameters[0] = i;
+ 		parameters[1] = treeAssign[i];
+ 		parameters[2] = assignments[i];
+ 		parameters[6] = bls[treeAssign[i]][assignments[i]];
+ 
+ 		times[1] = eh0;
+ 
+ 		bl_increment = bls[treeAssign[i]][assignments[i]]/1000;
+ 
+ 		for (k = 0; k < 1000; k++)
+ 		{
+ 			times[2] = eh0;
+ 
+ 			for(v = 0; v < 1000; v++)
+ 			{	
+ 				//L = getlike_gamma_root_in_trifurcation(times, parameters);
+ 
+ 				printf("%d,%.16f,%.16f,%.16f\n", i, times[1], times[2], L);
+ 
+ 				times[2] += bl_increment;
+ 			}
+ 			times[1] += alpha_increment;
+ 		}
+ 	}
+ 	
+ }
+ 
+ // Will "drop reads" by changing readStart based on timeInc and test age
+ // New update: Will not be based on the node ages themselves as we're now making
+ // this for across trees
+ double dropReads(int *readStart, double timeInc)
+ {
+ 	int readDropped = 0;
+ 	double test = testAge;
+ 
+ 	do{
+ 		test += timeInc;
+ 		//TO DO: Try to make assignAges work here since that would be faster!! 
+ 		while(*readStart < numquery-1 && nodeages[treeAssign[usedReads[*readStart]]][assignments[usedReads[*readStart]]] + bls[treeAssign[usedReads[*readStart]]][assignments[usedReads[*readStart]]] <= test) //similar -2 as above
+ 		{
+ 			*readStart = *readStart + 1; 
+ 			readDropped = 1;
+ 			//printf("Read dropped!\n");
+ 		}
+ 	}while(*readStart < numquery-1 && readDropped == 0);
+ 
+ 
+ 	return nodeages[treeAssign[usedReads[*readStart]]][assignments[usedReads[*readStart]]] + bls[treeAssign[usedReads[*readStart]]][assignments[usedReads[*readStart]]];
+ }
+ 
+ //merge functionality, using in-place merge sort to reduce memory load
+ // Will base merge on nodeAge[i]+nodebl[i] to get age in which reads assigned to i will need to cut in ratePlacer
+ // for reference: https://www.geeksforgeeks.org/merge-sort/ and https://www.geeksforgeeks.org/in-place-merge-sort/
+ void merge(int left, int right, int mid)
+ {
+ 	// If already merged, are there cases where this may be true but not sorted?
+ 	if (assignAges[usedReads[mid]] <= assignAges[usedReads[mid+1]])
+ 	{
+ 		return;
+ 	}
+ 
+ 	int midstart = mid + 1;
+ 
+ 	while(left <= mid && midstart <= right)
+ 	{
+ 		// if elements are in right place (ie left < right)
+ 		if(assignAges[usedReads[left]] <= assignAges[usedReads[midstart]])
+ 		{
+ 			left++;
+ 		}
+ 		else
+ 		{
+ 			int index = midstart, tempOrder = usedReads[midstart];
+ 			//double tempAge = assignAges[midstart];
+ 
+ 			// shift all elements between left and midstart to right by 1
+ 			while (index != left)
+ 			{
+ 				usedReads[index] = usedReads[index - 1];
+ 				//assignAges[index] = assignAges[index - 1];
+ 				index--;
+ 			}
+ 			usedReads[left] = tempOrder;
+ 			//assignAges[left] = tempAge;
+ 
+ 			// Update
+ 			left++;
+ 			mid++;
+ 			midstart++;	// may be redundant, but removes some extra calc?
+ 		}
+ 	}
+ 
+ }
+ 
+ // merge sort implementation for sort_ages
+ void mergeSort(int left, int right)
+ {
+ 	if (left < right)
+ 	{
+ 		// Mid point calculation to hopefully avoid overflow
+ 		int mid = left + (right - left) / 2;
+ 
+ 		// recurse down
+ 		mergeSort(left, mid);
+ 		mergeSort(mid + 1, right);
+ 
+ 		// merge
+ 		merge(left, right, mid);
+ 	}
+ }
+ 
+ // Initialization where reads are ordered by their assignment node order
+ void orderReads()
+ {
+ 	usedReads = (int *)malloc(sizeof(int) * numquery);
+ 
+ 	//TO DO: Determine if this is the most efficient way
+ 	//or if I should have merge sort work on all data associated with
+ 	//the reads instead
+ 	for(int i = 0; i < numquery; i++)
+ 	{
+ 		usedReads[i] = i;
+ 	}
+ 
+ 	mergeSort(0, numquery-1);
+ 
+ 	//for(int i = 0; i < numquery; i++)
+ 	//{
+ 	//	printf("%d is age %.16f and %.16f\n", i, assignAges[usedReads[i]], nodeages[treeAssign[usedReads[i]]][assignments[usedReads[i]]] + bls[treeAssign[usedReads[i]]][assignments[usedReads[i]]]);
+ 	//}
+ }
+ 
+ //getlike_ages but for a single tree
+ double getlike_ages_tree(double times, double parameters[7])
+ {
+ 	//age for optimization should be times, is redudant and should fix?
+ 	testAge = times;	
+ 
+ 	if(testAge < 0.0)
+ 	{
+ 		return 1000000000.0;
+ 	}
+ 
+ 	// The following should be thought about because it would be inconvienent to redo for each age
+ 	// May want to make userReads a global, but think after this is implemented and working
+ 	// TO DO TO DO TO DO!!!!
+ 	int readStart = parameters[0], tree = parameters[1], i, nfun;
+ 	double invector[3],lowbound[3], upbound[3], eh0=3e-8, age_like = 0.0, ageIncr, L2;
+ 	double p[3];
+ 
+ 	onDindic = 1;
+ 
+ 	// Drop any reads that cannot be of test age
+ 	for (i = readStart; i < numquery; i++)
+ 	{
+ 		if(treeAssign[usedReads[i]] != tree)
+ 		{
+ 			continue;
+ 		}
+ 
+ 		p[0] = usedReads[i];
+ 		p[1] = treeAssign[usedReads[i]];
+ 		p[2] = assignments[usedReads[i]];	
+ 
+ 		nfun=0;
+ 		invector[1] = bls[treeAssign[usedReads[i]]][assignments[usedReads[i]]]/2.0;
+ 		lowbound[1] = eh0;
+ 		upbound[1] = bls[treeAssign[usedReads[i]]][assignments[usedReads[i]]]-eh0;
+ 
+ 		L2 =  GoldenSection(invector, lowbound, upbound, 1, getlike_gamma_root_in_trifurcation_testAge, p, 3);
+ 
+ 		age_like += L2; //sum of log likelihoods	
+ 	}	
+ 
+ 	return(age_like);
+ }
+ 
+ double getlike_ages_rough(double times, double parameters[7])
+ {
+ 	//age for optimization should be times, is redudant and should fix?
+ 	//printf("Testing age %.16f in getlike\n", times);
+ 	testAge = times;
+ 
+ 	//printf("get like test age of %.16f\n", testAge);
+ 
+ 	if(testAge < 0.0)
+ 	{
+ 		return 1000000000.0;
+ 	}
+ 
+ 	// The following should be thought about because it would be inconvienent to redo for each age
+ 	// May want to make userReads a global, but think after this is implemented and working
+ 	// TO DO TO DO TO DO!!!!
+ 	int readStart = parameters[0], i, nfun;
+ 	double invector[3],lowbound[3], upbound[3], eh0=3e-8, age_like = 0.0, ageIncr, L2;
+ 	double p[3];
+ 
+ 	onDindic = 1;
+ 
+ 	// Drop any reads that cannot be of test age
+ 	for (i = readStart; i < numquery; i++)
+ 	{
+ 		//if(usedReads[i] != 84)
+ 		//	continue;
+ 		p[0] = usedReads[i];
+ 		p[1] = treeAssign[usedReads[i]];
+ 		p[2] = assignments[usedReads[i]];	
+ 
+ 		nfun=0;
+ 		invector[1] = bls[treeAssign[usedReads[i]]][assignments[usedReads[i]]]/2.0;
+ 		lowbound[1] = eh0;
+ 		upbound[1] = bls[treeAssign[usedReads[i]]][assignments[usedReads[i]]]-eh0;
+ 
+ 		L2 =  GoldenSection_rough(invector, lowbound, upbound, 1, getlike_gamma_root_in_trifurcation_testAge, p, 3);
+ 
+ 		//printf("Read %d\tTime: %.16f\tLikelihood: %.16f\n", usedReads[i], testAge, L2);
+ 
+ 		//printf("\tRead %d assigned to tree %d and node %d with likelihood %.16f with root placement of %.16f\n", usedReads[i], treeAssign[usedReads[i]], assignments[usedReads[i]], L2, nodeages[treeAssign[usedReads[i]]][assignments[usedReads[i]]]+invector[1]);
+ 
+		printf("\tRead %d assigned to tree %d and node %d with likelihood %.16f with root placement of %.16f\n", usedReads[i], treeAssign[usedReads[i]], assignments[usedReads[i]], L2, nodeages[treeAssign[usedReads[i]]][assignments[usedReads[i]]]+invector[1]); 
+ 		age_like += L2; //sum of log likelihoods
+ 		//printf("\t\tassignment %d like contribution %.16f\n", assignments[usedReads[i]], L2);
+ 	}
+ 	//printf("Likelihood of age %.16f: %.16f\n", testAge, age_like);
+ 	
+ 	//printf("\tlikelihood sum of %.16f\n", age_like);
+ 
+ 	return(age_like);
+ }
+ 
+ double getlike_ages(double times, double parameters[7])
+ {
+ 	//age for optimization should be times, is redudant and should fix?
+ 	//printf("Testing age %.16f in getlike\n", times);
+ 	testAge = times;
+ 
+ 	//printf("get like test age of %.16f\n", testAge);
+ 
+ 	if(testAge < 0.0)
+ 	{
+ 		return 1000000000.0;
+ 	}
+ 
+ 	// The following should be thought about because it would be inconvienent to redo for each age
+ 	// May want to make userReads a global, but think after this is implemented and working
+ 	// TO DO TO DO TO DO!!!!
+ 	int readStart = parameters[0], i, nfun;
+ 	double invector[3],lowbound[3], upbound[3], eh0=3e-8, age_like = 0.0, ageIncr, L2;
+ 	double p[3];
+ 
+ 	onDindic = 1;
+ 
+ 	// Drop any reads that cannot be of test age
+ 	for (i = readStart; i < numquery; i++)
+ 	{
+ 		//if(usedReads[i] != 85)
+ 		//	continue;
+ 		p[0] = usedReads[i];
+ 		p[1] = treeAssign[usedReads[i]];
+ 		p[2] = assignments[usedReads[i]];	
+ 
+ 		nfun=0;
+ 		invector[1] = bls[treeAssign[usedReads[i]]][assignments[usedReads[i]]]/2.0;
+ 		lowbound[1] = eh0;
+ 		upbound[1] = bls[treeAssign[usedReads[i]]][assignments[usedReads[i]]]-eh0;
+ 
+ 		L2 =  GoldenSection(invector, lowbound, upbound, 1, getlike_gamma_root_in_trifurcation_testAge, p, 3);
+ 
+ 		//printf("Read %d\tTime: %.16f\tLikelihood: %.16f\n", usedReads[i], testAge, L2);
+ 
+ 		//printf("\tRead %d assigned to tree %d and node %d with likelihood %.16f with root placement of %.16f\n", usedReads[i], treeAssign[usedReads[i]], assignments[usedReads[i]], L2, nodeages[treeAssign[usedReads[i]]][assignments[usedReads[i]]]+invector[1]);
+ 
+ 
+ 		age_like += L2; //sum of log likelihoods
+ 		//printf("\t\tassignment %d like contribution %.16f\n", assignments[usedReads[i]], L2);
+ 	}
+ 	//printf("Likelihood of age %.16f: %.16f\n", testAge, age_like);
+ 	
+ 	//printf("\tlikelihood sum of %.16f\n", age_like);
+ 
+ 	return(age_like);
+ }
+ 
+ //Gets Fisher information bounds for confidence interval
+ //finite method for second derivative
+ //(f(x+h) - 2f(x) + f(x-h))/h^2
+ // optAge is x, f(x) is optLik
+ // We are giving -lik, so remember (and test) to convert back again. Test if this is really needed
+ double confidenceIntervalFisher(double **par, double optAge, double optLik, int readStart)
+ {
+ 	//Need to figure out good h!
+ 	double h = optAge/100000, f_hx = 0.0, fx_h = 0.0, nSecondDeriv;
+ 	int i, k, v, nfun;
+ 	double p[3];
+ 	double invector[3],lowbound[3], upbound[3], eh0=3e-8;
+ 
+ 	// Drop any reads that cannot be of test age
+ 	for (i = readStart; i < numquery; i++)
+ 	{
+ 		p[0] = usedReads[i];
+ 		p[1] = treeAssign[usedReads[i]];
+ 		p[2] = assignments[usedReads[i]];
+ 
+ 		nfun=0;
+ 		invector[1] = bls[treeAssign[usedReads[i]]][assignments[usedReads[i]]]/2.0;
+ 		lowbound[1] = eh0;
+ 		upbound[1] = bls[treeAssign[usedReads[i]]][assignments[usedReads[i]]]-eh0;
+ 
+ 		//Does there need to be a test if this passes some internal node that reads need to be dropped in?
+ 		testAge = optAge + h;
+ 		f_hx += GoldenSection(invector,lowbound, upbound, 1, getlike_gamma_root_in_trifurcation_testAge, p, 3);
+ 
+ 		invector[1] = bls[treeAssign[usedReads[i]]][assignments[usedReads[i]]]/2.0;
+ 		lowbound[1] = eh0;
+ 		upbound[1] = bls[treeAssign[usedReads[i]]][assignments[usedReads[i]]]-eh0;
+ 
+ 		testAge = optAge - h;
+ 		fx_h += GoldenSection(invector,lowbound, upbound, 1, getlike_gamma_root_in_trifurcation_testAge, p, 3); 
+ 	}
+ 
+ 
+ 	//printf("f(x-h): %.16f\nf(x+h):%.16f\nf(x) - f(x-h): %.16f\nf(x) - f(x+h): %.16f\nSec Deriv: %.16f\n", fx_h, f_hx, optLik - fx_h, optLik - f_hx, (2 * optLik - fx_h - f_hx)/(pow(h,2.0)));
+ 
+ 	//equivalent to f_hx - 2*f_x + fx_h if getlike_gamma didn't return -Lik
+ 	//Potentially implement as f_xh - 2 * f_x + fx_h so that -1 already incorporated to take the second derivate for
+ 	//return((2 * optLik - fx_h - f_hx)/(pow(h,2.0)));
+ 	
+ 	//-1 * second derivative
+ 	nSecondDeriv = (f_hx - 2 * optLik + fx_h)/(pow(h,2.0));
+ 
+ 	//printf("%.16f\n", nSecondDeriv);
+ 
+ 	return(1.96 / sqrt(nSecondDeriv));
+ }
+ 
+ void maximize_like_jointly_for_all2D(double **par, int allTrees)
+ {
+ 	printf("Starting maximize jointly for all\n");
+ 	int i, k, v, nfun, readStart = 0, nodePointer = 0, twice = 0, oldReadStart, oldNodePointer;
+ 	double p[3], L1, L2, secD, confI;
+ 	double invector[3],lowbound[3], upbound[3], eh0=3e-8, nextNodeAge, est_age, est_age_lik, oldNodeAge;
+ 	double incr = totMaxAge/1000;
+ 
+ 	//printf("Max age of %.16f and incr of %.16f\n", totMaxAge, incr);
+ 
+ 	orderReads();
+ 
+ 	// This nextNodeAge represents the max without dropping reads
+ 	nextNodeAge = nodeages[treeAssign[usedReads[readStart]]][assignments[usedReads[readStart]]] + bls[treeAssign[usedReads[readStart]]][assignments[usedReads[readStart]]];
+ 
+ 	onDindic = 1; 
+ 
+ 	if (numquery > 1)
+ 	{
+ 		printf("Starting rough estimation for maximum bound\n");
+ 		//double time2 = (double) clock()/CLOCKS_PER_SEC;
+ 		// Rough optimization to find upper bound and reads to drop without running too much optimization
+ 		// To change: Instread of making this per assigned node, do it via time slices to make a little faster
+ 		// 		Also maybe a GoldenSection search that is a little less stringent?
+ 		// 		Am just trying to do a rough optimization - maybe if time is still long despite time slice change
+ 		do{
+ 			//printf("Testing max age of %.16f\n", nextNodeAge);
+ 			//add fillers
+ 			p[0] = readStart;
+ 			p[1] = nodePointer;
+ 			p[2] = 0;
+ 
+ 			//Should consider the best way to pick these values...
+ 			L1 = getlike_ages_rough(nextNodeAge - nextNodeAge/100.0, p); 
+ 			L2 = getlike_ages_rough(nextNodeAge - nextNodeAge/10.0, p);
+ 			printf("Results of L1 %.16f and L2 %.16f with max at %.16f with readStart at %d\n", L1, L2, nextNodeAge, readStart);
+ 			// Likelihood near bound is better, so drop and test next age range
+ 			if(L1 <= L2)
+ 			{
+ 				// TO DO: scale time increase by maxAge
+ 				oldNodePointer = nodePointer;
+ 				oldReadStart = readStart;
+				oldNodeAge = nextNodeAge;
+ 				testAge = nextNodeAge;
+ 				nextNodeAge = dropReads(&readStart, incr);
+ 				//printf("%d of %d\n", readStart, numquery);
+ 				if(readStart >= numquery - 1)	//no reads left 
+ 				{
+ 					//maybe exit if the likelihoods are still very different...
+ 					if(L2 - L1 < 1.0)
+ 					{
+ 						printf("Warning: Using last round of dropped reads\n");
+ 						break;
+ 					}
+ 					else
+ 					{
+ 						printf("Error: Could not optimize for bounds.\n");
+ 						exit(0);
+ 					}
+ 				}
+ 				twice = 0;
+ 			} 
+ 			if(L1 > L2)
+ 			{
+ 				twice++;
+				if(twice > 1)
 					break;
-					//printf("Error: Could not find max age for opt!\n");
-					//exit(0);
-				}
-
-			}
-		}while(twice < 2);	//DOUBLE CHECK THIS/Think of better way
-
-		//Current stop gap... not great
-		readStart = oldReadStart;
-		nodePointer = oldNodePointer;
-
-		printf("Maximum bound found, now finding optimum age.\n%d of %d reads left\n", numquery - readStart, numquery);
-		//printf("The elapsed time for rough estimation is %.16f seconds\n", ( ((double) clock()) / CLOCKS_PER_SEC) - time2);
-	}
-	else
-	{
-		printf("Not enough reads for bound optimization, using all\n");
-	}
-
-	printf("Remained merged assignments are ");
-	for (int z = readStart; z < numquery; z++)
-	{
-		printf("%d ", assignments[usedReads[z]]);
-	}
-	printf("\n");
-
-	//Some bounds or fillers added
-	p[0] = readStart;
-	p[1] = nodePointer;
-	p[2] = 0;
-	invector[1] = nextNodeAge/2;
-	lowbound[1] = eh0;
-	upbound[1] = nextNodeAge - eh0;
-	nfun=0;
-	onDindic=0;	// Because of 2nd layer of optimization
-
-	//double time3 = (double) clock()/CLOCKS_PER_SEC;
-
-	// Decide how the inputs may need to change at some point I guess
-	est_age_lik = GoldenSection(invector,lowbound, upbound, 1, getlike_ages, p, 3);
-	//printf("The elapsed time for age estimation is %.16f seconds\n", ( ((double) clock()) / CLOCKS_PER_SEC) - time3);
-
-	est_age = invector[1];
-	
-	if(nextNodeAge - est_age < nextNodeAge/100.0)
-	{
-		printf("Warning! Age estimate was near boundary of %.16f\n", nextNodeAge);
-	}
-
-	printf("Opt found, calculating confidence intervals\n");
-
-	//Use fisher information to get rough confidence interval
-	//Maybe give option for bootstrap confidence interval
-	//double time4 = (double) clock()/CLOCKS_PER_SEC;
-	confI = confidenceIntervalFisher(par, est_age, est_age_lik, readStart);
-	//printf("The elapsed time for confidenceIntervalFisher is %.16f seconds\n", ( ((double) clock()) / CLOCKS_PER_SEC) - time4);
-
-	//Also maybe incorporate more options for the confidence interval, not just 95%
-	//Would need to be able to calculate the z-score from the user given value
-	//confI = 1.96 / sqrt(-secD);
-
-	printf("Estimated age is %.16f with likelihood %.16f and 95%% confidence interval [%.16f,%.16f]\n", est_age, est_age_lik, est_age - confI, est_age + confI);
-	//printf("%.16f,%.16f\n", est_age, est_age_lik);
-
-	//confidenceSearch(bounds, chiValue, maxAge, est_age, -est_age_lik, p);	
-	//printf("Estimated age is %.16f with likelihood %.16f and %.2f%% confidence interval [%.16f,%.16f]\n", est_age, est_age_lik, chiValue, bounds[0], bounds[2]);
-	//printf("Confidence interval is [%.16f, %.16f] with likelihoods %.16f and %.16f\n", bounds[0], bounds[2], bounds[1], bounds[3]);
-	
-	if(allTrees)
-	{
-		for(int i = 0; i < numTrees; i++)
-		{
-			//Some bounds or fillers added
-			p[0] = readStart;
-			p[1] = i;
-			p[2] = 0;
-			invector[1] = nextNodeAge/2;
-			lowbound[1] = eh0;
-			upbound[1] = nextNodeAge - eh0;
-			nfun=0;
-			onDindic=0;	// Because of 2nd layer of optimization
-
-			//double time3 = (double) clock()/CLOCKS_PER_SEC;
-
-			// Decide how the inputs may need to change at some point I guess
-			est_age_lik = GoldenSection(invector,lowbound, upbound, 1, getlike_ages_tree, p, 3);
-			//printf("The elapsed time for age estimation is %.16f seconds\n", ( ((double) clock()) / CLOCKS_PER_SEC) - time3);
-
-			est_age = invector[1];
-
-			printf("Estimated age is %.16f with likelihood %.16f for tree %d\n", est_age, est_age_lik, i);
-		}
-	}
-}
-
-void maximize_like_jointly_for_all_noDrop2D(double **par, int allTrees)
-{
-	printf("Starting maximize jointly for all\n");
-	int i, k, v, nfun, readStart = 0, nodePointer = 0, twice = 0, oldReadStart, oldNodePointer;
-	double p[3], L1, L2, secD, confI;
-	double invector[3],lowbound[3], upbound[3], eh0=3e-8, nextNodeAge, est_age, est_age_lik;
-	//double incr = totMaxAge/1000;
-
-	//printf("Max age of %.16f and incr of %.16f\n", totMaxAge, incr);
-
-	orderReads();
-
-	// This nextNodeAge represents the max without dropping reads
-	nextNodeAge = nodeages[treeAssign[usedReads[readStart]]][assignments[usedReads[readStart]]] + bls[treeAssign[usedReads[readStart]]][assignments[usedReads[readStart]]];
-
-	printf("Max bound is %.16f\n", nextNodeAge);
-
-	onDindic = 1; 
-
-	//Some bounds or fillers added
-	p[0] = readStart;
-	p[1] = nodePointer;
-	p[2] = 0;
-	invector[1] = nextNodeAge/2;
-	lowbound[1] = eh0;
-	upbound[1] = nextNodeAge - eh0;
-	nfun=0;
-	onDindic=0;	// Because of 2nd layer of optimization
-
-	//double time3 = (double) clock()/CLOCKS_PER_SEC;
-
-	// Decide how the inputs may need to change at some point I guess
-	est_age_lik = GoldenSection(invector,lowbound, upbound, 1, getlike_ages, p, 3);
-	//printf("The elapsed time for age estimation is %.16f seconds\n", ( ((double) clock()) / CLOCKS_PER_SEC) - time3);
-
-	est_age = invector[1];
-	
-	if(nextNodeAge - est_age < nextNodeAge/100.0)
-	{
-		printf("Warning! Age estimate was near boundary of %.16f\n", nextNodeAge);
-	}
-
-	printf("Opt found, calculating confidence intervals\n");
-
-	//Use fisher information to get rough confidence interval
-	//Maybe give option for bootstrap confidence interval
-	//double time4 = (double) clock()/CLOCKS_PER_SEC;
-	confI = confidenceIntervalFisher(par, est_age, est_age_lik, readStart);
-	//printf("The elapsed time for confidenceIntervalFisher is %.16f seconds\n", ( ((double) clock()) / CLOCKS_PER_SEC) - time4);
-
-	//Also maybe incorporate more options for the confidence interval, not just 95%
-	//Would need to be able to calculate the z-score from the user given value
-	//confI = 1.96 / sqrt(-secD);
-
-	printf("Estimated age is %.16f with likelihood %.16f and 95%% confidence interval [%.16f,%.16f]\n", est_age, est_age_lik, est_age - confI, est_age + confI);
-
-	//confidenceSearch(bounds, chiValue, maxAge, est_age, -est_age_lik, p);	
-	//printf("Estimated age is %.16f with likelihood %.16f and %.2f%% confidence interval [%.16f,%.16f]\n", est_age, est_age_lik, chiValue, bounds[0], bounds[2]);
-	//printf("Confidence interval is [%.16f, %.16f] with likelihoods %.16f and %.16f\n", bounds[0], bounds[2], bounds[1], bounds[3]);
-	
-	if(allTrees)
-	{
-		for(int i = 0; i < numTrees; i++)
-		{
-			//Some bounds or fillers added
-			p[0] = readStart;
-			p[1] = i;
-			p[2] = 0;
-			invector[1] = nextNodeAge/2;
-			lowbound[1] = eh0;
-			upbound[1] = nextNodeAge - eh0;
-			nfun=0;
-			onDindic=0;	// Because of 2nd layer of optimization
-
-			//double time3 = (double) clock()/CLOCKS_PER_SEC;
-
-			// Decide how the inputs may need to change at some point I guess
-			est_age_lik = GoldenSection(invector,lowbound, upbound, 1, getlike_ages_tree, p, 3);
-			//printf("The elapsed time for age estimation is %.16f seconds\n", ( ((double) clock()) / CLOCKS_PER_SEC) - time3);
-
-			est_age = invector[1];
-
-			printf("Estimated age is %.16f with likelihood %.16f for tree %d\n", est_age, est_age_lik, i);
-		}
-	}
-}
-
-void age_like_distribution_jointly_for_all2D_upperLimit(double **par, double topAge)
-{
-	printf("Creating age likelihood distribution for all\n");
-	int i, k, v, nfun, readStart = 0;
-	int numDrops = 0;
-	double p[3], L1, L2, ageIncr, nextNodeAge, tempAge, tempAge2;
-	double invector[3],lowbound[3], upbound[3], eh0=1e-8, age_like;
-
-	orderReads();
-
-	//An important question here is why was the testAge for below so off?
-	//nodePointer = assignments[usedReads[readStart]];
-	//nextNodeAge = nodeages[nodeOrder[nodePointer]] + bls[nodeOrder[nodePointer]];
-	nextNodeAge = nodeages[treeAssign[usedReads[readStart]]][assignments[usedReads[readStart]]] + bls[treeAssign[usedReads[readStart]]][assignments[usedReads[readStart]]];
-
-	//printf("First node age as old %.16f and by assigning nodePointer %.16f\n")
-	
-	//printf("First node age %.16f\n", nextNodeAge);
-	//printf("First node age %.16f from assignment %d with node age %.16f and branch length %.16f that has order %d\n", nextNodeAge, nodePointer, nodeages[nodeOrder[nodePointer]], bls[nodeOrder[nodePointer]], nodeOrder[nodePointer]);
-
-	ageIncr = topAge/10000.0;		// make this an option later
-
-	testAge = eh0;
-
-	onDindic=1;
-
-	// assignmentMode of 0 means single assignment given
-	age_like = 0.0;
-	while (testAge <= totMaxAge && readStart < numquery && testAge <= topAge)
-	{
-		// Trimmed because you can't  actually compare the likelihoods, just the trends.	
-		if (nextNodeAge <= testAge)
-		{	
-			// This is probably unneeded due to the while loop condition
-			if(nextNodeAge >= totMaxAge)
-			{
-				break;
-			}
-			nextNodeAge = dropReads(&readStart, 0.01);	//Not sure if this is correct, may want to come back/make two dropReads versions
-			ageIncr = topAge/100.0;
-			numDrops++;
-
-			testAge = eh0;
-		}
-		printf("Testing age %.16f with dropped rounds %d with nextNodeAge %.16f and read start at %d:\n", testAge, numDrops, nextNodeAge, readStart);
-		for (i=readStart; i<numquery; i++)
-		{
-			p[0] = usedReads[i];
-			p[1] = treeAssign[usedReads[i]];
-			p[2] = assignments[usedReads[i]];
-
-			nfun=0;
-			invector[1] = bls[treeAssign[usedReads[i]]][assignments[usedReads[i]]]/2.0;
-			lowbound[1] = eh0;
-			upbound[1] = bls[treeAssign[usedReads[i]]][assignments[usedReads[i]]]-eh0;
-
-			//L2 =  GoldenSection(invector, lowbound, upbound, 1, getlike_gamma_root_in_trifurcation_testAge, p, 3); 
-
-			//printf("\tRead %d assigned to %d with likelihood %lf with root placement of %.16f\n", usedReads[i], assignments[usedReads[i]], L2, nodeages[assignments[usedReads[i]]]+invector[1]);
-
-			age_like += L2; //sum of log likelihoods
-		}
-		printf("\tLikelihood: %.16f\n", age_like);
-		age_like = 0.0;
-		testAge += ageIncr;
-	}
-}
-
-void age_like_distribution_jointly_for_all2D(double **par)
-{
-	printf("Creating age likelihood distribution for all\n");
-	int i, k, v, nfun, readStart = 0;
-	int numDrops = 0;
-	double p[3], L1, L2, ageIncr, nextNodeAge, tempAge, tempAge2;
-	double invector[3],lowbound[3], upbound[3], eh0=1e-8, age_like;
-
-	orderReads();
-
-	//An important question here is why was the testAge for below so off?
-	//nodePointer = assignments[usedReads[readStart]];
-	//nextNodeAge = nodeages[nodeOrder[nodePointer]] + bls[nodeOrder[nodePointer]];
-	nextNodeAge = nodeages[treeAssign[usedReads[readStart]]][assignments[usedReads[readStart]]] + bls[treeAssign[usedReads[readStart]]][assignments[usedReads[readStart]]];
-
-	//printf("First node age as old %.16f and by assigning nodePointer %.16f\n")
-	
-	//printf("First node age %.16f\n", nextNodeAge);
-	//printf("First node age %.16f from assignment %d with node age %.16f and branch length %.16f that has order %d\n", nextNodeAge, nodePointer, nodeages[nodeOrder[nodePointer]], bls[nodeOrder[nodePointer]], nodeOrder[nodePointer]);
-
-	ageIncr = nextNodeAge/100.0;		// make this an option later
-
-	testAge = eh0;
-
-	onDindic=1;
-
-	// assignmentMode of 0 means single assignment given
-	age_like = 0.0;
-	while (testAge <= totMaxAge && readStart < numquery)
-	{
-		// Trimmed because you can't  actually compare the likelihoods, just the trends.	
-		if (nextNodeAge <= testAge)
-		{	
-			// This is probably unneeded due to the while loop condition
-			if(nextNodeAge >= totMaxAge)
-			{
-				break;
-			}
-			nextNodeAge = dropReads(&readStart, 0.01);	//Not sure if this is correct, may want to come back/make two dropReads versions
-			ageIncr = nextNodeAge/100.0;
-			numDrops++;
-
-			testAge = eh0;
-		}
-		printf("Testing age %.16f with dropped rounds %d with nextNodeAge %.16f and read start at %d:\n", testAge, numDrops, nextNodeAge, readStart);
-		for (i=readStart; i<numquery; i++)
-		{
-			p[0] = usedReads[i];
-			p[1] = treeAssign[usedReads[i]];
-			p[2] = assignments[usedReads[i]];
-
-			nfun=0;
-			invector[1] = bls[treeAssign[usedReads[i]]][assignments[usedReads[i]]]/2.0;
-			lowbound[1] = eh0;
-			upbound[1] = bls[treeAssign[usedReads[i]]][assignments[usedReads[i]]]-eh0;
-
-			//L2 =  GoldenSection(invector,lowbound, upbound, 1, getlike_gamma_root_in_trifurcation_testAge, p, 3); 
-
-			//printf("\tRead %d assigned to %d with likelihood %lf with root placement of %.16f\n", usedReads[i], assignments[usedReads[i]], L2, nodeages[assignments[usedReads[i]]]+invector[1]);
-
-			age_like += L2; //sum of log likelihoods
-		}
-		printf("\tLikelihood: %.16f\n", age_like);
-		age_like = 0.0;
-		testAge += ageIncr;
-	}
-}
-
-void read_branch_like_dist(double **par)
-{
-	printf("Getting read likelihood distribution over assigned branch\n");
-	int i, k, v, nfun;
-	double p[3], L1, L2, increment;
-	double invector[3],lowbound[3], upbound[3], eh0=3e-8;
-
-	onDindic=1;
-
-	// assignmentMode of 0 means single assignment given
-	for (i=0; i<numquery; i++)
-	{
-		p[0] = i;
-		p[1] = treeAssign[i];
-		p[2] = assignments[i];
-
-		//printf("Sequence %d assigned to tree %d and node %d\n", i, (int)p[1], (int)p[2]);
-		rooted = eh0;
-		increment = bls[treeAssign[i]][assignments[i]]/100.0;
-
-		while (rooted < bls[treeAssign[i]][assignments[i]]-eh0)
-		{
-		
-			invector[1] = 0.5;
-			lowbound[1] = eh0;
-			upbound[1] = 1.0-eh0;
-		
-			//L2 = GoldenSection(invector,lowbound, upbound, 1, getlike_gamma_root_in_trifurcation_testRoot, p, 3); 
-		
-			printf("%d,%d,%d,%.16f,%.16f\n", i, treeAssign[i], assignments[i], rooted, L2);
-			rooted += increment;
-		}
-	}
-}
+ 				oldNodePointer = nodePointer;
+ 				oldReadStart = readStart;
+				oldNodeAge = nextNodeAge;
+ 				testAge = nextNodeAge;
+ 				nextNodeAge = dropReads(&readStart, incr);
+ 				if(readStart == numquery)	//no reads left 
+ 				{
+ 					//I think this is ok as it means the last set of reads had the right trend
+ 					break;
+ 					//printf("Error: Could not find max age for opt!\n");
+ 					//exit(0);
+ 				}
+ 
+ 			}
+ 		}while(twice < 2);	//DOUBLE CHECK THIS/Think of better way
+ 
+ 		//Current stop gap... not great
+ 		readStart = oldReadStart;
+ 		nodePointer = oldNodePointer;
+		nextNodeAge = oldNodeAge;
+
+		printf("Maximum bound found, now finding optimum age.\n%d of %d reads left with maximum age of %.16f\n", numquery - readStart, numquery, nextNodeAge);
+ 		//printf("The elapsed time for rough estimation is %.16f seconds\n", ( ((double) clock()) / CLOCKS_PER_SEC) - time2);
+ 	}
+ 	else
+ 	{
+ 		printf("Not enough reads for bound optimization, using all\n");
+ 	}
+ 
+ 	printf("Remained merged assignments are ");
+ 	for (int z = readStart; z < numquery; z++)
+ 	{
+ 		printf("%d ", assignments[usedReads[z]]);
+ 	}
+ 	printf("\n");
+ 
+ 	//Some bounds or fillers added
+ 	p[0] = readStart;
+ 	p[1] = nodePointer;
+ 	p[2] = 0;
+ 	invector[1] = nextNodeAge/2;
+ 	lowbound[1] = eh0;
+ 	upbound[1] = nextNodeAge - eh0;
+ 	nfun=0;
+ 	onDindic=0;	// Because of 2nd layer of optimization
+ 
+ 	//double time3 = (double) clock()/CLOCKS_PER_SEC;
+ 
+ 	// Decide how the inputs may need to change at some point I guess
+ 	est_age_lik = GoldenSection(invector,lowbound, upbound, 1, getlike_ages, p, 3);
+ 	//printf("The elapsed time for age estimation is %.16f seconds\n", ( ((double) clock()) / CLOCKS_PER_SEC) - time3);
+ 
+ 	est_age = invector[1];
+ 	
+ 	if(nextNodeAge - est_age < nextNodeAge/100.0)
+ 	{
+ 		printf("Warning! Age estimate was near boundary of %.16f\n", nextNodeAge);
+ 	}
+ 
+ 	printf("Opt found, calculating confidence intervals\n");
+ 
+ 	//Use fisher information to get rough confidence interval
+ 	//Maybe give option for bootstrap confidence interval
+ 	//double time4 = (double) clock()/CLOCKS_PER_SEC;
+ 	confI = confidenceIntervalFisher(par, est_age, est_age_lik, readStart);
+ 	//printf("The elapsed time for confidenceIntervalFisher is %.16f seconds\n", ( ((double) clock()) / CLOCKS_PER_SEC) - time4);
+ 
+ 	//Also maybe incorporate more options for the confidence interval, not just 95%
+ 	//Would need to be able to calculate the z-score from the user given value
+ 	//confI = 1.96 / sqrt(-secD);
+ 
+ 	printf("Estimated age is %.16f with likelihood %.16f and 95%% confidence interval [%.16f,%.16f]\n", est_age, est_age_lik, est_age - confI, est_age + confI);
+ 	//printf("%.16f,%.16f\n", est_age, est_age_lik);
+ 
+ 	//confidenceSearch(bounds, chiValue, maxAge, est_age, -est_age_lik, p);	
+ 	//printf("Estimated age is %.16f with likelihood %.16f and %.2f%% confidence interval [%.16f,%.16f]\n", est_age, est_age_lik, chiValue, bounds[0], bounds[2]);
+ 	//printf("Confidence interval is [%.16f, %.16f] with likelihoods %.16f and %.16f\n", bounds[0], bounds[2], bounds[1], bounds[3]);
+ 	
+ 	if(allTrees)
+ 	{
+ 		for(int i = 0; i < numTrees; i++)
+ 		{
+ 			//Some bounds or fillers added
+ 			p[0] = readStart;
+ 			p[1] = i;
+ 			p[2] = 0;
+ 			invector[1] = nextNodeAge/2;
+ 			lowbound[1] = eh0;
+ 			upbound[1] = nextNodeAge - eh0;
+ 			nfun=0;
+ 			onDindic=0;	// Because of 2nd layer of optimization
+ 
+ 			//double time3 = (double) clock()/CLOCKS_PER_SEC;
+ 
+ 			// Decide how the inputs may need to change at some point I guess
+ 			est_age_lik = GoldenSection(invector,lowbound, upbound, 1, getlike_ages_tree, p, 3);
+ 			//printf("The elapsed time for age estimation is %.16f seconds\n", ( ((double) clock()) / CLOCKS_PER_SEC) - time3);
+ 
+ 			est_age = invector[1];
+ 
+ 			printf("Estimated age is %.16f with likelihood %.16f for tree %d\n", est_age, est_age_lik, i);
+ 		}
+ 	}
+ }
+ 
+ void maximize_like_jointly_for_all_noDrop2D(double **par, int allTrees)
+ {
+ 	printf("Starting maximize jointly for all\n");
+ 	int i, k, v, nfun, readStart = 0, nodePointer = 0, twice = 0, oldReadStart, oldNodePointer;
+ 	double p[3], L1, L2, secD, confI;
+ 	double invector[3],lowbound[3], upbound[3], eh0=3e-8, nextNodeAge, est_age, est_age_lik;
+ 	//double incr = totMaxAge/1000;
+ 
+ 	//printf("Max age of %.16f and incr of %.16f\n", totMaxAge, incr);
+ 
+ 	orderReads();
+ 
+ 	// This nextNodeAge represents the max without dropping reads
+ 	nextNodeAge = nodeages[treeAssign[usedReads[readStart]]][assignments[usedReads[readStart]]] + bls[treeAssign[usedReads[readStart]]][assignments[usedReads[readStart]]];
+ 
+ 	printf("Max bound is %.16f\n", nextNodeAge);
+ 
+ 	onDindic = 1; 
+ 
+ 	//Some bounds or fillers added
+ 	p[0] = readStart;
+ 	p[1] = nodePointer;
+ 	p[2] = 0;
+ 	invector[1] = nextNodeAge/2;
+ 	lowbound[1] = eh0;
+ 	upbound[1] = nextNodeAge - eh0;
+ 	nfun=0;
+ 	onDindic=0;	// Because of 2nd layer of optimization
+ 
+ 	//double time3 = (double) clock()/CLOCKS_PER_SEC;
+ 
+ 	// Decide how the inputs may need to change at some point I guess
+ 	est_age_lik = GoldenSection(invector,lowbound, upbound, 1, getlike_ages, p, 3);
+ 	//printf("The elapsed time for age estimation is %.16f seconds\n", ( ((double) clock()) / CLOCKS_PER_SEC) - time3);
+ 
+ 	est_age = invector[1];
+ 	
+ 	if(nextNodeAge - est_age < nextNodeAge/100.0)
+ 	{
+ 		printf("Warning! Age estimate was near boundary of %.16f\n", nextNodeAge);
+ 	}
+ 
+ 	printf("Opt found, calculating confidence intervals\n");
+ 
+ 	//Use fisher information to get rough confidence interval
+ 	//Maybe give option for bootstrap confidence interval
+ 	//double time4 = (double) clock()/CLOCKS_PER_SEC;
+ 	confI = confidenceIntervalFisher(par, est_age, est_age_lik, readStart);
+ 	//printf("The elapsed time for confidenceIntervalFisher is %.16f seconds\n", ( ((double) clock()) / CLOCKS_PER_SEC) - time4);
+ 
+ 	//Also maybe incorporate more options for the confidence interval, not just 95%
+ 	//Would need to be able to calculate the z-score from the user given value
+ 	//confI = 1.96 / sqrt(-secD);
+ 
+ 	printf("Estimated age is %.16f with likelihood %.16f and 95%% confidence interval [%.16f,%.16f]\n", est_age, est_age_lik, est_age - confI, est_age + confI);
+ 
+ 	//confidenceSearch(bounds, chiValue, maxAge, est_age, -est_age_lik, p);	
+ 	//printf("Estimated age is %.16f with likelihood %.16f and %.2f%% confidence interval [%.16f,%.16f]\n", est_age, est_age_lik, chiValue, bounds[0], bounds[2]);
+ 	//printf("Confidence interval is [%.16f, %.16f] with likelihoods %.16f and %.16f\n", bounds[0], bounds[2], bounds[1], bounds[3]);
+ 	
+ 	if(allTrees)
+ 	{
+ 		for(int i = 0; i < numTrees; i++)
+ 		{
+ 			//Some bounds or fillers added
+ 			p[0] = readStart;
+ 			p[1] = i;
+ 			p[2] = 0;
+ 			invector[1] = nextNodeAge/2;
+ 			lowbound[1] = eh0;
+ 			upbound[1] = nextNodeAge - eh0;
+ 			nfun=0;
+ 			onDindic=0;	// Because of 2nd layer of optimization
+ 
+ 			//double time3 = (double) clock()/CLOCKS_PER_SEC;
+ 
+ 			// Decide how the inputs may need to change at some point I guess
+ 			est_age_lik = GoldenSection(invector,lowbound, upbound, 1, getlike_ages_tree, p, 3);
+ 			//printf("The elapsed time for age estimation is %.16f seconds\n", ( ((double) clock()) / CLOCKS_PER_SEC) - time3);
+ 
+ 			est_age = invector[1];
+ 
+ 			printf("Estimated age is %.16f with likelihood %.16f for tree %d\n", est_age, est_age_lik, i);
+ 		}
+ 	}
+ }
+ 
+ void age_like_distribution_jointly_for_all2D_upperLimit(double **par, double topAge)
+ {
+ 	printf("Creating age likelihood distribution for all\n");
+ 	int i, k, v, nfun, readStart = 0;
+ 	int numDrops = 0;
+ 	double p[3], L1, L2, ageIncr, nextNodeAge, tempAge, tempAge2;
+ 	double invector[3],lowbound[3], upbound[3], eh0=1e-8, age_like;
+ 
+ 	orderReads();
+ 
+ 	//An important question here is why was the testAge for below so off?
+ 	//nodePointer = assignments[usedReads[readStart]];
+ 	//nextNodeAge = nodeages[nodeOrder[nodePointer]] + bls[nodeOrder[nodePointer]];
+ 	nextNodeAge = nodeages[treeAssign[usedReads[readStart]]][assignments[usedReads[readStart]]] + bls[treeAssign[usedReads[readStart]]][assignments[usedReads[readStart]]];
+ 
+ 	//printf("First node age as old %.16f and by assigning nodePointer %.16f\n")
+ 	
+ 	//printf("First node age %.16f\n", nextNodeAge);
+ 	//printf("First node age %.16f from assignment %d with node age %.16f and branch length %.16f that has order %d\n", nextNodeAge, nodePointer, nodeages[nodeOrder[nodePointer]], bls[nodeOrder[nodePointer]], nodeOrder[nodePointer]);
+ 
+ 	ageIncr = topAge/10000.0;		// make this an option later
+ 
+ 	testAge = eh0;
+ 
+ 	onDindic=1;
+ 
+ 	// assignmentMode of 0 means single assignment given
+ 	age_like = 0.0;
+ 	while (testAge <= totMaxAge && readStart < numquery && testAge <= topAge)
+ 	{
+ 		// Trimmed because you can't  actually compare the likelihoods, just the trends.	
+ 		if (nextNodeAge <= testAge)
+ 		{	
+ 			// This is probably unneeded due to the while loop condition
+ 			if(nextNodeAge >= totMaxAge)
+ 			{
+ 				break;
+ 			}
+ 			nextNodeAge = dropReads(&readStart, 0.01);	//Not sure if this is correct, may want to come back/make two dropReads versions
+ 			ageIncr = topAge/100.0;
+ 			numDrops++;
+ 
+ 			testAge = eh0;
+ 		}
+ 		printf("Testing age %.16f with dropped rounds %d with nextNodeAge %.16f and read start at %d:\n", testAge, numDrops, nextNodeAge, readStart);
+ 		for (i=readStart; i<numquery; i++)
+ 		{
+ 			p[0] = usedReads[i];
+ 			p[1] = treeAssign[usedReads[i]];
+ 			p[2] = assignments[usedReads[i]];
+ 
+ 			nfun=0;
+ 			invector[1] = bls[treeAssign[usedReads[i]]][assignments[usedReads[i]]]/2.0;
+ 			lowbound[1] = eh0;
+ 			upbound[1] = bls[treeAssign[usedReads[i]]][assignments[usedReads[i]]]-eh0;
+ 
+ 			L2 =  GoldenSection(invector, lowbound, upbound, 1, getlike_gamma_root_in_trifurcation_testAge, p, 3); 
+ 
+ 			//printf("\tRead %d assigned to %d with likelihood %lf with root placement of %.16f\n", usedReads[i], assignments[usedReads[i]], L2, nodeages[assignments[usedReads[i]]]+invector[1]);
+ 
+ 			age_like += L2; //sum of log likelihoods
+ 		}
+ 		printf("\tLikelihood: %.16f\n", age_like);
+ 		age_like = 0.0;
+ 		testAge += ageIncr;
+ 	}
+ }
+ 
+ void age_like_distribution_jointly_for_all2D(double **par)
+ {
+ 	printf("Creating age likelihood distribution for all\n");
+ 	int i, k, v, nfun, readStart = 0;
+ 	int numDrops = 0;
+ 	double p[3], L1, L2, ageIncr, nextNodeAge, tempAge, tempAge2;
+ 	double invector[3],lowbound[3], upbound[3], eh0=1e-8, age_like;
+ 
+ 	orderReads();
+ 
+ 	//An important question here is why was the testAge for below so off?
+ 	//nodePointer = assignments[usedReads[readStart]];
+ 	//nextNodeAge = nodeages[nodeOrder[nodePointer]] + bls[nodeOrder[nodePointer]];
+ 	nextNodeAge = nodeages[treeAssign[usedReads[readStart]]][assignments[usedReads[readStart]]] + bls[treeAssign[usedReads[readStart]]][assignments[usedReads[readStart]]];
+ 
+ 	//printf("First node age as old %.16f and by assigning nodePointer %.16f\n")
+ 	
+ 	//printf("First node age %.16f\n", nextNodeAge);
+ 	//printf("First node age %.16f from assignment %d with node age %.16f and branch length %.16f that has order %d\n", nextNodeAge, nodePointer, nodeages[nodeOrder[nodePointer]], bls[nodeOrder[nodePointer]], nodeOrder[nodePointer]);
+ 
+ 	ageIncr = nextNodeAge/100.0;		// make this an option later
+ 
+ 	testAge = eh0;
+ 
+ 	onDindic=1;
+ 
+ 	// assignmentMode of 0 means single assignment given
+ 	age_like = 0.0;
+ 	while (testAge <= totMaxAge && readStart < numquery)
+ 	{
+ 		// Trimmed because you can't  actually compare the likelihoods, just the trends.	
+ 		if (nextNodeAge <= testAge)
+ 		{	
+ 			// This is probably unneeded due to the while loop condition
+ 			if(nextNodeAge >= totMaxAge)
+ 			{
+ 				break;
+ 			}
+ 			nextNodeAge = dropReads(&readStart, 0.01);	//Not sure if this is correct, may want to come back/make two dropReads versions
+ 			ageIncr = nextNodeAge/100.0;
+ 			numDrops++;
+ 
+ 			testAge = eh0;
+ 		}
+ 		printf("Testing age %.16f with dropped rounds %d with nextNodeAge %.16f and read start at %d:\n", testAge, numDrops, nextNodeAge, readStart);
+ 		for (i=readStart; i<numquery; i++)
+ 		{
+ 			p[0] = usedReads[i];
+ 			p[1] = treeAssign[usedReads[i]];
+ 			p[2] = assignments[usedReads[i]];
+ 
+ 			nfun=0;
+ 			invector[1] = bls[treeAssign[usedReads[i]]][assignments[usedReads[i]]]/2.0;
+ 			lowbound[1] = eh0;
+ 			upbound[1] = bls[treeAssign[usedReads[i]]][assignments[usedReads[i]]]-eh0;
+ 
+ 			L2 =  GoldenSection(invector,lowbound, upbound, 1, getlike_gamma_root_in_trifurcation_testAge, p, 3); 
+ 
+ 			//printf("\tRead %d assigned to %d with likelihood %lf with root placement of %.16f\n", usedReads[i], assignments[usedReads[i]], L2, nodeages[assignments[usedReads[i]]]+invector[1]);
+ 
+ 			age_like += L2; //sum of log likelihoods
+ 		}
+ 		printf("\tLikelihood: %.16f\n", age_like);
+ 		age_like = 0.0;
+ 		testAge += ageIncr;
+ 	}
+ }
+ 
+ void read_branch_like_dist(double **par)
+ {
+ 	printf("Getting read likelihood distribution over assigned branch\n");
+ 	int i, k, v, nfun;
+ 	double p[3], L1, L2, increment;
+ 	double invector[3],lowbound[3], upbound[3], eh0=3e-8;
+ 
+ 	onDindic=1;
+ 
+ 	// assignmentMode of 0 means single assignment given
+ 	for (i=0; i<numquery; i++)
+ 	{
+ 		p[0] = i;
+ 		p[1] = treeAssign[i];
+ 		p[2] = assignments[i];
+ 
+ 		//printf("Sequence %d assigned to tree %d and node %d\n", i, (int)p[1], (int)p[2]);
+ 		rooted = eh0;
+ 		increment = bls[treeAssign[i]][assignments[i]]/100.0;
+ 
+ 		while (rooted < bls[treeAssign[i]][assignments[i]]-eh0)
+ 		{
+ 		
+ 			invector[1] = 0.5;
+ 			lowbound[1] = eh0;
+ 			upbound[1] = 1.0-eh0;
+ 		
+ 			L2 = GoldenSection(invector,lowbound, upbound, 1, getlike_gamma_root_in_trifurcation_testRoot, p, 3); 
+ 		
+ 			printf("%d,%d,%d,%.16f,%.16f\n", i, treeAssign[i], assignments[i], rooted, L2);
+ 			rooted += increment;
+ 		}
+ 	}
+ }
 
 
 
@@ -4669,7 +4619,8 @@ int main(int argc, char *argv[])
 {
 	//time for whole program:
 	//double time1 = (double) clock()/CLOCKS_PER_SEC;
-	srand(time(NULL) ^ getpid()); // Combine time and process ID for uniqueness
+	//srand(time(NULL) ^ getpid()); // Combine time and process ID for uniqueness
+	srand(0);
 	
 	double L, compareAge;
 
