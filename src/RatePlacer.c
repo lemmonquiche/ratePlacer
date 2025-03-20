@@ -1474,13 +1474,13 @@ double logSumExp(double X[4])
 
 		if (b == -1)
 		{
-			FRACLIKE_ptr += NUMCAT * 8;
+			FRACLIKE_ptr += 32; //NUMCAT (4) * 8;
 		}
  		//if (b!=-1){
 		else {
  			//PMAT_ptr_0 = PMAT; 		//0*NUMCAT*4*4
- 			PMAT_ptr_1 = &PMAT[4*4*4]; 	//1*NUMCAT*4*4
- 			PMAT_ptr_2 = &PMAT[2*4*4*4]; 	//2*NUMCAT*4*4
+ 			PMAT_ptr_1 = &PMAT[64]; 	//1*NUMCAT(4)*4*4
+ 			PMAT_ptr_2 = &PMAT[128]; 	//2*NUMCAT(4)*4*4
  			for (j=0; j<NUMCAT; j++){
  				// printf("\t\tj: %d\n", j);
  				PMAT_ptr_0 = &PMAT[j * 4 * 4 + b * 4];
@@ -1605,13 +1605,13 @@ double getlike_gamma_root_in_trifurcation_reassign(double times[3], double param
 
 		if (b == -1)
 		{
-			FRACLIKE_ptr += NUMCAT * 8;
+			FRACLIKE_ptr += 32; //NUMCAT(4) * 8;
 		}
 		else {
 		//if (b!=-1){
 			//PMAT_ptr_0 = PMAT; 		//0*NUMCAT*4*4
-			PMAT_ptr_1 = &PMAT[4*4*4]; 	//1*NUMCAT*4*4
-			PMAT_ptr_2 = &PMAT[2*4*4*4]; 	//2*NUMCAT*4*4
+			PMAT_ptr_1 = &PMAT[64]; 	//1*NUMCAT(4)*4*4
+			PMAT_ptr_2 = &PMAT[128]; 	//2*NUMCAT(4)*4*4
 			for (j=0; j<NUMCAT; j++){
 				//printf("\t\tj: %d\n", j);
 				PMAT_ptr_0 = &PMAT[j * 4 * 4 + b * 4];
@@ -1873,12 +1873,12 @@ double getlike_gamma_root_in_trifurcation_Print(double times[3], double paramete
 
 
 		if (b==-1){
-			FRACLIKE_ptr += NUMCAT * 8;
+			FRACLIKE_ptr += 32; // NUMCAT(4) * 8;
 		}
 		else{
 			//PMAT_ptr_0 = PMAT; 		//0*NUMCAT*4*4
-			PMAT_ptr_1 = &PMAT[4*4*4]; 	//1*NUMCAT*4*4
-			PMAT_ptr_2 = &PMAT[2*4*4*4]; 	//2*NUMCAT*4*4
+			PMAT_ptr_1 = &PMAT[64]; 	//1*NUMCAT(4)*4*4
+			PMAT_ptr_2 = &PMAT[128]; 	//2*NUMCAT(4)*4*4
 
 			for (j=0; j<NUMCAT; j++){
 				PMAT_ptr_0 = &PMAT[j * 4 * 4 + b * 4];
