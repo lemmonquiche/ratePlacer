@@ -4051,7 +4051,7 @@ void read_data(char *assignfile, char *fraclikefile, char *querydatafile, char *
  
  		//printf("\tRead %d assigned to tree %d and node %d with likelihood %.16f with root placement of %.16f\n", usedReads[i], treeAssign[usedReads[i]], assignments[usedReads[i]], L2, nodeages[treeAssign[usedReads[i]]][assignments[usedReads[i]]]+invector[1]);
  
-		printf("\tRead %d assigned to tree %d and node %d with likelihood %.16f with root placement of %.16f\n", usedReads[i], treeAssign[usedReads[i]], assignments[usedReads[i]], L2, nodeages[treeAssign[usedReads[i]]][assignments[usedReads[i]]]+invector[1]); 
+		//printf("\tRead %d assigned to tree %d and node %d with likelihood %.16f with root placement of %.16f\n", usedReads[i], treeAssign[usedReads[i]], assignments[usedReads[i]], L2, nodeages[treeAssign[usedReads[i]]][assignments[usedReads[i]]]+invector[1]); 
  		age_like += L2; //sum of log likelihoods
  		//printf("\t\tassignment %d like contribution %.16f\n", assignments[usedReads[i]], L2);
  	}
@@ -4202,7 +4202,7 @@ void read_data(char *assignfile, char *fraclikefile, char *querydatafile, char *
  			//Should consider the best way to pick these values...
  			L1 = getlike_ages_rough(nextNodeAge - nextNodeAge/100.0, p); 
  			L2 = getlike_ages_rough(nextNodeAge - nextNodeAge/10.0, p);
- 			printf("Results of L1 %.16f and L2 %.16f with max at %.16f with readStart at %d\n", L1, L2, nextNodeAge, readStart);
+ 			//printf("Results of L1 %.16f and L2 %.16f with max at %.16f with readStart at %d\n", L1, L2, nextNodeAge, readStart);
  			// Likelihood near bound is better, so drop and test next age range
  			if(L1 <= L2)
  			{
@@ -4263,12 +4263,12 @@ void read_data(char *assignfile, char *fraclikefile, char *querydatafile, char *
  		printf("Not enough reads for bound optimization, using all\n");
  	}
  
- 	printf("Remained merged assignments are ");
- 	for (int z = readStart; z < numquery; z++)
- 	{
- 		printf("%d ", assignments[usedReads[z]]);
- 	}
- 	printf("\n");
+ 	//printf("Remained merged assignments are ");
+ 	//for (int z = readStart; z < numquery; z++)
+ 	//{
+ 	//	printf("%d ", assignments[usedReads[z]]);
+ 	//}
+ 	//printf("\n");
  
  	//Some bounds or fillers added
  	p[0] = readStart;
