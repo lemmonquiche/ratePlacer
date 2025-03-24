@@ -1,3 +1,6 @@
+#include "jph.h"
+#include "minfunc.h"
+
 #define NR_END 1
 #define FREE
 #define TOLX2 1.0e-7
@@ -9,6 +12,13 @@
 #define EPS 3.0e-8
 #define NMAX 5000
 #define INF DBL_MAX
+
+#    define TOLER_PASS_1        0.001
+#    define TOLER_PASS_2        praxisTol
+#    define MAX_STEP_SIZE_1    1.0
+#    define MAX_STEP_SIZE_2    1.0
+
+double praxisTol = 0.00000001;
 
 double *dg,*g,*hdg,*pnew,*xi,**hessin; 
 int npar, CENTRALMODE;
@@ -846,3 +856,28 @@ double GoldenSection_rough(double newinvecter[], double lowbound[], double upbou
 	}
 }
 
+double minimize_brent(double newinvecter[], int n, double (*fun)(double x[])) {
+        double minusLnL;
+
+        double *directions = (double*)malloc(sizeof(double) * n * n);
+        if (!directions)
+        {
+                printf ("Could not allocate directions (%lu)\n", sizeof(double) * n * n);
+                exit (1);
+        }
+        
+        double *powellWork = (double*)malloc(sizeof(double) * 6 * n);
+        if (!powellWork)
+        {
+                printf ("Could not allocate powellWork (%lu)\n", sizeof(double) * 6 * n);
+                exit (1);
+        }
+
+
+        minusLnL = PrAxis(TOLER_PASS_2, MAX_STEP_SIZE_2, n, newinvecter, *fun, directions, powellWork);
+
+		free(directions);
+		free(powellWork);
+
+        return(minusLnL);
+}
