@@ -168,58 +168,89 @@ int getclade(int numleaves, int treeNum)
 		{
 			n3 = getnodenumb();
 			// Recursive function down each subtree
-			n1 = getclade(numleaves);
-			n2 = getclade(numleaves);
-			linknodes(n1 - 1, n2 - 1, n3 - 1);
+			n1 = getclade(numleaves, treeNum);
+			n2 = getclade(numleaves, treeNum);
+			linknodes(n1 - 1, n2 - 1, n3 - 1, treeNum);
 		}
 	} while (ch != ';');
 
 	return -1;
 }
 
-void allocatetreememmory(int numleaves)
+void allocatetreememmory(int numleaves, int treeNum)
 {
 	int i;
 
 	// Number of nodes based off full binary tree
-	tree = malloc((numleaves * 2 - 1) * (sizeof(struct node)));
+	trees[treeNum] = malloc((numleaves * 2 - 1) * (sizeof(struct node)));
 }
 
 void freetreememmory(void)
 {
-	free(tree);
+	for(int i = 0; i < numTrees; i++)
+	{
+		if(usedTrees[i] != 0)
+		{
+			free(trees[i]);
+		}
+	}
+	free(trees);
 }
 
-/*old code for printing a tree*/
-void printtree(int numleaves, int root)
+/*old code for printing a tree, treeNum = -1 for all trees*/
+void printtree(int numleaves, int root, int treeNum)
 
 {
 	int i;
 
-	printf("\nPRINTING TREE\n");
-	for (i = 0; i < 2 * numleaves - 1; i++)
+	if (treeNum == -1)
 	{
-		if (tree[i].up[0] != -1)
-			printf("Node %i: up: (%i, %i) down: %i", i, tree[i].up[0], tree[i].up[1], tree[i].down);
-		else
-			printf(" Node %i (leaf): up: (%i, %i) down: %i", i, tree[i].up[0], tree[i].up[1], tree[i].down);
-		if (i != root)
-			printf(" (bl: %f)\n", tree[i].bl);
-		else
-			printf(" (root)\n");
+		for(int j = 0; j < numTrees; j++)
+		{
+			if(usedTrees != 0)
+			{
+				printf("\nPRINTING TREE %d\n", treeNum);
+				for (i = 0; i < 2 * numleaves - 1; i++)
+				{
+					if (trees[j][i].up[0] != -1)
+						printf("Node %i: up: (%i, %i) down: %i", i, trees[j][i].up[0], trees[j][i].up[1], trees[j][i].down);
+					else
+						printf(" Node %i (leaf): up: (%i, %i) down: %i", i, trees[j][i].up[0], trees[j][i].up[1], trees[j][i].down);
+					if (i != root)
+						printf(" (bl: %f)\n", trees[j][i].bl);
+					else
+						printf(" (root)\n");
+				}
+			}
+		}
+	}
+	else
+	{
+		printf("\nPRINTING TREE %d\n", treeNum);
+		for (i = 0; i < 2 * numleaves - 1; i++)
+		{
+			if (trees[treeNum][i].up[0] != -1)
+				printf("Node %i: up: (%i, %i) down: %i", i, trees[treeNum][i].up[0], trees[treeNum][i].up[1], trees[treeNum][i].down);
+			else
+				printf(" Node %i (leaf): up: (%i, %i) down: %i", i, trees[treeNum][i].up[0], trees[treeNum][i].up[1], trees[treeNum][i].down);
+			if (i != root)
+				printf(" (bl: %f)\n", trees[treeNum][i].bl);
+			else
+				printf(" (root)\n");
+		}
 	}
 }
 
 /*Code getting node to leaf length assuming ultrametric (all paths the same length) tree*/
-double getMaxAge(int curNode)
+double getMaxAge(int curNode, int treeNum)
 {
-	if (tree[curNode].up[0] == -1)
+	if (trees[treeNum][curNode].up[0] == -1)
 	{
-		return (tree[curNode].bl);
+		return (trees[treeNum][curNode].bl);
 	}
 	else
 	{
-		return (tree[curNode].bl + getMaxAge(tree[curNode].up[0]));
+		return (trees[treeNum][curNode].bl + getMaxAge(trees[treeNum][curNode].up[0], treeNum));
 	}
 }
 
@@ -237,26 +268,26 @@ void getGFLChildren(int curNode, int childNodes[3], int treeNum)
 		// convert curNode to gfl node
 		curNode = curNode - numseq[treeNum];
 
-		if (tree[tree[curNode].up[0]].up[0] == -1)
+		if (trees[treeNum][trees[treeNum][curNode].up[0]].up[0] == -1)
 		{
 			// Children are leaf
-			childNodes[1] = tree[curNode].up[0] - numseq[treeNum] + 1;
+			childNodes[1] = trees[treeNum][curNode].up[0] - numseq[treeNum] + 1;
 		}
 		else
 		{
 			// children are internal
-			childNodes[1] = tree[curNode].up[0] + numseq[treeNum];
+			childNodes[1] = trees[treeNum][curNode].up[0] + numseq[treeNum];
 		}
 
-		if (tree[tree[curNode].up[1]].up[0] == -1)
+		if (trees[treeNum][trees[treeNum][curNode].up[1]].up[0] == -1)
 		{
 			// Children are leaf
-			childNodes[2] = tree[curNode].up[1] - numseq[treeNum] + 1;
+			childNodes[2] = trees[treeNum][curNode].up[1] - numseq[treeNum] + 1;
 		}
 		else
 		{
 			// children are internal
-			childNodes[2] = tree[curNode].up[1] + numseq[treeNum];
+			childNodes[2] = trees[treeNum][curNode].up[1] + numseq[treeNum];
 		}
 	}
 }
@@ -273,40 +304,47 @@ void getGFLParSib(int curNode, int parSib[3], int treeNum)
 	{
 		// internal node
 		curNode = curNode - numseq[treeNum];
+
+		// if current node is root, no parent or sibling
+		if (curNode == treeRoots[treeNum])
+		{
+			parSib[1] = -1;
+			parSib[2] = -1;
+		}
 	}
 
 	// get parent and convert, parent is always internal
-	parSib[1] = tree[curNode].down + numseq[treeNum];
+	parSib[1] = trees[treeNum][curNode].down + numseq[treeNum];
 
 	// get sibling
-	int par = tree[curNode].down;
+	int par = trees[treeNum][curNode].down;
 
-	if (tree[par].up[0] == curNode)
+	if (trees[treeNum][par].up[0] == curNode)
 	{
 		// parSib[2] = tree[par].up[1] - numseq + 1;
-		if (tree[tree[par].up[1]].up[0] == -1)
+		if (trees[treeNum][trees[treeNum][par].up[1]].up[0] == -1)
 		{
 			// Children are leaf
-			parSib[2] = tree[par].up[1] - numseq[treeNum] + 1;
+			parSib[2] = trees[treeNum][par].up[1] - numseq[treeNum] + 1;
 		}
 		else
 		{
 			// children are internal
-			parSib[2] = tree[par].up[1] + numseq[treeNum];
+			parSib[2] = trees[treeNum][par].up[1] + numseq[treeNum];
 		}
 	}
 	else
 	{
 		// parSib[2] = tree[par].up[0] - numseq + 1;
-		if (tree[tree[par].up[0]].up[0] == -1)
+		if (trees[treeNum][trees[treeNum][par].up[0]].up[0] == -1)
 		{
 			// Children are leaf
-			parSib[2] = tree[par].up[0] - numseq[treeNum] + 1;
+			parSib[2] = trees[treeNum][par].up[0] - numseq[treeNum] + 1;
 		}
 		else
 		{
 			// children are internal
-			parSib[2] = tree[par].up[0] + numseq[treeNum];
+			parSib[2] = trees[treeNum][par].up[0] + numseq[treeNum];
 		}
 	}
 }
@@ -322,10 +360,16 @@ int getGFLPar(int curNode, int treeNum)
 	{
 		// internal node
 		curNode = curNode - numseq[treeNum];
+
+		// Node is root
+		if (curNode == treeRoots[treeNum])
+		{
+			return -1;
+		}	
 	}
 
 	// Parent is always internal node
-	return (tree[curNode].down + numseq[treeNum]);
+	return (trees[treeNum][curNode].down + numseq[treeNum]);
 }
 
 //******************FUNCTIONS TO DEAL WITH THE GAMMA DISTRIBUION********************************************
@@ -3504,6 +3548,7 @@ void mergeReads(int treeNum, int refBases)
 			// printf("Reference length of %d and coverage of %d (%lf) with %d reads\n", refBases, refCoverage, (double)refCoverage/(double)refBases, numReadsPerAssign[treeNum][i]);
 
 			// UNCOMMENT THIS IN NORMAL VERSIONS< JUST FOR TESTING SOME CASES
+			// TO DO: DISREGARD -/N FOR refBases (mayeb it is, I should check)
 			if ((double)refCoverage / (double)refBases < 0.05)
 			{
 				// do I need to do anything else if I abort?
@@ -3987,6 +4032,7 @@ void read_data(char *assignfile, char *fraclikefile, char *querydatafile, char *
 	assignAges = NULL;
 	readlike = NULL;
 	treeRoots = (int*)malloc(sizeof(int) * numTrees);
+	trees = (struct node**)malloc(sizeof(struct node*) * numTrees);
 
 	// Is there a way to incorporate with above tree forloop?
 	for (int treeNum = 0; treeNum < numTrees; treeNum++)
@@ -4039,13 +4085,13 @@ void read_data(char *assignfile, char *fraclikefile, char *querydatafile, char *
 		// Globals from Rasmus code, may want to fix...
 		tip, comma = 0;
 
-		allocatetreememmory(numseq[treeNum]);
+		allocatetreememmory(numseq[treeNum], treeNum);
 		treeRoots[treeNum] = getclade(numseq[treeNum], treeNum) - 1 + numseq[treeNum]; // converts to ratePlacer node
 
 		fclose(infile);
 
 		////printtree(numseq, root);
-		if (mode != 0 && mode != 6 && mode != 8 && mode != 10 && mode != 11 && mode != 12 && mode != 13 && mode != 14 && mode != 15)
+		if (mode != 0 && mode != 6 && mode != 8 && mode != 10 && mode != 11 && mode != 12 && mode != 13 && mode != 14 && mode != 15 && mode != 17)
 		{
 			bestAssignment(treeRoots[treeNum], treeNum);
 		}
@@ -4065,7 +4111,7 @@ void read_data(char *assignfile, char *fraclikefile, char *querydatafile, char *
 		free(readsTreeSorted[treeNum]);
 
 		// No need to keep in memory
-		freetreememmory();
+		//freetreememmory();
 	}
 
 	numquery = tempnumquery;
@@ -4421,10 +4467,13 @@ void orderReads()
 
 	mergeSort(0, numquery - 1);
 
-	// for(int i = 0; i < numquery; i++)
+	//printf("Used reads: ");
+	//for(int i = 0; i < numquery; i++)
 	//{
-	//	printf("%d is age %.16f and %.16f\n", i, assignAges[usedReads[i]], nodeages[treeAssign[usedReads[i]]][assignments[usedReads[i]]] + bls[treeAssign[usedReads[i]]][assignments[usedReads[i]]]);
-	// }
+	//	printf("%d(%d) ", usedReads[i], assignments[usedReads[i]]);
+	//	//printf("%d is age %.16f and %.16f\n", i, assignAges[usedReads[i]], nodeages[treeAssign[usedReads[i]]][assignments[usedReads[i]]] + bls[treeAssign[usedReads[i]]][assignments[usedReads[i]]]);
+	//}
+	//printf("\n");
 }
 
 // getlike_ages but for a single tree
@@ -4634,7 +4683,7 @@ void maximize_like_jointly_for_all2D(double **par, int allTrees)
 	int i, k, v, nfun, readStart = 0, nodePointer = 0, twice = 0, oldReadStart, oldNodePointer;
 	double p[3], L1, L2, secD, confI;
 	double invector[3], lowbound[3], upbound[3], eh0 = 3e-8, nextNodeAge, est_age, est_age_lik, oldNodeAge;
-	double incr = totMaxAge / 1000;
+	double incr = totMaxAge / 1000, oldIn1;
 
 	// printf("Max age of %.16f and incr of %.16f\n", totMaxAge, incr);
 
@@ -4648,68 +4697,106 @@ void maximize_like_jointly_for_all2D(double **par, int allTrees)
 	if (numquery > 1)
 	{
 		printf("Starting rough estimation for maximum bound\n");
+
+		p[0] = readStart;
+		p[1] = nodePointer;
+		p[2] = 0;
+		invector[1] = nextNodeAge / 2;
+		lowbound[1] = eh0;
+		upbound[1] = nextNodeAge - eh0;
+		nfun = 0;
+		onDindic = 0;
+
+		L1 = GoldenSection(invector, lowbound, upbound, 1, getlike_ages, p, 3);
+
+		do{
+
+			oldNodePointer = nodePointer;
+			oldReadStart = readStart;
+			oldNodeAge = nextNodeAge;
+			oldIn1 = invector[1];
+			//testAge = nextNodeAge;
+			nextNodeAge = dropReads(&readStart, incr);
+			p[0] = readStart;
+			p[1] = nodePointer;
+			p[2] = 0;
+			invector[1] = nextNodeAge / 2;
+			lowbound[1] = eh0;
+			upbound[1] = nextNodeAge - eh0;
+
+			L1 = getlike_ages(oldIn1, p);
+			L2 = GoldenSection(invector, lowbound, upbound, 1, getlike_ages, p, 3);
+
+			printf("L1(%.16f): %.16f\tL2(%.16f): %.16f\tLLR: %.16f\t%d of %d\n", oldIn1, L1, invector[1], L2, 2 * (L1 - L2), readStart, numquery);
+
+			//if (2 * (L1 - L2) < 1.0){
+			//	printf("Old age is within 1.0 of new age, stopping\n");
+			//	break;
+			//}
+		}while(numquery - readStart> 1);
+
 		// double time2 = (double) clock()/CLOCKS_PER_SEC;
 		//  Rough optimization to find upper bound and reads to drop without running too much optimization
 		//  To change: Instread of making this per assigned node, do it via time slices to make a little faster
 		//  		Also maybe a GoldenSection search that is a little less stringent?
 		//  		Am just trying to do a rough optimization - maybe if time is still long despite time slice change
-		do
-		{
-			// printf("Testing max age of %.16f\n", nextNodeAge);
-			// add fillers
-			p[0] = readStart;
-			p[1] = nodePointer;
-			p[2] = 0;
+		//do
+		//{
+		//	// printf("Testing max age of %.16f\n", nextNodeAge);
+		//	// add fillers
+		//	p[0] = readStart;
+		//	p[1] = nodePointer;
+		//	p[2] = 0;
 
-			// Should consider the best way to pick these values...
-			L1 = getlike_ages_rough(nextNodeAge - nextNodeAge / 100.0, p);
-			L2 = getlike_ages_rough(nextNodeAge - nextNodeAge / 10.0, p);
-			// printf("Results of L1 %.16f and L2 %.16f with max at %.16f with readStart at %d\n", L1, L2, nextNodeAge, readStart);
-			//  Likelihood near bound is better, so drop and test next age range
-			if (L1 <= L2)
-			{
-				// TO DO: scale time increase by maxAge
-				oldNodePointer = nodePointer;
-				oldReadStart = readStart;
-				oldNodeAge = nextNodeAge;
-				testAge = nextNodeAge;
-				nextNodeAge = dropReads(&readStart, incr);
-				// printf("%d of %d\n", readStart, numquery);
-				if (readStart >= numquery - 1) // no reads left
-				{
-					// maybe exit if the likelihoods are still very different...
-					if (L2 - L1 < 1.0)
-					{
-						printf("Warning: Using last round of dropped reads\n");
-						break;
-					}
-					else
-					{
-						printf("Error: Could not optimize for bounds.\n");
-						exit(0);
-					}
-				}
-				twice = 0;
-			}
-			if (L1 > L2)
-			{
-				twice++;
-				if (twice > 1)
-					break;
-				oldNodePointer = nodePointer;
-				oldReadStart = readStart;
-				oldNodeAge = nextNodeAge;
-				testAge = nextNodeAge;
-				nextNodeAge = dropReads(&readStart, incr);
-				if (readStart == numquery) // no reads left
-				{
-					// I think this is ok as it means the last set of reads had the right trend
-					break;
-					// printf("Error: Could not find max age for opt!\n");
-					// exit(0);
-				}
-			}
-		} while (twice < 2); // DOUBLE CHECK THIS/Think of better way
+		//	// Should consider the best way to pick these values...
+		//	L1 = getlike_ages_rough(nextNodeAge - nextNodeAge / 100.0, p);
+		//	L2 = getlike_ages_rough(nextNodeAge - nextNodeAge / 10.0, p);
+		//	// printf("Results of L1 %.16f and L2 %.16f with max at %.16f with readStart at %d\n", L1, L2, nextNodeAge, readStart);
+		//	//  Likelihood near bound is better, so drop and test next age range
+		//	if (L1 <= L2)
+		//	{
+		//		// TO DO: scale time increase by maxAge
+		//		oldNodePointer = nodePointer;
+		//		oldReadStart = readStart;
+		//		oldNodeAge = nextNodeAge;
+		//		testAge = nextNodeAge;
+		//		nextNodeAge = dropReads(&readStart, incr);
+		//		// printf("%d of %d\n", readStart, numquery);
+		//		if (readStart >= numquery - 1) // no reads left
+		//		{
+		//			// maybe exit if the likelihoods are still very different...
+		//			if (L2 - L1 < 1.0)
+		//			{
+		//				printf("Warning: Using last round of dropped reads\n");
+		//				break;
+		//			}
+		//			else
+		//			{
+		//				printf("Error: Could not optimize for bounds.\n");
+		//				exit(0);
+		//			}
+		//		}
+		//		twice = 0;
+		//	}
+		//	if (L1 > L2)
+		//	{
+		//		twice++;
+		//		if (twice > 1)
+		//			break;
+		//		oldNodePointer = nodePointer;
+		//		oldReadStart = readStart;
+		//		oldNodeAge = nextNodeAge;
+		//		testAge = nextNodeAge;
+		//		nextNodeAge = dropReads(&readStart, incr);
+		//		if (readStart == numquery) // no reads left
+		//		{
+		//			// I think this is ok as it means the last set of reads had the right trend
+		//			break;
+		//			// printf("Error: Could not find max age for opt!\n");
+		//			// exit(0);
+		//		}
+		//	}
+		//} while (twice < 2); // DOUBLE CHECK THIS/Think of better way
 
 		// Current stop gap... not great
 		readStart = oldReadStart;
@@ -4798,6 +4885,196 @@ void maximize_like_jointly_for_all2D(double **par, int allTrees)
 			printf("Estimated age is %.16f with likelihood %.16f for tree %d\n", est_age, est_age_lik, i);
 		}
 	}
+}
+
+int reassign_up(int move_node, int treeNum)
+{
+	int i;
+	int assignmentChanged;
+	double move_node_age = nodeages[treeNum][move_node] + bls[treeNum][move_node];
+
+	//printf("Changing assignment of at least node %d in tree %d\n", move_node, treeNum);
+	//printf("Original assignments: ");
+	//for(i = 0; i < numquery; i++)
+	//{
+	//	printf("%d ", assignments[i]);
+	//}
+	//printf("\n");
+
+	//assignmentChanged = getGFLPar(move_node, treeNum);
+
+	//if(assignmentChanged == treeRoots[treeNum])
+	//{
+	//	return(-1);
+	//}
+
+	//printf("New assignments: ");
+	for(i = 0; i < numquery; i++)
+	{
+		if(move_node_age >= assignAges[i])
+		{
+			assignments[i] = getGFLPar(assignments[i], treeAssign[i]);	
+			assignAges[i] = nodeages[treeAssign[i]][assignments[i]] + bls[treeAssign[i]][assignments[i]];
+			if(assignments[i] == treeRoots[treeAssign[i]])
+			{
+				return(-1);
+			}
+		}
+		//printf("%d ", assignments[i]);
+	}
+	//printf("\n");
+
+	// indicate success
+	return(0);
+
+}
+
+void storeOldOrder(int *oldAssign)
+{
+	for (int i = 0; i < numquery; i++)
+	{
+		oldAssign[i] = assignments[i];
+	}
+}
+
+void maximize_like_jointly_for_all2D_reassign(double **par, int allTrees)
+{
+	printf("Starting maximize jointly for all, reassign instead of dropping\n");
+	int i, k, v, nfun, twice = 0, *oldAssign, reassign_success;
+	double p[3], L1, L2, secD, confI;
+	double lowbound[3], upbound[3], eh0=3e-8, nextNodeAge;
+	double *invect_temp, *invectorL1, *invectorL2;
+	//printf("Max age of %.16f and incr of %.16f\n", totMaxAge, incr);
+
+	invectorL1 = (double*)malloc(sizeof(double) * 3);
+	invectorL2 = (double*)malloc(sizeof(double) * 3);
+	oldAssign = (int*)malloc(sizeof(int) * numquery);
+	usedReads = (int *)malloc(sizeof(int) * numquery);
+
+	// these stay the same no matter
+	p[0] = 0;
+	p[1] = 0;
+	p[2] = 0;
+	lowbound[1] = eh0;
+	nfun=0;
+	onDindic=0;	// Because of 2nd layer of optimization
+
+	orderReads();
+	// This nextNodeAge represents the max without dropping reads
+	nextNodeAge = assignAges[usedReads[0]];
+
+	//Some bounds or fillers added	
+	invectorL1[1] = nextNodeAge/2;
+	upbound[1] = nextNodeAge - eh0;
+	//printf("Next node age is %.16f\n", nextNodeAge);
+	L1 = GoldenSection(invectorL1, lowbound, upbound, 1, getlike_ages, p, 3);
+	storeOldOrder(oldAssign);
+	reassign_success = reassign_up(assignments[usedReads[0]], treeAssign[usedReads[0]]);
+
+	if (numquery > 1)
+	{
+		while(1)
+		{
+
+			orderReads();
+			// This nextNodeAge represents the max without dropping reads
+			nextNodeAge = assignAges[usedReads[0]];
+			//printf("Next node age is %.16f\n", nextNodeAge);
+			//Some bounds or fillers added	
+			invectorL2[1] = nextNodeAge/2;
+			upbound[1] = nextNodeAge - eh0;
+
+			L2 = GoldenSection(invectorL2,lowbound, upbound, 1, getlike_ages, p, 3);
+
+			printf("L1 (%.16f, %.16f) vs L2 (%.16f, %.16f)\n", L1, invectorL1[1], L2, invectorL2[1]);
+
+			// We are working with assuming L1 is better, store assignments/likelihoods when L2 is better
+			if (L2 <= L1)
+			{
+				storeOldOrder(oldAssign);
+				L1 = L2;
+				invect_temp = invectorL1;
+				invectorL1 = invectorL2;
+				invectorL2 = invect_temp;
+				invect_temp = NULL;
+			}else{
+				free(assignments);
+				assignments = oldAssign;
+				oldAssign = NULL;
+				break;
+			}
+
+			reassign_success = reassign_up(assignments[usedReads[0]], treeAssign[usedReads[i]]);
+			if (L1 > L2 || reassign_success == treeRoots[treeAssign[usedReads[i]]] || reassign_success == -1)
+			{
+				// Can no longer push reads up the tree if the new assignment is the root or if it failed
+				free(assignments);
+				assignments = oldAssign;
+				oldAssign = NULL;
+				break;
+			}
+		}
+
+	}
+
+
+	//double time3 = (double) clock()/CLOCKS_PER_SEC;
+
+	if(nextNodeAge -  invectorL1[1]< nextNodeAge/100.0)
+	{
+		printf("Warning! Age estimate was near boundary of %.16f\n", nextNodeAge);
+	}
+
+	printf("Opt found, calculating confidence intervals\n");
+
+	//Use fisher information to get rough confidence interval
+	//Maybe give option for bootstrap confidence interval
+	//double time4 = (double) clock()/CLOCKS_PER_SEC;
+	confI = confidenceIntervalFisher(par, invectorL1[1], L1, 0);
+	//printf("The elapsed time for confidenceIntervalFisher is %.16f seconds\n", ( ((double) clock()) / CLOCKS_PER_SEC) - time4);
+
+	//Also maybe incorporate more options for the confidence interval, not just 95%
+	//Would need to be able to calculate the z-score from the user given value
+	//confI = 1.96 / sqrt(-secD);
+
+	printf("Estimated age is %.16f with likelihood %.16f and 95%% confidence interval [%.16f,%.16f]\n", invectorL1[1], L1, invectorL1[1] - confI, invectorL2[1] + confI);
+	//printf("%.16f,%.16f\n", est_age, est_age_lik);
+
+	//confidenceSearch(bounds, chiValue, maxAge, est_age, -est_age_lik, p);	
+	//printf("Estimated age is %.16f with likelihood %.16f and %.2f%% confidence interval [%.16f,%.16f]\n", est_age, est_age_lik, chiValue, bounds[0], bounds[2]);
+	//printf("Confidence interval is [%.16f, %.16f] with likelihoods %.16f and %.16f\n", bounds[0], bounds[2], bounds[1], bounds[3]);
+
+	// TO DO: REIMPLEMENT PER TREE VERSION
+	//if(allTrees)
+	//{
+	//	for(int i = 0; i < numTrees; i++)
+	//	{
+	//		//Some bounds or fillers added
+	//		p[0] = 0;
+	//		p[1] = i;
+	//		p[2] = 0;
+	//		invector[1] = nextNodeAge/2;
+	//		lowbound[1] = eh0;
+	//		upbound[1] = nextNodeAge - eh0;
+	//		nfun=0;
+	//		onDindic=0;	// Because of 2nd layer of optimization
+
+	//		//double time3 = (double) clock()/CLOCKS_PER_SEC;
+
+	//		// Decide how the inputs may need to change at some point I guess
+	//		est_age_lik = GoldenSection(invector,lowbound, upbound, 1, getlike_ages_tree, p, 3);
+	//		//printf("The elapsed time for age estimation is %.16f seconds\n", ( ((double) clock()) / CLOCKS_PER_SEC) - time3);
+
+	//		est_age = invector[1];
+
+	//		printf("Estimated age is %.16f with likelihood %.16f for tree %d\n", est_age, est_age_lik, i);
+	//	}
+	//}
+
+	free(invectorL1);
+	free(invectorL2);
+	free(oldAssign);
+	free(usedReads);
 }
 
 void maximize_like_jointly_for_all_noDrop2D(double **par, int allTrees)
@@ -5206,6 +5483,8 @@ int main(int argc, char *argv[])
 		read_branch_like_dist(par);
 	else if (mode == 15)
 		readContour(par);
+	else if (mode == 16 || mode == 17)
+		maximize_like_jointly_for_all2D_reassign(par, allTrees);
 	else
 		printf("Please specify run mode.\n 1 for age of each read, 2 for LLR of each read, 3 for sample age estimation, and 4 for likelihood surface\n");
 
