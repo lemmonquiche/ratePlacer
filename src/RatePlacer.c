@@ -91,8 +91,7 @@ int specsearch(int numleaves, int treeNum)
 			i++;
 		trees[treeNum][tip + numleaves - 2].up[0] = -1;
 		trees[treeNum][tip + numleaves - 2].up[1] = -1;
-		while ((ch = (fgetc(infile))) == ' ')
-			;
+		while ((ch = (fgetc(infile))) == ' ');
 		ungetc(ch, infile);
 		fscanf(infile, "%lf", &trees[treeNum][tip + numleaves - 2].bl);
 		/*printf("\nbranchlength of node %i =%f",tip+numleaves-1,tree[tip+numleaves-2].bl);*/
