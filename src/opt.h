@@ -856,7 +856,7 @@ double GoldenSection_rough(double newinvecter[], double lowbound[], double upbou
 	}
 }
 
-double minimize_brent(double newinvecter[], int n, double (*fun)(double x[])) {
+double minimize_brent(double newinvecter[], int n, double (*fun)(double x[]), int maxIterations) {
         double minusLnL;
 
         double *directions = (double*)malloc(sizeof(double) * n * n);
@@ -874,7 +874,7 @@ double minimize_brent(double newinvecter[], int n, double (*fun)(double x[])) {
         }
 
 
-        minusLnL = PrAxis(TOLER_PASS_2, MAX_STEP_SIZE_2, n, newinvecter, *fun, directions, powellWork);
+        minusLnL = PrAxis(TOLER_PASS_2, MAX_STEP_SIZE_2, n, newinvecter, *fun, directions, powellWork, maxIterations);
 
 		free(directions);
 		free(powellWork);
