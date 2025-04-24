@@ -59,12 +59,12 @@ struct node
 };
 
 // initializing tree into global
-//struct node *tree;
+// struct node *tree;
 
-//trees[treeNum][node]
+// trees[treeNum][node]
 struct node **trees;
 
-/*subfunction needed by ‘getclade*/
+/*subfunction needed by 'getclade*/
 void linknodes(int i, int j, int nodee, int treeNum) /*linking i down to nodee and j down to nodee*/
 {
 	trees[treeNum][nodee].up[0] = j;
@@ -73,7 +73,7 @@ void linknodes(int i, int j, int nodee, int treeNum) /*linking i down to nodee a
 	trees[treeNum][j].down = nodee;
 }
 
-/*subfunction needed by ‘getclade*/
+/*subfunction needed by 'getclade*/
 /** What does this subfunction do exactly? **/
 // is tip used to track number of leaves observed while reading in the file?
 // 	if so, should there be a check that the number of tips cannot be larger than numleaves?
@@ -90,7 +90,8 @@ int specsearch(int numleaves, int treeNum)
 			i++;
 		trees[treeNum][tip + numleaves - 2].up[0] = -1;
 		trees[treeNum][tip + numleaves - 2].up[1] = -1;
-		while ((ch = (fgetc(infile))) == ' ');
+		while ((ch = (fgetc(infile))) == ' ')
+			;
 		ungetc(ch, infile);
 		fscanf(infile, "%lf", &trees[treeNum][tip + numleaves - 2].bl);
 		/*printf("\nbranchlength of node %i =%f",tip+numleaves-1,tree[tip+numleaves-2].bl);*/
@@ -103,7 +104,7 @@ int specsearch(int numleaves, int treeNum)
 	}
 }
 
-/*subfunction needed by ‘getclade*/
+/*subfunction needed by 'getclade*/
 /** Gets node number... but how? **/
 int getnodenumb()
 {
@@ -185,14 +186,15 @@ void allocatetreememmory(int numleaves, int treeNum)
 
 void freetreememmory(void)
 {
-	for(int i = 0; i < numTrees; i++)
+	for (int i = 0; i < numTrees; i++)
 	{
-		if(usedTrees[i] != 0)
+		if (usedTrees[i] != 0)
 		{
 			free(trees[i]);
 		}
 	}
 	free(trees);
+	free(usedTrees);
 }
 
 /*old code for printing a tree, treeNum = -1 for all trees*/
@@ -203,9 +205,9 @@ void printtree(int numleaves, int root, int treeNum)
 
 	if (treeNum == -1)
 	{
-		for(int j = 0; j < numTrees; j++)
+		for (int j = 0; j < numTrees; j++)
 		{
-			if(usedTrees != 0)
+			if (usedTrees != 0)
 			{
 				printf("\nPRINTING TREE %d\n", treeNum);
 				for (i = 0; i < 2 * numleaves - 1; i++)
@@ -363,7 +365,7 @@ int getGFLPar(int curNode, int treeNum)
 		if (curNode == treeRoots[treeNum])
 		{
 			return -1;
-		}	
+		}
 	}
 
 	// Parent is always internal node
@@ -576,7 +578,7 @@ l4:
 	return (ch);
 }
 
-//#define PointGamma(prob, alpha, beta) PointChi2(prob, 2.0 * (alpha)) / (2.0 * (beta))
+// #define PointGamma(prob, alpha, beta) PointChi2(prob, 2.0 * (alpha)) / (2.0 * (beta))
 
 double CDFfunGamma(double x, double par[2])
 
@@ -688,7 +690,7 @@ complex compl(double re, double im)
   a.im = -a.im;
   */
 
-//#define csize(a) (fabs(a.re) + fabs(a.im))
+// #define csize(a) (fabs(a.re) + fabs(a.im))
 
 complex cplus(complex a, complex b)
 {
@@ -783,7 +785,7 @@ int cmatout(FILE *fout, complex x[], int n, int m)
 	int i, j;
 	for (i = 0, FPN(fout); i < n; i++, FPN(fout))
 		FOR(j, m)
-		fprintf(fout, "%7.3f%7.3f  ", x[i * m + j].re, x[i * m + j].im);
+	fprintf(fout, "%7.3f%7.3f  ", x[i * m + j].re, x[i * m + j].im);
 	return (0);
 }
 
@@ -2452,8 +2454,8 @@ double getlike_gamma_root_in_trifurcation_reassign(double times[3], double param
 						}
 						B[k] += logSumExp(A);
 						FRACLIKE_ptr -= 4; // because no conditional likelihood
-						// ptr_pos+=4;
-						//  printf("\t\t\t\t\tB:%lf\n", logSumExp(A));
+										   // ptr_pos+=4;
+										   //  printf("\t\t\t\t\tB:%lf\n", logSumExp(A));
 					}
 					// printf("\t\t\t\t\tB[%d]: %lf\n", k, B[k]);
 				}
@@ -2975,6 +2977,7 @@ int read_query_data(int num)
 		fscanf(infile, "%i %i ", &length, &startposTemp[treeAssign[i]][numTreeAssigned[treeAssign[i]]]);
 		// readlength[i]=length;
 		// QUERYDATA[i]=malloc(length*(sizeof(int)));
+		// printf("Last test of memory location of readLengthTemp[%d] at %p\n", treeAssign[i], readLengthTemp[treeAssign[i]]);
 		readLengthTemp[treeAssign[i]][numTreeAssigned[treeAssign[i]]] = length;
 
 		// Store reads based on tree assignment
@@ -3028,6 +3031,8 @@ int read_query_data(int num)
 	//	}
 	//	printf("\n");
 	// }
+
+	free(numTreeAssigned);
 
 	return num;
 	// printf("Errors setting of %d, sequence %d, assignment %d\n", errors, seq, node);
@@ -3204,6 +3209,11 @@ void make_readfraclike()
 						readLikeTemp[treeNum][treeOrder][j][k] = e;
 					}
 				}
+			}
+			else
+			{
+				// readlike[i][j][k] = e + errorTestLog;
+				readLikeTemp[treeNum][treeOrder][j] = NULL;
 			}
 		}
 	}
@@ -3933,7 +3943,7 @@ void bestAssignment(int root, int treeNum)
 // This function merges all the reads that have been assigned to the same node
 void mergeReads(int treeNum, int refBases)
 {
-	printf("Merging Reads\n");
+	// printf("Merging Reads\n");
 	int **perEdgeReads = (int **)malloc((2 * numseq[treeNum] - 1) * sizeof(int *));
 	int *perEdgeIndex = (int *)calloc(2 * numseq[treeNum] - 1, sizeof(int));
 	int firstPos, lastPos;
@@ -3956,13 +3966,75 @@ void mergeReads(int treeNum, int refBases)
 	// printf("%d\n", tempnumquery);
 
 	// Not safe, should be testing with temp pointer for NULL to be able to free...
-	QUERYDATA = (int **)realloc(QUERYDATA, tempnumquery * (sizeof(int *)));
-	startpos = realloc(startpos, tempnumquery * (sizeof(int)));
-	readlength = realloc(readlength, tempnumquery * (sizeof(int)));
-	assignAges = (double *)realloc(assignAges, tempnumquery * (sizeof(double)));
-	assignments = realloc(assignments, tempnumquery * (sizeof(int)));
-	treeAssign = realloc(treeAssign, tempnumquery * (sizeof(int)));
-	readlike = (double ***)realloc(readlike, tempnumquery * sizeof(double **));
+	int** tempptr = (int **)realloc(QUERYDATA, tempnumquery * (sizeof(int *)));
+	if (tempptr != NULL)
+	{
+		QUERYDATA = tempptr;
+	} else {
+		printf("Failed to reallocate QUERYDATA in mergeReads\n");
+		exit(0);
+	}
+
+	int* tempptr2 = (int *)realloc(startpos, tempnumquery * (sizeof(int)));
+	if (tempptr2 != NULL)
+	{
+		startpos = tempptr2;
+	} else {
+		printf("Failed to reallocate startpos in mergeReads\n");
+		exit(0);
+	}
+
+	tempptr2 = (int *)realloc(readlength, tempnumquery * (sizeof(int)));
+	if (tempptr2 != NULL)
+	{
+		readlength = tempptr2;
+	} else {
+		printf("Failed to reallocate readlength in mergeReads\n");
+		exit(0);
+	}
+
+	tempptr2 = (int *)realloc(assignments, tempnumquery * (sizeof(int)));
+	if (tempptr2 != NULL)
+	{
+		assignments = tempptr2;
+	} else {
+		printf("Failed to reallocate assignments in mergeReads\n");
+		exit(0);
+	}
+
+	tempptr2 = (int *)realloc(treeAssign, tempnumquery * (sizeof(int)));
+	if (tempptr2 != NULL)
+	{
+		treeAssign = tempptr2;
+	} else {
+		printf("Failed to reallocate treeAssign in mergeReads\n");
+		exit(0);
+	}
+
+	double* tempptr3 = (double *)realloc(assignAges, tempnumquery * (sizeof(double)));
+	if (tempptr3 != NULL)
+	{
+		assignAges = tempptr3;
+	} else {
+		printf("Failed to reallocate assignAges in mergeReads\n");
+		exit(0);
+	}
+
+	double*** tempptr4 = (double ***)realloc(readlike, tempnumquery * sizeof(double **));
+	if (tempptr4 != NULL)
+	{
+		readlike = tempptr4;
+	} else {
+		printf("Failed to reallocate readlike in mergeReads\n");
+		exit(0);
+	}
+	//QUERYDATA = (int **)realloc(QUERYDATA, tempnumquery * (sizeof(int *)));
+	//startpos = realloc(startpos, tempnumquery * (sizeof(int)));
+	//readlength = realloc(readlength, tempnumquery * (sizeof(int)));
+	//assignAges = (double *)realloc(assignAges, tempnumquery * (sizeof(double)));
+	//assignments = realloc(assignments, tempnumquery * (sizeof(int)));
+	//treeAssign = realloc(treeAssign, tempnumquery * (sizeof(int)));
+	//readlike = (double ***)realloc(readlike, tempnumquery * sizeof(double **));
 
 	for (int i = 0; i < usedTrees[treeNum]; i++)
 	{
@@ -4069,6 +4141,7 @@ void mergeReads(int treeNum, int refBases)
 				{
 					QUERYDATA[index][pos] = -1;
 					// printf("-");
+					readlike[index][pos] = NULL;
 				}
 				else
 				{
@@ -4148,6 +4221,15 @@ void mergeReads(int treeNum, int refBases)
 
 	free(baseCounts);
 	free(errorSums);
+	free(perEdgeIndex);
+	for (int i = 0; i < 2 * numseq[treeNum] - 1; i++)
+	{
+		if (numReadsPerAssign[treeNum][i] != 0) // Only free if it was allocated
+		{
+			free(perEdgeReads[i]);
+		}
+	}
+	free(perEdgeReads);
 
 	// TO DO: Free per tree temps
 }
@@ -4247,7 +4329,7 @@ void read_data(char *assignfile, char *fraclikefile, char *querydatafile, char *
 	numbases = (int *)malloc(numTrees * sizeof(int));
 
 	// stores the length of each read grouped by tree
-	readLengthTemp = (int **)malloc(numTrees * sizeof(int));
+	readLengthTemp = (int **)malloc(numTrees * sizeof(int *));
 
 	// stores index of read in tree order data structure
 	readOrder = (int *)malloc(numquery * sizeof(int));
@@ -4260,6 +4342,11 @@ void read_data(char *assignfile, char *fraclikefile, char *querydatafile, char *
 
 	// stores assignments in tree sort
 	tempAssignments = (int **)malloc(numTrees * sizeof(int *));
+
+	//// --- Debug Print 1 ---
+	//printf("Outer tempAssignments allocated at: %p\n", (void *)tempAssignments);
+	//fflush(stdout);
+	//// --- End Debug Print 1 ---
 
 	// stores number of assignments per edge in a tree
 	numReadsPerAssign = (int **)malloc(numTrees * sizeof(int *));
@@ -4274,7 +4361,7 @@ void read_data(char *assignfile, char *fraclikefile, char *querydatafile, char *
 		// READING IN OUTPUT FROM GET_FRAC_LIKE WITH RACTIONAL LIKELIHOODS, NODE AGES, AND MORE
 
 		readsTreeSorted[treeNum] = (int **)malloc(usedTrees[treeNum] * sizeof(int *));
-		readLengthTemp[treeNum] = (int *)malloc(usedTrees[treeNum] * sizeof(int *));
+		readLengthTemp[treeNum] = (int *)malloc(usedTrees[treeNum] * sizeof(int));
 		readLikeTemp[treeNum] = (double ***)malloc(usedTrees[treeNum] * sizeof(double **));
 		startposTemp[treeNum] = (int *)malloc(usedTrees[treeNum] * sizeof(int));
 		tempAssignments[treeNum] = (int *)malloc(usedTrees[treeNum] * sizeof(int));
@@ -4497,8 +4584,8 @@ void read_data(char *assignfile, char *fraclikefile, char *querydatafile, char *
 	readlength = NULL;
 	assignAges = NULL;
 	readlike = NULL;
-	treeRoots = (int*)malloc(sizeof(int) * numTrees);
-	trees = (struct node**)malloc(sizeof(struct node*) * numTrees);
+	treeRoots = (int *)malloc(sizeof(int) * numTrees);
+	trees = (struct node **)malloc(sizeof(struct node *) * numTrees);
 
 	// Is there a way to incorporate with above tree forloop?
 	for (int treeNum = 0; treeNum < numTrees; treeNum++)
@@ -4569,7 +4656,7 @@ void read_data(char *assignfile, char *fraclikefile, char *querydatafile, char *
 		// exit(0);
 
 		// Depending on mode, we don't need to merge! Should make a function/edit mergeReads that just transfers to the correct datastructures for the rest of ratePlacer
-		if (toMerge)
+		 if (toMerge)
 		{
 			mergeReads(treeNum, refBases);
 		}
@@ -4578,10 +4665,14 @@ void read_data(char *assignfile, char *fraclikefile, char *querydatafile, char *
 		//	keepSeparateReads(treeNum, refBases);
 		// }
 
+		for (int i = 0; i < usedTrees[treeNum]; i++)
+		{
+			free(readsTreeSorted[treeNum][i]);
+		}
 		free(readsTreeSorted[treeNum]);
 
 		// No need to keep in memory
-		//freetreememmory();
+		// freetreememmory();
 	}
 
 	numquery = tempnumquery;
@@ -4590,18 +4681,110 @@ void read_data(char *assignfile, char *fraclikefile, char *querydatafile, char *
 
 	if (numquery < 1)
 	{
+		for (int i = 0; i < numTrees; i++)
+		{
+			if (usedTrees[i] == 0)
+			{
+				// no reads were assigned to this tree, don't need to free memory here
+				continue;
+			}
+			free(numReadsPerAssign[i]);
+			for (int j = 0; j < usedTrees[i]; j++)
+			{
+				for (int k = 0; k < readLengthTemp[i][j]; k++)
+				{
+					free(readLikeTemp[i][j][k]);
+				}
+				free(readLikeTemp[i][j]);
+			}
+			free(readLikeTemp[i]);
+			free(readLengthTemp[i]);
+			printf("Freeing tempAssignments[%d] %p\n", i, tempAssignments[i]);
+			free(tempAssignments[i]);
+			printf("Freed tempAssignments[%d] %p\n", i, tempAssignments[i]);
+		}
+		free(readLikeTemp);
+
+		free(readsTreeSorted);
+		free(readOrder);
+		free(readLengthTemp);
+		free(startposTemp);
+		free(tempAssignments);
+		free(numReadsPerAssign);
 		printf("No reads pass required reference coverage of 5%%. Exiting.\n");
 		exit(0);
 	}
 
-	// deallocate extra memory if needed
-	QUERYDATA = (int **)realloc(QUERYDATA, tempnumquery * (sizeof(int *)));
-	startpos = realloc(startpos, tempnumquery * (sizeof(int)));
-	readlength = realloc(readlength, tempnumquery * (sizeof(int)));
-	assignAges = (double *)realloc(assignAges, tempnumquery * (sizeof(double)));
-	assignments = realloc(assignments, tempnumquery * (sizeof(int)));
-	treeAssign = realloc(treeAssign, tempnumquery * (sizeof(int)));
-	readlike = (double ***)realloc(readlike, tempnumquery * sizeof(double **));
+	// deallocate extra memory if needed/tree	
+	int* tempptr = (int *)realloc(treeAssign, tempnumquery * (sizeof(int)));
+	if (tempptr != NULL)
+	{
+		treeAssign = tempptr;
+	} else {
+		printf("Failed to reallocate treeAssign in read_data\n");
+		exit(0);
+	}
+
+	tempptr = (int *)realloc(assignments, tempnumquery * (sizeof(int)));
+	if (tempptr != NULL)
+	{
+		assignments = tempptr;
+	} else {
+		printf("Failed to reallocate assignments in read_data\n");
+		exit(0);
+	}
+
+	tempptr = (int *)realloc(startpos, tempnumquery * (sizeof(int)));
+	if (tempptr != NULL)
+	{
+		startpos = tempptr;
+	} else {
+		printf("Failed to reallocate startpos in read_data\n");
+		exit(0);
+	}
+
+	tempptr = (int *)realloc(readlength, tempnumquery * (sizeof(int)));
+	if (tempptr != NULL)
+	{
+		readlength = tempptr;
+	} else {
+		printf("Failed to reallocate readlength in read_data\n");
+		exit(0);
+	}
+
+	int **tempptr2 = (int **)realloc(QUERYDATA, tempnumquery * (sizeof(int *)));
+	if (tempptr2 != NULL)
+	{
+		QUERYDATA = tempptr2;
+	} else {
+		printf("Failed to reallocate QUERYDATA in read_data\n");
+		exit(0);
+	}
+
+	double *tempptr3 = (double *)realloc(assignAges, tempnumquery * (sizeof(double)));
+	if (tempptr3 != NULL)
+	{
+		assignAges = tempptr3;
+	} else {
+		printf("Failed to reallocate assignAges in read_data\n");
+		exit(0);
+	}
+
+	double ***tempptr4 = (double ***)realloc(readlike, tempnumquery * sizeof(double **));
+	if (tempptr4 != NULL)
+	{
+		readlike = tempptr4;
+	} else {
+		printf("Failed to reallocate readlike in read_data\n");
+		exit(0);
+	}
+	//QUERYDATA = (int **)realloc(QUERYDATA, tempnumquery * (sizeof(int *)));
+	//startpos = (int *)realloc(startpos, tempnumquery * (sizeof(int)));
+	//readlength = (int *)realloc(readlength, tempnumquery * (sizeof(int)));
+	//assignAges = (double *)realloc(assignAges, tempnumquery * (sizeof(double)));
+	//assignments = (int *)realloc(assignments, tempnumquery * (sizeof(int)));
+	//treeAssign = (int *)realloc(treeAssign, tempnumquery * (sizeof(int)));
+	//readlike = (double ***)realloc(readlike, tempnumquery * sizeof(double **));
 
 	// for(int read = 0; read < numquery; read++)
 	//{
@@ -4640,15 +4823,44 @@ void read_data(char *assignfile, char *fraclikefile, char *querydatafile, char *
 	//	//}
 	// }
 
-	// exit(0);
+	//// --- Debug Print 2 ---
+	//printf("Outer tempAssignments before cleanup loop: %p\n", (void *)tempAssignments);
+	//fflush(stdout);
+	//// --- End Debug Print 2 ---
+
+	for (int i = 0; i < numTrees; i++)
+	{
+		if (usedTrees[i] == 0)
+		{
+			// no reads were assigned to this tree, don't need to free memory here
+			continue;
+		}
+		free(numReadsPerAssign[i]);
+		for (int j = 0; j < usedTrees[i]; j++)
+		{
+			for (int k = 0; k < readLengthTemp[i][j]; k++)
+			{
+				free(readLikeTemp[i][j][k]);
+			}
+			free(readLikeTemp[i][j]);
+		}
+		free(startposTemp[i]);
+		free(readLikeTemp[i]);
+		free(readLengthTemp[i]);
+		//printf("Freeing tempAssignments[%d] %p\n", i, tempAssignments[i]);
+		free(tempAssignments[i]);
+		//printf("Freed tempAssignments[%d] %p\n", i, tempAssignments[i]);
+	}
+	free(readLikeTemp);
 
 	free(readsTreeSorted);
 	free(readOrder);
 	free(readLengthTemp);
-	free(readLikeTemp);
 	free(startposTemp);
 	free(tempAssignments);
 	free(numReadsPerAssign);
+
+	//exit(0);
 }
 
 void maximize_like_seperately_for_all2D_Print(double **par)
@@ -4943,11 +5155,10 @@ void mergeSort(int left, int right)
 // Initialization where reads are ordered by their assignment node order
 void orderReads()
 {
-	usedReads = (int *)malloc(sizeof(int) * numquery);
-
-	// TO DO: Determine if this is the most efficient way
-	// or if I should have merge sort work on all data associated with
-	// the reads instead
+	// usedReads = (int *)malloc(sizeof(int) * numquery);
+	//  TO DO: Determine if this is the most efficient way
+	//  or if I should have merge sort work on all data associated with
+	//  the reads instead
 	for (int i = 0; i < numquery; i++)
 	{
 		usedReads[i] = i;
@@ -4955,13 +5166,13 @@ void orderReads()
 
 	mergeSort(0, numquery - 1);
 
-	//printf("Used reads: ");
-	//for(int i = 0; i < numquery; i++)
+	// printf("Used reads: ");
+	// for(int i = 0; i < numquery; i++)
 	//{
 	//	printf("%d(%d) ", usedReads[i], assignments[usedReads[i]]);
 	//	//printf("%d is age %.16f and %.16f\n", i, assignAges[usedReads[i]], nodeages[treeAssign[usedReads[i]]][assignments[usedReads[i]]] + bls[treeAssign[usedReads[i]]][assignments[usedReads[i]]]);
-	//}
-	//printf("\n");
+	// }
+	// printf("\n");
 }
 
 // getlike_ages but for a single tree
@@ -5053,7 +5264,7 @@ double getlike_ages_rough(double times, double parameters[7])
 
 		// printf("\tRead %d assigned to tree %d and node %d with likelihood %.16f with root placement of %.16f\n", usedReads[i], treeAssign[usedReads[i]], assignments[usedReads[i]], L2, nodeages[treeAssign[usedReads[i]]][assignments[usedReads[i]]]+invector[1]);
 		age_like += L2; // sum of log likelihoods
-		// printf("\t\tassignment %d like contribution %.16f\n", assignments[usedReads[i]], L2);
+						// printf("\t\tassignment %d like contribution %.16f\n", assignments[usedReads[i]], L2);
 	}
 	// printf("Likelihood of age %.16f: %.16f\n", testAge, age_like);
 
@@ -5105,7 +5316,7 @@ double getlike_ages(double times, double parameters[7])
 		// printf("\tRead %d assigned to tree %d and node %d with likelihood %.16f with root placement of %.16f\n", usedReads[i], treeAssign[usedReads[i]], assignments[usedReads[i]], L2, nodeages[treeAssign[usedReads[i]]][assignments[usedReads[i]]]+invector[1]);
 
 		age_like += L2; // sum of log likelihoods
-		// printf("\t\tassignment %d like contribution %.16f\n", assignments[usedReads[i]], L2);
+						// printf("\t\tassignment %d like contribution %.16f\n", assignments[usedReads[i]], L2);
 	}
 	// printf("Likelihood of age %.16f: %.16f\n", testAge, age_like);
 
@@ -5172,7 +5383,7 @@ void maximize_like_jointly_for_all2D(double **par, int allTrees)
 	double p[3], L1, L2, secD, confI;
 	double invector[3], lowbound[3], upbound[3], eh0 = 3e-8, nextNodeAge, est_age, est_age_lik, oldNodeAge;
 	double incr = totMaxAge / 1000, oldIn1;
-
+	usedReads = (int *)malloc(sizeof(int) * numquery);
 	// printf("Max age of %.16f and incr of %.16f\n", totMaxAge, incr);
 
 	orderReads();
@@ -5381,40 +5592,39 @@ int reassign_up(int move_node, int treeNum)
 	int assignmentChanged;
 	double move_node_age = nodeages[treeNum][move_node] + bls[treeNum][move_node];
 
-	//printf("Changing assignment of at least node %d in tree %d\n", move_node, treeNum);
-	//printf("Original assignments: ");
-	//for(i = 0; i < numquery; i++)
+	// printf("Changing assignment of at least node %d in tree %d\n", move_node, treeNum);
+	// printf("Original assignments: ");
+	// for(i = 0; i < numquery; i++)
 	//{
 	//	printf("%d ", assignments[i]);
-	//}
-	//printf("\n");
+	// }
+	// printf("\n");
 
-	//assignmentChanged = getGFLPar(move_node, treeNum);
+	// assignmentChanged = getGFLPar(move_node, treeNum);
 
-	//if(assignmentChanged == treeRoots[treeNum])
+	// if(assignmentChanged == treeRoots[treeNum])
 	//{
 	//	return(-1);
-	//}
+	// }
 
-	//printf("New assignments: ");
-	for(i = 0; i < numquery; i++)
+	// printf("New assignments: ");
+	for (i = 0; i < numquery; i++)
 	{
-		if(move_node_age >= assignAges[i])
+		if (move_node_age >= assignAges[i])
 		{
-			assignments[i] = getGFLPar(assignments[i], treeAssign[i]);	
+			assignments[i] = getGFLPar(assignments[i], treeAssign[i]);
 			assignAges[i] = nodeages[treeAssign[i]][assignments[i]] + bls[treeAssign[i]][assignments[i]];
-			if(assignments[i] == treeRoots[treeAssign[i]])
+			if (assignments[i] == treeRoots[treeAssign[i]])
 			{
-				return(-1);
+				return (-1);
 			}
 		}
-		//printf("%d ", assignments[i]);
+		// printf("%d ", assignments[i]);
 	}
-	//printf("\n");
+	// printf("\n");
 
 	// indicate success
-	return(0);
-
+	return (0);
 }
 
 void storeOldOrder(int *oldAssign)
@@ -5430,14 +5640,14 @@ void maximize_like_jointly_for_all2D_reassign(double **par, int allTrees)
 	printf("Starting maximize jointly for all, reassign instead of dropping\n");
 	int i, k, v, nfun, twice = 0, *oldAssign, reassign_success;
 	double p[3], L1, L2, secD, confI;
-	double lowbound[3], upbound[3], eh0=3e-8, nextNodeAge;
+	double lowbound[3], upbound[3], eh0 = 3e-8, nextNodeAge;
 	double *invect_temp, *invectorL1, *invectorL2;
 	//double brent_invector[numquery+1], L1_test, L2_test;
 	//printf("Max age of %.16f and incr of %.16f\n", totMaxAge, incr);
 
-	invectorL1 = (double*)malloc(sizeof(double) * 3);
-	invectorL2 = (double*)malloc(sizeof(double) * 3);
-	oldAssign = (int*)malloc(sizeof(int) * numquery);
+	invectorL1 = (double *)malloc(sizeof(double) * 3);
+	invectorL2 = (double *)malloc(sizeof(double) * 3);
+	oldAssign = (int *)malloc(sizeof(int) * numquery);
 	usedReads = (int *)malloc(sizeof(int) * numquery);
 
 	// these stay the same no matter
@@ -5445,17 +5655,17 @@ void maximize_like_jointly_for_all2D_reassign(double **par, int allTrees)
 	p[1] = 0;
 	p[2] = 0;
 	lowbound[1] = eh0;
-	nfun=0;
-	onDindic=0;	// Because of 2nd layer of optimization
+	nfun = 0;
+	onDindic = 0; // Because of 2nd layer of optimization
 
 	orderReads();
 	// This nextNodeAge represents the max without dropping reads
 	nextNodeAge = assignAges[usedReads[0]];
 
-	//Some bounds or fillers added	
-	invectorL1[1] = nextNodeAge/2;
+	// Some bounds or fillers added
+	invectorL1[1] = nextNodeAge / 2;
 	upbound[1] = nextNodeAge - eh0;
-	//printf("Next node age is %.16f\n", nextNodeAge);
+	// printf("Next node age is %.16f\n", nextNodeAge);
 	L1 = GoldenSection(invectorL1, lowbound, upbound, 1, getlike_ages, p, 3);
 
 	//brent_invector[numquery] = nextNodeAge/2;
@@ -5474,19 +5684,19 @@ void maximize_like_jointly_for_all2D_reassign(double **par, int allTrees)
 
 	if (numquery > 1)
 	{
-		while(1)
+		while (1)
 		{
 
 			orderReads();
 			// This nextNodeAge represents the max without dropping reads
 			nextNodeAge = assignAges[usedReads[0]];
-			//printf("Next node age is %.16f\n", nextNodeAge);
-			//Some bounds or fillers added	
-			invectorL2[1] = nextNodeAge/2;
+			// printf("Next node age is %.16f\n", nextNodeAge);
+			// Some bounds or fillers added
+			invectorL2[1] = nextNodeAge / 2;
 			upbound[1] = nextNodeAge - eh0;
 			curAgeBound = nextNodeAge - eh0;
 
-			L2 = GoldenSection(invectorL2,lowbound, upbound, 1, getlike_ages, p, 3);
+			L2 = GoldenSection(invectorL2, lowbound, upbound, 1, getlike_ages, p, 3);
 
 			//printf("L1 (%.16f, %.16f) vs L2 (%.16f, %.16f)\n", L1, invectorL1[1], L2, invectorL2[1]);
 
@@ -5509,7 +5719,9 @@ void maximize_like_jointly_for_all2D_reassign(double **par, int allTrees)
 				invectorL1 = invectorL2;
 				invectorL2 = invect_temp;
 				invect_temp = NULL;
-			}else{
+			}
+			else
+			{
 				free(assignments);
 				assignments = oldAssign;
 				oldAssign = NULL;
@@ -5526,38 +5738,36 @@ void maximize_like_jointly_for_all2D_reassign(double **par, int allTrees)
 				break;
 			}
 		}
-
 	}
 
+	// double time3 = (double) clock()/CLOCKS_PER_SEC;
 
-	//double time3 = (double) clock()/CLOCKS_PER_SEC;
-
-	if(nextNodeAge -  invectorL1[1]< nextNodeAge/100.0)
+	if (nextNodeAge - invectorL1[1] < nextNodeAge / 100.0)
 	{
 		printf("Warning! Age estimate was near boundary of %.16f\n", nextNodeAge);
 	}
 
 	printf("Opt found, calculating confidence intervals\n");
 
-	//Use fisher information to get rough confidence interval
-	//Maybe give option for bootstrap confidence interval
-	//double time4 = (double) clock()/CLOCKS_PER_SEC;
+	// Use fisher information to get rough confidence interval
+	// Maybe give option for bootstrap confidence interval
+	// double time4 = (double) clock()/CLOCKS_PER_SEC;
 	confI = confidenceIntervalFisher(par, invectorL1[1], L1, 0);
-	//printf("The elapsed time for confidenceIntervalFisher is %.16f seconds\n", ( ((double) clock()) / CLOCKS_PER_SEC) - time4);
+	// printf("The elapsed time for confidenceIntervalFisher is %.16f seconds\n", ( ((double) clock()) / CLOCKS_PER_SEC) - time4);
 
-	//Also maybe incorporate more options for the confidence interval, not just 95%
-	//Would need to be able to calculate the z-score from the user given value
-	//confI = 1.96 / sqrt(-secD);
+	// Also maybe incorporate more options for the confidence interval, not just 95%
+	// Would need to be able to calculate the z-score from the user given value
+	// confI = 1.96 / sqrt(-secD);
 
 	printf("Estimated age is %.16f with likelihood %.16f and 95%% confidence interval [%.16f,%.16f]\n", invectorL1[1], L1, invectorL1[1] - confI, invectorL2[1] + confI);
-	//printf("%.16f,%.16f\n", est_age, est_age_lik);
+	// printf("%.16f,%.16f\n", est_age, est_age_lik);
 
-	//confidenceSearch(bounds, chiValue, maxAge, est_age, -est_age_lik, p);	
-	//printf("Estimated age is %.16f with likelihood %.16f and %.2f%% confidence interval [%.16f,%.16f]\n", est_age, est_age_lik, chiValue, bounds[0], bounds[2]);
-	//printf("Confidence interval is [%.16f, %.16f] with likelihoods %.16f and %.16f\n", bounds[0], bounds[2], bounds[1], bounds[3]);
+	// confidenceSearch(bounds, chiValue, maxAge, est_age, -est_age_lik, p);
+	// printf("Estimated age is %.16f with likelihood %.16f and %.2f%% confidence interval [%.16f,%.16f]\n", est_age, est_age_lik, chiValue, bounds[0], bounds[2]);
+	// printf("Confidence interval is [%.16f, %.16f] with likelihoods %.16f and %.16f\n", bounds[0], bounds[2], bounds[1], bounds[3]);
 
 	// TO DO: REIMPLEMENT PER TREE VERSION
-	//if(allTrees)
+	// if(allTrees)
 	//{
 	//	for(int i = 0; i < numTrees; i++)
 	//	{
@@ -5586,7 +5796,6 @@ void maximize_like_jointly_for_all2D_reassign(double **par, int allTrees)
 	free(invectorL1);
 	free(invectorL2);
 	free(oldAssign);
-	free(usedReads);
 }
 
 void maximize_like_jointly_for_all_noDrop2D(double **par, int allTrees)
@@ -5595,6 +5804,7 @@ void maximize_like_jointly_for_all_noDrop2D(double **par, int allTrees)
 	int i, k, v, nfun, readStart = 0, nodePointer = 0, twice = 0, oldReadStart, oldNodePointer;
 	double p[3], L1, L2, secD, confI;
 	double invector[3], lowbound[3], upbound[3], eh0 = 3e-8, nextNodeAge, est_age, est_age_lik;
+	usedReads = (int *)malloc(sizeof(int) * numquery);
 	// double incr = totMaxAge/1000;
 
 	// printf("Max age of %.16f and incr of %.16f\n", totMaxAge, incr);
@@ -5683,6 +5893,7 @@ void age_like_distribution_jointly_for_all2D_upperLimit(double **par, double top
 	int numDrops = 0;
 	double p[3], L1, L2, ageIncr, nextNodeAge, tempAge, tempAge2;
 	double invector[3], lowbound[3], upbound[3], eh0 = 1e-8, age_like;
+	usedReads = (int *)malloc(sizeof(int) * numquery);
 
 	orderReads();
 
@@ -5751,6 +5962,7 @@ void age_like_distribution_jointly_for_all2D(double **par)
 	int numDrops = 0;
 	double p[3], L1, L2, ageIncr, nextNodeAge, tempAge, tempAge2;
 	double invector[3], lowbound[3], upbound[3], eh0 = 1e-8, age_like;
+	usedReads = (int *)malloc(sizeof(int) * numquery);
 
 	orderReads();
 
@@ -5857,6 +6069,67 @@ void maximize_like_jointly_for_all_gamma_plus_zero()
 
 void postrior_assignment_for_all_gamma_plus_zero()
 {
+}
+
+// Free globals
+void freeData()
+{
+	// Things to free that are only single *
+	free(assignments);
+	free(startpos);
+	free(assignAges);
+	free(treeAssign);
+	free(usedReads);
+
+	free(numbases);
+	free(treeRoots);
+	free(maxAges);
+
+	// More complex frees
+	for (int i = 0; i < numquery; i++)
+	{
+		free(QUERYDATA[i]);
+		for (int j = 0; j < readlength[i]; j++)
+		{
+			free(readlike[i][j]);
+		}
+		free(readlike[i]);
+	}
+
+	for (int i = 0; i < numTrees; i++)
+	{
+		free(pi[i]);
+		free(par[i]);
+		for (int j = 0; j < numseq[i]; j++)
+		{
+			free(DATA[i][j]);
+		}
+		free(DATA[i]);
+		free(bls[i]);
+		free(nodeages[i]);
+		free(FRACLIKE[i]);
+		free(statevector[i]);
+		free(nodeOrder[i]);
+		free(RRVAL[i]);
+		free(RRVEC[i]);
+		free(LRVEC[i]);
+	}
+
+	free(numseq);
+	free(QUERYDATA);
+	free(readlike);
+	free(readlength);
+	free(pi);
+	free(par);
+	free(DATA);
+	free(bls);
+	free(nodeages);
+	free(FRACLIKE);
+	free(statevector);
+	free(nodeOrder);
+	free(RRVAL);
+	free(RRVEC);
+	free(LRVEC);
 }
 
 int main(int argc, char *argv[])
@@ -6002,6 +6275,8 @@ int main(int argc, char *argv[])
 		printf("Please specify run mode.\n 1 for age of each read, 2 for LLR of each read, 3 for sample age estimation, and 4 for likelihood surface\n");
 
 	freeNRinits(2);
+	freetreememmory();
+	freeData();
 
 	// printf("The elapsed time for whole program is %.16f seconds\n", ( ((double) clock()) / CLOCKS_PER_SEC) - time1);
 }

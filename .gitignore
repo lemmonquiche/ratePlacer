@@ -1,0 +1,10 @@
+# Ignore the binaries
+gfl
+ratePlacer
+ratePlacer_errorHunt
+
+# Ignore vim files
+src/updating.vim
+
+# Ignore TODO
+TODO
