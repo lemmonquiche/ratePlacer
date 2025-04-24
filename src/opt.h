@@ -783,13 +783,17 @@ double GoldenSection(double newinvecter[], double lowbound[], double upbound[], 
 	if (yc < yd) 
 	{
 		newinvecter[1] = (a + d)/2;
+		free(otherstuff);
 		return(yc);
 	}
 	else
 	{
 		newinvecter[1] = (b + c)/2;
+		free(otherstuff);
 		return(yd);
 	}
+
+	free(otherstuff);
 }
 
 // Increase the tolerance value to make this a less stringent golden section to make faster for calls of golden section that don't need high accuracy of the likelihood
@@ -873,8 +877,7 @@ double minimize_brent(double newinvecter[], int n, double (*fun)(double x[])) {
                 exit (1);
         }
 
-
-        minusLnL = PrAxis(TOLER_PASS_2, MAX_STEP_SIZE_2, n, newinvecter, *fun, directions, powellWork);
+        minusLnL = PrAxis(TOLER_PASS_2, MAX_STEP_SIZE_2, n, newinvecter, *fun, directions, powellWork, 10000);
 
 		free(directions);
 		free(powellWork);
