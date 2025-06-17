@@ -17,6 +17,7 @@
 #include <unistd.h>
 #include <getopt.h>
 #include <fcntl.h>
+
 #define MINBL 0.0000001
 #define MAXBL 5.0
 #define NUMCAT 4
