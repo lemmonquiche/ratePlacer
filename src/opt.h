@@ -1,3 +1,6 @@
+#include "jph.h"
+#include "minfunc.h"
+
 #define NR_END 1
 #define FREE
 #define TOLX2 1.0e-7
@@ -9,6 +12,13 @@
 #define EPS 3.0e-8
 #define NMAX 5000
 #define INF DBL_MAX
+
+#    define TOLER_PASS_1        0.001
+#    define TOLER_PASS_2        praxisTol
+#    define MAX_STEP_SIZE_1    1.0
+#    define MAX_STEP_SIZE_2    1.0
+
+double praxisTol = 0.00000001;
 
 double *dg,*g,*hdg,*pnew,*xi,**hessin; 
 int npar, CENTRALMODE;
@@ -773,13 +783,17 @@ double GoldenSection(double newinvecter[], double lowbound[], double upbound[], 
 	if (yc < yd) 
 	{
 		newinvecter[1] = (a + d)/2;
+		free(otherstuff);
 		return(yc);
 	}
 	else
 	{
 		newinvecter[1] = (b + c)/2;
+		free(otherstuff);
 		return(yd);
 	}
+
+	free(otherstuff);
 }
 
 // Increase the tolerance value to make this a less stringent golden section to make faster for calls of golden section that don't need high accuracy of the likelihood
@@ -846,3 +860,52 @@ double GoldenSection_rough(double newinvecter[], double lowbound[], double upbou
 	}
 }
 
+//double minimize_brent(double newinvecter[], int n, double (*fun)(double x[]), int maxIterations) {
+//        double minusLnL;
+//
+//        double *directions = (double*)malloc(sizeof(double) * n * n);
+//        if (!directions)
+//        {
+//                printf ("Could not allocate directions (%lu)\n", sizeof(double) * n * n);
+//                exit (1);
+//        }
+//        
+//        double *powellWork = (double*)malloc(sizeof(double) * 6 * n);
+//        if (!powellWork)
+//        {
+//                printf ("Could not allocate powellWork (%lu)\n", sizeof(double) * 6 * n);
+//                exit (1);
+//        }
+//
+//        minusLnL = PrAxis(TOLER_PASS_2, MAX_STEP_SIZE_2, n, newinvecter, *fun, directions, powellWork, maxIterations);
+//
+//		free(directions);
+//		free(powellWork);
+//
+//        return(minusLnL);
+//}
+
+double minimize_brent(double newinvecter[], int n, double (*fun)(double x[], void*), int maxIterations, void *extra_data) {
+    double minusLnL;
+
+    double *directions = (double*)malloc(sizeof(double) * n * n);
+    if (!directions)
+    {
+        printf ("Could not allocate directions (%lu)\n", sizeof(double) * n * n);
+        exit (1);
+    }
+    
+    double *powellWork = (double*)malloc(sizeof(double) * 6 * n);
+    if (!powellWork)
+    {
+        printf ("Could not allocate powellWork (%lu)\n", sizeof(double) * 6 * n);
+        exit (1);
+    }
+
+    minusLnL = PrAxis(TOLER_PASS_2, MAX_STEP_SIZE_2, n, newinvecter, *fun, directions, powellWork, maxIterations, extra_data);
+
+    free(directions);
+    free(powellWork);
+
+    return(minusLnL);
+}

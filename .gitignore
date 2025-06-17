@@ -1,0 +1,17 @@
+# Ignore the binaries
+gfl
+ratePlacer
+ratePlacer_errorHunt
+ratePlacer_*
+
+# Ignore vim files
+src/updating.vim
+src/RatePlacer_longInt.c
+
+# Ignore TODO
+TODO
+
+# Ignore misc
+valgrind-out.txt
+.vscode/
+bfgs/
