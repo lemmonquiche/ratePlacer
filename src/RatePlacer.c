@@ -16,7 +16,7 @@
 #include <time.h>
 #include <unistd.h>
 #include <getopt.h>
-
+#include <fcntl.h>
 #define MINBL 0.0000001
 #define MAXBL 5.0
 #define NUMCAT 4
@@ -4538,7 +4538,7 @@ void keepSeparateReads(int treeNum)
 // TO DO: Consider which memory allocated data structures should be single continuous chunk (if possible) for best speed
 void read_data(char *assignfile, char *fraclikefile, char *querydatafile, char *referencedatafile, char *errorfile, int mode, int tronko_check)
 {
-	int i, j, k, v, nin, numcat;
+	int i, j, k, v, nin, numcat, fd;
 	double a, b, checksum, MINLIKE = -INF;
 	char tempFileName[500], strTree[500];
 
@@ -4571,6 +4571,9 @@ void read_data(char *assignfile, char *fraclikefile, char *querydatafile, char *
 		puts("Cannot open infile with assignments: ");
 		exit(-1);
 	}
+	fd = fileno(infile);
+	posix_fadvise(fd, 0, 0, POSIX_FADV_SEQUENTIAL);
+
 	fscanf(infile, "%i\n", &numquery);
 
 	assignments = (int *)malloc(numquery * (sizeof(int)));
@@ -4594,6 +4597,7 @@ void read_data(char *assignfile, char *fraclikefile, char *querydatafile, char *
 		assignments[i] = v - 1; // notice that we here convert from counting from 1 to counting from 0
 	}
 
+	posix_fadvise(fd, 0, 0, POSIX_FADV_DONTNEED);
 	fclose(infile);
 
 	// stores reads grouped by tree
@@ -4651,6 +4655,9 @@ void read_data(char *assignfile, char *fraclikefile, char *querydatafile, char *
 			printf("Cannot open infile with fractional likelihoods: %s\n", tempFileName);
 			exit(-1);
 		}
+		fd = fileno(infile);
+		posix_fadvise(fd, 0, 0, POSIX_FADV_SEQUENTIAL);
+
 		// line 1
 		//  THERE IS AN ASSUMPTION THAT NUMBASE AND NUMCAT ALWAYS THE SAME, SHOULD MAKE A CHECK FOR THAT
 		fscanf(infile, "%i %i %i\n", &numseq[treeNum], &numbase, &numcat);
@@ -4707,6 +4714,7 @@ void read_data(char *assignfile, char *fraclikefile, char *querydatafile, char *
 		}
 
 		get_fractionalike(treeNum); // reads in all the fractional likelihoods
+		posix_fadvise(fd, 0, 0, POSIX_FADV_DONTNEED);
 		fclose(infile);
 
 		// READING IN REFRENCE SEQUENCE DATA
@@ -4722,6 +4730,8 @@ void read_data(char *assignfile, char *fraclikefile, char *querydatafile, char *
 			printf("Cannot open infile with reference sequence data");
 			exit(-1);
 		}
+		fd = fileno(infile);
+		posix_fadvise(fd, 0, 0, POSIX_FADV_SEQUENTIAL);
 
 		// readseq returns num nodes and alters input with number of bases
 		i = readseq(&j, treeNum);
@@ -4730,6 +4740,8 @@ void read_data(char *assignfile, char *fraclikefile, char *querydatafile, char *
 			printf("Number of sequences and sequence lengths do no match in input files\n");
 			exit(-1);
 		}
+
+		posix_fadvise(fd, 0, 0, POSIX_FADV_DONTNEED);
 		fclose(infile);
 
 		pi[treeNum] = (double *)malloc(4 * sizeof(double));
@@ -4748,6 +4760,9 @@ void read_data(char *assignfile, char *fraclikefile, char *querydatafile, char *
 			printf("Cannot open infile with GTR+Gamma parameters");
 			exit(-1);
 		}
+		fd = fileno(infile);
+		posix_fadvise(fd, 0, 0, POSIX_FADV_SEQUENTIAL);
+
 		checksum = 0.0;
 		// line 1
 		fscanf(infile, "%lf", &a);
@@ -4770,6 +4785,7 @@ void read_data(char *assignfile, char *fraclikefile, char *querydatafile, char *
 			fscanf(infile, "%lf", &par[treeNum][i]);
 		}
 
+		posix_fadvise(fd, 0, 0, POSIX_FADV_DONTNEED);
 		fclose(infile);
 
 		// printf("Printing node ages for tree %d\n", treeNum);
@@ -4790,6 +4806,9 @@ void read_data(char *assignfile, char *fraclikefile, char *querydatafile, char *
 		puts("Cannot open infile with query data\n");
 		exit(-1);
 	}
+	fd = fileno(infile);
+	posix_fadvise(fd, 0, 0, POSIX_FADV_SEQUENTIAL);
+
 	// Line 1, number of queries
 	fscanf(infile, "%i", &numquery);
 	printf("There are %i query sequences\n", numquery);
@@ -4804,6 +4823,7 @@ void read_data(char *assignfile, char *fraclikefile, char *querydatafile, char *
 		exit(-1);
 	}
 
+	posix_fadvise(fd, 0, 0, POSIX_FADV_DONTNEED);
 	fclose(infile);
 
 	// Testing if read assignments are valid
@@ -4827,9 +4847,12 @@ void read_data(char *assignfile, char *fraclikefile, char *querydatafile, char *
 		puts("Cannot open infile with error profile: ");
 		exit(-1);
 	}
+	fd = fileno(infile);
+	posix_fadvise(fd, 0, 0, POSIX_FADV_SEQUENTIAL);
 
 	make_readfraclike();
 
+	posix_fadvise(fd, 0, 0, POSIX_FADV_DONTNEED);
 	fclose(infile);
 
 	doNRinits(2);
@@ -4882,6 +4905,8 @@ void read_data(char *assignfile, char *fraclikefile, char *querydatafile, char *
 			printf("Cannot open infile with tree data\n");
 			exit(-1);
 		}
+		fd = fileno(infile);
+		//posix_fadvise(fd, 0, 0, POSIX_FADV_SEQUENTIAL);
 
 		fscanf(infile, "%i %i", &numRef, &refBases);
 		// Calculate the file size
@@ -4915,6 +4940,7 @@ void read_data(char *assignfile, char *fraclikefile, char *querydatafile, char *
 		allocatetreememmory(numseq[treeNum], treeNum);
 		treeRoots[treeNum] = getclade(numseq[treeNum], treeNum) - 1 + numseq[treeNum]; // converts to ratePlacer node
 
+		posix_fadvise(fd, 0, 0, POSIX_FADV_DONTNEED);
 		fclose(infile);
 
 		//printtree(numseq[treeNum], treeRoots[treeNum], treeNum);
@@ -5780,6 +5806,9 @@ void maximize_like_jointly_for_all2D(double **par, int allTrees)
 		//  To change: Instread of making this per assigned node, do it via time slices to make a little faster
 		//  		Also maybe a GoldenSection search that is a little less stringent?
 		//  		Am just trying to do a rough optimization - maybe if time is still long despite time slice change
+		//  		Also maybe incorporate more options for the confidence interval, not just 95%
+		//  		Would need to be able to calculate the z-score from the user given value
+		//  		confI = 1.96 / sqrt(-secD);
 		do
 		{
 			// printf("Testing max age of %.16f\n", nextNodeAge);
