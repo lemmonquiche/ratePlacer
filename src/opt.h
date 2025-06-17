@@ -860,27 +860,52 @@ double GoldenSection_rough(double newinvecter[], double lowbound[], double upbou
 	}
 }
 
-double minimize_brent(double newinvecter[], int n, double (*fun)(double x[]), int maxIterations) {
-        double minusLnL;
+//double minimize_brent(double newinvecter[], int n, double (*fun)(double x[]), int maxIterations) {
+//        double minusLnL;
+//
+//        double *directions = (double*)malloc(sizeof(double) * n * n);
+//        if (!directions)
+//        {
+//                printf ("Could not allocate directions (%lu)\n", sizeof(double) * n * n);
+//                exit (1);
+//        }
+//        
+//        double *powellWork = (double*)malloc(sizeof(double) * 6 * n);
+//        if (!powellWork)
+//        {
+//                printf ("Could not allocate powellWork (%lu)\n", sizeof(double) * 6 * n);
+//                exit (1);
+//        }
+//
+//        minusLnL = PrAxis(TOLER_PASS_2, MAX_STEP_SIZE_2, n, newinvecter, *fun, directions, powellWork, maxIterations);
+//
+//		free(directions);
+//		free(powellWork);
+//
+//        return(minusLnL);
+//}
 
-        double *directions = (double*)malloc(sizeof(double) * n * n);
-        if (!directions)
-        {
-                printf ("Could not allocate directions (%lu)\n", sizeof(double) * n * n);
-                exit (1);
-        }
-        
-        double *powellWork = (double*)malloc(sizeof(double) * 6 * n);
-        if (!powellWork)
-        {
-                printf ("Could not allocate powellWork (%lu)\n", sizeof(double) * 6 * n);
-                exit (1);
-        }
+double minimize_brent(double newinvecter[], int n, double (*fun)(double x[], void*), int maxIterations, void *extra_data) {
+    double minusLnL;
 
-        minusLnL = PrAxis(TOLER_PASS_2, MAX_STEP_SIZE_2, n, newinvecter, *fun, directions, powellWork, maxIterations);
+    double *directions = (double*)malloc(sizeof(double) * n * n);
+    if (!directions)
+    {
+        printf ("Could not allocate directions (%lu)\n", sizeof(double) * n * n);
+        exit (1);
+    }
+    
+    double *powellWork = (double*)malloc(sizeof(double) * 6 * n);
+    if (!powellWork)
+    {
+        printf ("Could not allocate powellWork (%lu)\n", sizeof(double) * 6 * n);
+        exit (1);
+    }
 
-		free(directions);
-		free(powellWork);
+    minusLnL = PrAxis(TOLER_PASS_2, MAX_STEP_SIZE_2, n, newinvecter, *fun, directions, powellWork, maxIterations, extra_data);
 
-        return(minusLnL);
+    free(directions);
+    free(powellWork);
+
+    return(minusLnL);
 }

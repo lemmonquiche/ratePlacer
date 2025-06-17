@@ -15,11 +15,11 @@
 #include "jph.h"
 
 
-static void   LineMin (int j, int nits, double *pd2, double *px1, double f1, int fk);
-static void   Quad (void);
+static void   LineMin (int j, int nits, double *pd2, double *px1, double f1, int fk, void *extra_data);
+static void   Quad (void *extra_data);
 static void   MinFit (double eps, double tol, double ab[], double q[], double e[]);
 static void   SortDV (void);
-static double FLin (int j, double lambda);
+static double FLin (int j, double lambda, void *extra_data);
 static void   SetIdentityMatrix2 (double a[], int n);
 
 #define MAX_ITER	50
@@ -41,7 +41,7 @@ static void   SetIdentityMatrix2 (double a[], int n);
 |	This function is reentrant.
 */
 
-double LocalMin (double a, double b, double eps, double t, MinimizeFxn f, double *px)
+double LocalMin (double a, double b, double eps, double t, MinimizeFxn f, double *px, void *extra_data)
 	/* double		a, b;	 on input, (a,b) must bracket a local minimum */
 	/* double		eps;	 t and eps define tol = eps|x| + t, f is never evaluated at two points */
 	/* double		t;		 closer together than tol;  eps should be > sqrt(DBL_EPSILON)        */
@@ -55,7 +55,7 @@ double LocalMin (double a, double b, double eps, double t, MinimizeFxn f, double
 
 	v  = w = x = a + CGOLD*(b - a);
 	e  = 0.0;
-	fv = fw = fx = (*f)(&x);
+	fv = fw = fx = (*f)(&x, extra_data);
 	
 	/* main loop */
 
@@ -112,7 +112,7 @@ double LocalMin (double a, double b, double eps, double t, MinimizeFxn f, double
 		else 
 			u = x - tol;
 
-		fu = (*f)(&u);
+		fu = (*f)(&u, extra_data);
 		
 		/* update a, b, v, w, and x */
 		if (fu <= fx)
@@ -183,7 +183,7 @@ static double		*gx, gfx;
 static double		*d, *q0, *q1;
 static double		*xnew;
 
-double PrAxis (double tol, double h, int nn, double xx[], MinimizeFxn f, double v[], double work[], int maxIterations)
+double PrAxis (double tol, double h, int nn, double xx[], MinimizeFxn f, double v[], double work[], int maxIterations, void *extra_data)
 	/* double			tol;	tolerance used for convergence criterion */
 	/* double			h;	 	maximum step size */
 	/* int				nn;		number of variables */
@@ -233,7 +233,7 @@ double PrAxis (double tol, double h, int nn, double xx[], MinimizeFxn f, double 
 
 	ldfac = illc ? 0.1 : 0.01;
 	kt    = nl = 0;
-	qf1   = gfx = (*f)(gx);
+	qf1   = gfx = (*f)(gx, extra_data);
 	toler = t2 = eps2 + fabs(toler);
 	dmin  = eps2;
 	if (htol < 100.0*toler)
@@ -258,7 +258,7 @@ double PrAxis (double tol, double h, int nn, double xx[], MinimizeFxn f, double 
 		
 		/* minimize along first direction */
 	
-		LineMin (0, 2, &d[0], &s, gfx, FALSE);
+		LineMin (0, 2, &d[0], &s, gfx, FALSE, extra_data);
 		if (s < 0.0)
 			{
 			for (i = 0; i < n; i++)
@@ -290,14 +290,14 @@ double PrAxis (double tol, double h, int nn, double xx[], MinimizeFxn f, double 
 						for (j = 0; j < n; j++)
 							gx[j] += s*v[pos1(j,i,nn)];
 						}
-					gfx = (*f)(gx);
+					gfx = (*f)(gx, extra_data);
 					}
 				for (k2 = k; k2 < n; k2++)
 					{
 					sl = gfx;
 					s  = 0.0;
 					/* minimize along "non-conjugate" directions */
-					LineMin(k2, 2, &d[k2], &s, gfx, FALSE);
+					LineMin(k2, 2, &d[k2], &s, gfx, FALSE, extra_data);
 					if (illc)
 						{
 						sz = s + z[k2];
@@ -321,7 +321,7 @@ double PrAxis (double tol, double h, int nn, double xx[], MinimizeFxn f, double 
 				{
 				/* minimize along "conjugate" directions */
 				s = 0.0;
-				LineMin(k2, 2, &d[k2], &s, gfx, FALSE);
+				LineMin(k2, 2, &d[k2], &s, gfx, FALSE, extra_data);
 				}
 	
 			f1  = gfx;
@@ -352,7 +352,7 @@ double PrAxis (double tol, double h, int nn, double xx[], MinimizeFxn f, double 
 					v[pos1(i,k,nn)] = y[i]/lds;
 				
 				/* ... and minimize along it */
-				LineMin(k, 4, &d[k], &lds, f1, TRUE);
+				LineMin(k, 4, &d[k], &lds, f1, TRUE, extra_data);
 				if (lds <= 0.0)
 					{
 					lds = -lds;
@@ -379,7 +379,7 @@ double PrAxis (double tol, double h, int nn, double xx[], MinimizeFxn f, double 
 			}
 		
 		/* try quadratic extrapolation in case we are stuck in a curved valley */		
-		Quad();
+		Quad(extra_data);
 	
 		/* calculate V = U.(D^(-1/2))  (note: 'v' currently contains U) */
 	
@@ -763,13 +763,14 @@ void SortDV (void)
 |	perform a quadratic search in the plane defined by q0, q1, and x (if j < 0).
 */
 
-void LineMin (int j, int nits, double *pd2, double *px1, double f1, int fk)
+void LineMin (int j, int nits, double *pd2, double *px1, double f1, int fk, void *extra_data)
 	/* int		j;		column of direction matrix (or <0 flag for quadratic search) */
 	/* int		nits;	number of times an attempt is made to halve the interval */
 	/* double	*pd2;	approximation to half f'' (or zero) */
 	/* double	*px1;	x1 = estimate of distance to minimum, returned as actual distance found */
 	/* double	f1;		if fk=TRUE, FLin(x1), otherwise ignored */
 	/* int		fk;		flag (see above) */
+	/* void		*extra_data;	extra data passed to FLin */
 {
 	int		i, k, need_d2z, success;
 	double	x1, x2, xm, f0, f2, fm, d1, d2, t2, s, sf1, sx1;
@@ -806,7 +807,7 @@ void LineMin (int j, int nits, double *pd2, double *px1, double f1, int fk)
 	if (!fk || (fabs(x1) < t2))
 		{
 		x1 = (x1 >= 0.0) ? t2 : -t2;
-		f1 = FLin(j, x1);
+		f1 = FLin(j, x1, extra_data);
 		}
 	if (f1 <= fm)
 		{
@@ -821,7 +822,7 @@ void LineMin (int j, int nits, double *pd2, double *px1, double f1, int fk)
 			{
 			/* evaluate FLin at another point and estimate the second derivative */
 			x2 = (f0 < f1) ? -x1 : 2.0*x1;
-			f2 = FLin(j, x2);
+			f2 = FLin(j, x2, extra_data);
 			if (f2 <= fm)
 				{
 				xm = x2;
@@ -844,7 +845,7 @@ void LineMin (int j, int nits, double *pd2, double *px1, double f1, int fk)
 		
 		/* evaluate f at predicted minimum */
 		do	{
-			f2 = FLin(j, x2);
+			f2 = FLin(j, x2, extra_data);
 			success = TRUE;
 			if ((k < nits) && (f2 > f0))
 				{
@@ -905,7 +906,7 @@ void LineMin (int j, int nits, double *pd2, double *px1, double f1, int fk)
 |	(if j < 0).
 */
 
-double FLin (int j, double lambda)
+double FLin (int j, double lambda, void *extra_data)
 
 {
 	int		i;
@@ -930,7 +931,7 @@ double FLin (int j, double lambda)
 			xnew[i] = qa*q0[i] + qb*gx[i] + qc*q1[i];
 		}
 
-	return (*fxn)(xnew);
+	return (*fxn)(xnew, extra_data);
 }
 
 
@@ -944,7 +945,7 @@ double FLin (int j, double lambda)
 |	Look for the function minimum along a curve defined by q0, q1, and x.
 */
 
-void Quad (void)
+void Quad (void *extra_data)
 
 {
 	int		i;
@@ -971,7 +972,7 @@ void Quad (void)
 		{
 		s = 0.0;
 		lambda = qd1;
-		LineMin(-1, 2, &s, &lambda, qf1, TRUE);
+		LineMin(-1, 2, &s, &lambda, qf1, TRUE, extra_data);
 		qa = lambda*(lambda - qd1)/(qd0*(qd0 + qd1));
 		qb = (lambda + qd0)*(qd1 - lambda)/(qd0*qd1);
 		qc = lambda*(lambda + qd0)/(qd1*(qd0 + qd1));
@@ -1004,14 +1005,14 @@ void Quad (void)
 |	This function is reentrant.
 */
 
-void BracketMinimum (double *pA, double *pB, MinimizeFxn func)
+void BracketMinimum (double *pA, double *pB, MinimizeFxn func, void *extra_data)
 
 {
 	double		a, b, c, x, fa, fb, fc, fx, xlim, r, q, temp;
 	
-	fa = (*func)(pA);
+	fa = (*func)(pA, extra_data);
 	a  = *pA;
-	fb = (*func)(pB);
+	fb = (*func)(pB, extra_data);
 	b  = *pB;
 	if (fb > fa)
 		{
@@ -1024,7 +1025,7 @@ void BracketMinimum (double *pA, double *pB, MinimizeFxn func)
 		fb   = temp;
 		}
 	c  = b + GOLD*(b - a);		/* first guess for c */
-	fc = (*func)(&c);
+	fc = (*func)(&c, extra_data);
 
 	while (fb > fc)
 		{
@@ -1037,7 +1038,7 @@ void BracketMinimum (double *pA, double *pB, MinimizeFxn func)
 		if ((b - x)*(x - c) > 0.0)
 			{
 			/* x is between b and c */
-			fx = (*func)(&x);
+			fx = (*func)(&x, extra_data);
 			if (fx < fc)
 				{
 				/* there's a minimum between b and c */
@@ -1060,31 +1061,31 @@ void BracketMinimum (double *pA, double *pB, MinimizeFxn func)
 				}
 			/* parabolic fit failed; "magnify" using default magnification */
 			x  = c + GOLD*(c - b);
-			fx = (*func)(&x);
+			fx = (*func)(&x, extra_data);
 			}
 		else if ((c - x)*(x - xlim) > 0.0)
 			{
 			/* x from parabolic fit is between c and its allowed limit */
-			fx = (*func)(&x);
+			fx = (*func)(&x, extra_data);
 			if (fx < fc)
 				{
 				b = c; fb = fc;
 				c = x; fc = fx;
 				x = c + GOLD*(c - b);
-				fx = (*func)(&x);
+				fx = (*func)(&x, extra_data);
 				}
 			}
 		else if ((x - xlim)*(xlim - c) > 0.0)
 			{
 			/* limit parabolic fit to its maximum allowed value */
 			x  = xlim;
-			fx = (*func)(&x);
+			fx = (*func)(&x, extra_data);
 			}
 		else
 			{
 			/* reject parabolic x; use default magnification */
 			x  = c + GOLD*(c - b);
-			fx = (*func)(&x);
+			fx = (*func)(&x, extra_data);
 			}
 		
 		/* new bracket is (b,c,x) */
