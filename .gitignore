@@ -15,3 +15,5 @@ TODO
 valgrind-out.txt
 .vscode/
 bfgs/
+testData/
+CLAUDE.md
