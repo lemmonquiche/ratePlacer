@@ -5347,7 +5347,7 @@ void readContour(double **par)
 		parameters[6] = bls[treeAssign[i]][assignments[i]];
 
 		times[1] = eh0;
-		alpha_increment = 
+
 		bl_increment = bls[treeAssign[i]][assignments[i]] / 1000;
 
 		for (k = 0; k < 1000; k++)
@@ -5362,6 +5362,19 @@ void readContour(double **par)
 
 				times[2] += bl_increment;
 			}
+			times[1] += alpha_increment;
+		}
+
+		// Max not always calculated otherwise
+		times[1] = eh0;
+		times[2] = bls[treeAssign[i]][assignments[i]] - eh0;
+
+		for (k = 0; k < 1000; k++)
+		{
+			L = getlike_gamma_root_in_trifurcation(times, parameters);
+
+			printf("%d,%.16f,%.16f,%.16f\n", i, times[1], times[2], L);
+
 			times[1] += alpha_increment;
 		}
 	}
