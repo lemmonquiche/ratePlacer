@@ -1694,12 +1694,17 @@ double logSumExp(double X[4])
 			maxX = X[i];
 	}
 
+	//printf("\t\t\tMax: %.16f\n", maxX);
+
 	// sum(exp(x) - maxX)
 	for (i = 0; i < 4; i++)
 	{
-		// printf("\t\t\t\t\tX[%d]: %.16f\n", i, X[i]);
+		//printf("\t\t\t\t\tX[%d]: %.16f \t %.16f\t %.16f\n", i, X[i], exp(X[i] - maxX), X[i] - maxX);
 		sumX += exp(X[i] - maxX);
+		//printf("\t\t\tsumX: %.16f\n", sumX);
 	}
+
+	//printf("\t\treturn: %.16f\n", log(sumX) + maxX);
 
 	return (log(sumX) + maxX);
 }
@@ -2124,6 +2129,7 @@ double getlike_gamma_root_in_trifucation_single_read_brent_reassign(double times
 					B[k] = logSumExp(A);
 					//B[k] = pi[treeNum][b] + *PMAT_ptr_0;
 					//printf("\t\t\t\t\tB:%lf\tpi:%lf\tPMAT[0]:%lf\n", B[k], pi[treeNum][b], *PMAT_ptr_0);
+					// printf("\t\t%.16f\n", B[k]);
 					//printf("PMAT[0][%d][%d][%d]: %.16f\n", j, b, k, *PMAT_ptr_0);
 					//PMAT_ptr_0++;
 					if (node >= numseq[treeNum])
@@ -2155,6 +2161,7 @@ double getlike_gamma_root_in_trifucation_single_read_brent_reassign(double times
 						FRACLIKE_ptr -= 8;
 						//printf("\t\t\t\t\tB:%lf %lf\n", logSumExp(A), B[k]);
 						// printf("\t\t\t\t\tB:%lf\n", logSumExp(A));
+						//printf("\t\t%.16f\n", B[k]);
 					}
 					else
 					{ // If leaf node
@@ -2179,20 +2186,25 @@ double getlike_gamma_root_in_trifucation_single_read_brent_reassign(double times
 						FRACLIKE_ptr -= 4; // because no conditional likelihood
 						// ptr_pos+=4;
 						//  printf("\t\t\t\t\tB:%lf\n", logSumExp(A));
+						//printf("\t\t%.16f\n", B[k]);
 					}
 					// printf("\t\t\t\t\tB[%d]: %lf\n", k, B[k]);
 				}
 				FRACLIKE_ptr += 8;
-				// for(int l = 0; l < 4; l++)
-				// {
-				// 	printf("\t\t\t\tB[%d]: %lf\n", l, B[l]);
-				// }
+				//for(int l = 0; l < 4; l++)
+				//{
+				//	printf("\t\t\t\tB[%d]: %lf\n", l, B[l]);
+				//}
 				C[j] = logSumExp(B);
-				// printf("\t\t\t\tC:%lf %lf\n", logSumExp(B), C[j]);
+				//printf("\t\t\t\tC:%lf %lf\n", logSumExp(B), C[j]);
 				// printf("\t\t\t\tC:%lf\n", logSumExp(B));
 			}
+			//for(int l = 0; l < 4; l++)
+			//{
+			//	printf("\t\t\t\tC[%d]: %lf\n", l, C[l]);
+			//}
 			Like += logSumExp(C);
-			// printf("\t\t\t\tLike:%lf %lf\n", logSumExp(C), Like);
+			//printf("\t\t\t\tLike:%lf %lf\n", logSumExp(C), Like);
 		}
 	}
 
@@ -2216,7 +2228,7 @@ double getlike_gamma_root_in_trifucation_sample_age_brent(double parameters[], v
 
 	double age = *((double *)extra_data);
 
-	printf("Test age %.16f\n", age);
+	//printf("Test age %.16f\n", age);
 
 	// Calculate the branch lengths based on the placement and age bounds
 	// Update the placement of the read if branch length < 0 (ie placement
@@ -2228,7 +2240,7 @@ double getlike_gamma_root_in_trifucation_sample_age_brent(double parameters[], v
 
 	for (unsigned long int i = 0; i < numquery; i++)
 	{
-		printf("\t\tread %lu: %.16f (", i, *placement_ptr);
+		//printf("\t\tread %lu: %.16f (", i, *placement_ptr);
 
 		// first test if the placement is within the bounds
 		if (*placement_ptr < 3e-8)
@@ -2250,7 +2262,7 @@ double getlike_gamma_root_in_trifucation_sample_age_brent(double parameters[], v
 			*branch_length_ptr = 3e-8;
 		}
 
-		printf("%.16f) %.16f %.16f %.16f\n", *placement_ptr, bls[*tree_ptr][*assign_ptr], nodeages[*tree_ptr][*assign_ptr], *branch_length_ptr);
+		//printf("%.16f) %.16f %.16f %.16f\n", *placement_ptr, bls[*tree_ptr][*assign_ptr], nodeages[*tree_ptr][*assign_ptr], *branch_length_ptr);
 
 		// iterate to the next read
 		tree_ptr++;
@@ -2373,7 +2385,7 @@ double getlike_gamma_root_in_trifucation_sample_age_brent(double parameters[], v
 		readlength_ptr++;
 	}
 
-	printf("\tLike: %.16f\n", -Like);
+	//printf("\tLike: %.16f\n", -Like);
 
 	return -Like; // Notice: a scaling factor of NUMCAT^(number of sites) is missing
 }
@@ -3321,7 +3333,7 @@ void make_readfraclike()
 		}
 		else
 		{
-			printf("Warning, error profile includes positions not in query alignment. Please review error profile, but ratePlacer is proceeding.\n");
+			printf("Warning, error profile includes positions not in query alignment. Please review error profile, but ratePlacer is proceeding. For read %d pos %d\n", read, pos);
 		}
 
 	//
@@ -3562,7 +3574,7 @@ void tronkoAssignmentTesting(int root, unsigned long int treeNum)
 	// Test out .1 cutoff for reassignment
 	for (i = 0; i < usedTrees[treeNum]; i++)
 	{
-		//printf("Sequence %d of tree %d and node %d\n", i, treeNum, tempAssignments[treeNum][i]);
+		// printf("Sequence %d of tree %d and node %d\n", i, treeNum, tempAssignments[treeNum][i]);
 		// GET INITIAL BRANCH AND PLACEMENT ESTIMATES
 
 		// Skip leaf nodes as there is no testing to do
@@ -3580,7 +3592,7 @@ void tronkoAssignmentTesting(int root, unsigned long int treeNum)
 		// Tronko assignment is the root
 		if (originalNode == root)
 		{
-			// printf("\tRoot\n");
+			//printf("\tRoot\n");
 			// Get two children
 			getGFLChildren(originalNode, surNodes, treeNum);
 
@@ -3610,7 +3622,7 @@ void tronkoAssignmentTesting(int root, unsigned long int treeNum)
 			//}
 
 			//printf("\tChild 1 (%d) like %.16f age %.16f (%.16f %.16f)\n", surNodes[1], L1_lik, (1.0-invector[0])*(nodeages[treeNum][surNodes[1]]+invector[1]), invector[0], invector[1]);
-			// printf("\t\tChild 1 (%d) like %.16f and ", surNodes[1], L1_lik);
+			//printf("\tChild 1 (%d) like %.16f and ", surNodes[1], L1_lik);
 
 			// Child 2
 			extra_data[2] = surNodes[2];
@@ -3637,7 +3649,7 @@ void tronkoAssignmentTesting(int root, unsigned long int treeNum)
 			//}
 
 			//printf("\tChild 2 (%d) like %.16f age %.16f (%.16f %.16f)\n", surNodes[2], testLik, (1.0-invector[0])*(nodeages[treeNum][surNodes[2]]+invector[1]), invector[0], invector[1]);
-			// printf("\t\tChild 2 (%d) like %.16f and ", surNodes[2], L1_lik);
+			//printf("\tChild 2 (%d) like %.16f\n", surNodes[2], L1_lik);
 
 			// Pick max, must pick one as ratePlacer will not work from the root node
 			// Child 1 better (remember these are -loglik outputs)
@@ -3658,7 +3670,7 @@ void tronkoAssignmentTesting(int root, unsigned long int treeNum)
 		}	
 		else // Internal node
 		{
-			// printf("\tInternal\n");
+			//printf("\tInternal\n");
 			// Get two children as we place on branch above node
 			getGFLChildren(originalNode, surNodes, treeNum);
 			// Test
@@ -3688,7 +3700,7 @@ void tronkoAssignmentTesting(int root, unsigned long int treeNum)
 			//}
 
 			//printf("\tOriginal (%d) like %.16f age %.16f (%.16f %.16f)\n", originalNode, L1_lik, (1.0-invector[0])*(nodeages[treeNum][originalNode]+invector[1]), invector[0], invector[1]);
-			// printf("\t\tOriginal (%d) like %.16f ", L1, L1_lik);
+			//printf("\tOriginal (%d) like %.16f ", originalNode, L1_lik);
 
 			// Child 1
 			extra_data[2] = surNodes[1];
@@ -3715,7 +3727,7 @@ void tronkoAssignmentTesting(int root, unsigned long int treeNum)
 			//}
 
 			//printf("\tChild 1 (%d) like %.16f age %.16f (%.16f %.16f)\n", surNodes[1], testLik, (1.0-invector[0])*(nodeages[treeNum][surNodes[1]]+invector[1]), invector[0], invector[1]);
-			// printf("child 1 (%d) like %.16f and ", surNodes[1], testLik);
+			//printf("\tchild 1 (%d) like %.16f and ", surNodes[1], testLik);
 
 			// Child 2
 			extra_data[2] = surNodes[2];
@@ -3742,7 +3754,7 @@ void tronkoAssignmentTesting(int root, unsigned long int treeNum)
 			//}
 
 			//printf("\tChild 2 (%d) like %.16f age %.16f (%.16f %.16f)\n", surNodes[2], testLik2, (1.0-invector[0])*(nodeages[treeNum][surNodes[2]]+invector[1]), invector[0], invector[1]);
-			//printf("child 2 (%d) like %.16f\n", surNodes[2], testLik2);
+			//printf("\tchild 2 (%d) like %.16f\n", surNodes[2], testLik2);
 
 			// If original node is best, do nothing
 			// If child 1 is best, assign to child 1
@@ -4271,7 +4283,7 @@ void mergeReads(unsigned long int treeNum, unsigned long int refBases)
 			treeAssign[index] = treeNum;
 			assignments[index] = i;
 
-			printf("Sequence %lu, assignment %lu of length %lu starting at %lu containing %d reads covering %lu:\n", index, i, readlength[index], firstPos, numReadsPerAssign[treeNum][i], refCoverage);
+			//printf("Sequence %lu, assignment %lu of length %lu starting at %lu containing %d reads covering %lu:\n", index, i, readlength[index], firstPos, numReadsPerAssign[treeNum][i], refCoverage);
 
 			for (unsigned long int pos = 0; pos < readlength[index]; pos++)
 			{
@@ -4280,7 +4292,7 @@ void mergeReads(unsigned long int treeNum, unsigned long int refBases)
 				if (baseCounts[refPos * 4] == 0 && baseCounts[refPos * 4 + 1] == 0 && baseCounts[refPos * 4 + 2] == 0 && baseCounts[refPos * 4 + 3] == 0)
 				{
 					QUERYDATA[index][pos] = -1;
-					printf("-");
+					// printf("-");
 					readlike[index][pos] = NULL;
 				}
 				else
@@ -4324,22 +4336,22 @@ void mergeReads(unsigned long int treeNum, unsigned long int refBases)
 
 					if (base_a > base_select)
 					{
-						printf("A");
+						// printf("A");
 						QUERYDATA[index][pos] = 0;
 					}
 					else if (base_c > base_select)
 					{
-						printf("C");
+						// printf("C");
 						QUERYDATA[index][pos] = 1;
 					}
 					else if (base_g > base_select)
 					{
-						printf("G");
+						// printf("G");
 						QUERYDATA[index][pos] = 2;
 					}
 					else if (base_t >= base_select)
 					{
-						printf("T");
+						// printf("T");
 						QUERYDATA[index][pos] = 3;
 					}
 					else
@@ -4350,7 +4362,7 @@ void mergeReads(unsigned long int treeNum, unsigned long int refBases)
 				}
 			}
 
-			printf("\n");
+			//printf("\n");
 
 			// assign ages
 			assignAges[index] = nodeages[treeNum][i] + bls[treeNum][i];
@@ -5358,7 +5370,7 @@ void readContour(double **par)
 			{
 				L = getlike_gamma_root_in_trifurcation(times, parameters);
 
-				printf("%d,%.16f,%.16f,%.16f\n", i, times[1], times[2], L);
+				printf("%d,%.16f,%.16f,%.16f,%.16f\n", i, times[1], times[2], L, (1.0 - times[1]) * (nodeages[treeAssign[i]][assignments[i]] + times[2]));
 
 				times[2] += bl_increment;
 			}
@@ -5373,7 +5385,8 @@ void readContour(double **par)
 		{
 			L = getlike_gamma_root_in_trifurcation(times, parameters);
 
-			printf("%d,%.16f,%.16f,%.16f\n", i, times[1], times[2], L);
+			//printf("%d,%.16f,%.16f,%.16f\n", i, times[1], times[2], L);
+			printf("%d,%.16f,%.16f,%.16f,%.16f\n", i, times[1], times[2], L, (1.0 - times[1]) * (nodeages[treeAssign[i]][assignments[i]] + times[2]));
 
 			times[1] += alpha_increment;
 		}
@@ -6045,12 +6058,12 @@ void maximize_like_jointly_for_all2D_reassign(double **par, int allTrees)
 	// This nextNodeAge represents the max without dropping reads
 	nextNodeAge = assignAges[usedReads[0]];
 
-	printf("Assignments before age optimization:\n");
-	for (unsigned long int i = 0; i < numquery; i++)
-	{
-		printf("\t%d\t%d\t%d\n", usedReads[i], treeAssign[usedReads[i]], assignments[usedReads[i]]);
-	}
-	printf("\n");
+	 //printf("Assignments before age optimization:\n");
+	 //for (unsigned long int i = 0; i < numquery; i++)
+	 //{
+	 //	printf("\t%d\t%d\t%d\n", usedReads[i], treeAssign[usedReads[i]], assignments[usedReads[i]]);
+	 //}
+	 //printf("\n");
 
 	// Some bounds or fillers added
 	invectorL1[1] = nextNodeAge / 2;
@@ -6094,7 +6107,7 @@ void maximize_like_jointly_for_all2D_reassign(double **par, int allTrees)
 
 			L2 = GoldenSection(invectorL2, lowbound, upbound, 1, getlike_ages, p, 3);
 
-			//printf("L1 (%.16f, %.16f) vs L2 (%.16f, %.16f)\n", L1, invectorL1[1], L2, invectorL2[1]);
+			// printf("L1 (%.16f, %.16f) vs L2 (%.16f, %.16f)\n", L1, invectorL1[1], L2, invectorL2[1]);
 
 			//brent_invector[numquery] = nextNodeAge/2;
 
@@ -6159,12 +6172,12 @@ void maximize_like_jointly_for_all2D_reassign(double **par, int allTrees)
 	// Would need to be able to calculate the z-score from the user given value
 	// confI = 1.96 / sqrt(-secD);
 
-	printf("Assignments used in age estimation:\n");
-	for (unsigned long int i = 0; i < numquery; i++)
-	{
-		printf("\t%d\t%d\t%d\n", usedReads[i], treeAssign[usedReads[i]], assignments[usedReads[i]]);
-	}
-	printf("\n");
+	//printf("Assignments used in age estimation:\n");
+	//for (unsigned long int i = 0; i < numquery; i++)
+	//{
+	//	printf("\t%d\t%d\t%d\n", usedReads[i], treeAssign[usedReads[i]], assignments[usedReads[i]]);
+	//}
+	//printf("\n");
 
 	printf("Estimated age is %.16f with likelihood %.16f and 95%% confidence interval [%.16f,%.16f]\n", invectorL1[1], L1, invectorL1[1] - confI, invectorL2[1] + confI);
 	// printf("%.16f,%.16f\n", est_age, est_age_lik);
@@ -6568,7 +6581,7 @@ int main(int argc, char *argv[])
 		printf("  all_trees_flag: 0/1 - estimate age for each tree individually or jointly.\n");
 		printf("  compare_age: Age for Likelihood Ratio Test (0 if not testing or use modern).\n");
 		printf("  merge_reads_flag: 0/1 - Merge reads assigned to the same edge.\n");
-		printf("  tronko_check_flag: 0/1 - Test node assignments.\n");
+		printf("  trooko_check_flag: 0/1 - Test node assignments.\n");
 		printf("  merge_coverage_threshold (optional): Minimum coverage to keep merged read. Default '0.05f'.\n");
 		printf("    Examples: '0.05f' (5%% fraction), '50b' (50 base pairs).\n");
 		exit(-1);
