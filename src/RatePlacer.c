@@ -1752,7 +1752,7 @@ double getlike_gamma_root_in_trifurcation(double times[3], double parameters[7])
 	//FRACLIKE_ptr = &FRACLIKE[treeNum][node * numbases[treeNum] * NUMCAT * 8 + startpos[seq] * NUMCAT * 8];
 	// printf("%d\t%d\n", numbases[treeNum], node * numbases[treeNum] * NUMCAT * 8 + startpos[seq] * NUMCAT * 8);
 	// FRACLIKE[treeNum][k * numbase * NUMCAT * 8 + j * NUMCAT * 8 + i * 8 + v] = a;
-	unsigned long long int size = ((unsigned long long)node) * ((unsigned long long)numbases[treeNum]) * ((unsigned long long)NUMCAT) * 8ULL 
+	unsigned long long int size = ((unsigned long long)node) * ((unsigned long long)numbases[treeNum]) * ((unsigned long long)NUMCAT) * 8ULL
                            + ((unsigned long long)startpos[seq]) * ((unsigned long long)NUMCAT) * 8ULL;
 	//printf("FRACLIKE index 4: %d vs %llu\n", node * numbases[treeNum] * NUMCAT * 8 + startpos[seq] * NUMCAT * 8, size);
 	FRACLIKE_ptr = &FRACLIKE[treeNum][size];
@@ -1914,7 +1914,7 @@ double getlike_gamma_root_in_trifucation_single_read_brent(double times[], void 
 	Like = 0.0;
 	//FRACLIKE_ptr = &FRACLIKE[treeNum][node * numbases[treeNum] * NUMCAT * 8 + startpos[seq] * NUMCAT * 8];
 	// printf("%d\t%d\n", numbases[treeNum], node * numbases[treeNum] * NUMCAT * 8 + startpos[seq] * NUMCAT * 8);
-	unsigned long long int size = ((unsigned long long)node) * ((unsigned long long)numbases[treeNum]) * ((unsigned long long)NUMCAT) * 8ULL 
+	unsigned long long int size = ((unsigned long long)node) * ((unsigned long long)numbases[treeNum]) * ((unsigned long long)NUMCAT) * 8ULL
 	                            + ((unsigned long long)startpos[seq]) * ((unsigned long long)NUMCAT) * 8ULL;
 	// printf("FRACLIKE index 5: %d vs %llu\n", node * numbases[treeNum] * NUMCAT * 8 + startpos[seq] * NUMCAT * 8, size);
 	FRACLIKE_ptr = &FRACLIKE[treeNum][size];
@@ -2076,8 +2076,8 @@ double getlike_gamma_root_in_trifucation_single_read_brent_reassign(double times
 	Like = 0.0;
 	// fraclike pointer starts where the read starts in the alignment at the right node
 	//FRACLIKE_ptr = &FRACLIKE[treeNum][node * numbases[treeNum] * NUMCAT * 8 + startposTemp[treeNum][seq] * NUMCAT * 8];
-	
-	unsigned long long int size = ((unsigned long long)node) * ((unsigned long long)numbases[treeNum]) * ((unsigned long long)NUMCAT) * 8ULL 
+
+	unsigned long long int size = ((unsigned long long)node) * ((unsigned long long)numbases[treeNum]) * ((unsigned long long)NUMCAT) * 8ULL
 	                            + ((unsigned long long)startposTemp[treeNum][seq]) * ((unsigned long long)NUMCAT) * 8ULL;
 
 	// printf("FRACLIKE index 6: %d vs %llu\n", node * numbases[treeNum] * NUMCAT * 8 + startposTemp[treeNum][seq] * NUMCAT * 8, size);
@@ -2216,7 +2216,7 @@ double getlike_gamma_root_in_trifucation_single_read_brent_reassign(double times
 }
 
 // This function is used as the function for Brent's method to estimate the sample age
-// Compared to previous versions of estimating the sample age as two layered golden section that 
+// Compared to previous versions of estimating the sample age as two layered golden section that
 // optimizes the placement of each read for each age, this function will jointly optimize
 // the placements of each read and the age
 // parameters[0-(n-1)] is the placements of each read
@@ -2253,8 +2253,8 @@ double getlike_gamma_root_in_trifucation_sample_age_brent(double parameters[], v
 		}
 
 		*branch_length_ptr = nodeages[*tree_ptr][*assign_ptr] + *placement_ptr - age;
-		
-		// only need to check if placement if below the age to fix since we've 
+
+		// only need to check if placement if below the age to fix since we've
 		// already checked the maximum placement above
 		if (*branch_length_ptr < 3e-8)
 		{
@@ -2285,7 +2285,7 @@ double getlike_gamma_root_in_trifucation_sample_age_brent(double parameters[], v
 	unsigned long int *readlength_ptr = &readlength[0];
 	//int *QUERYDATA_ptr = &QUERYDATA[0][0]; //UPDATE THIS IF QUERYDATA MADE INTO 2D ARRAY
 
-	// i is seq and j is base	
+	// i is seq and j is base
 	for (unsigned long int seq = 0; seq < numquery; seq++)
 	{
 		t[1] = *placement_ptr;									// length from node to position where query joins
@@ -2296,12 +2296,12 @@ double getlike_gamma_root_in_trifucation_sample_age_brent(double parameters[], v
 
 		//FRACLIKE_ptr = &FRACLIKE[*tree_ptr][*assign_ptr * numbases[*tree_ptr] * NUMCAT * 8 + *startpos_ptr * NUMCAT * 8];
 
-		unsigned long long int size = ((unsigned long long)*assign_ptr) * ((unsigned long long)numbases[*tree_ptr]) * ((unsigned long long)NUMCAT) * 8ULL 
+		unsigned long long int size = ((unsigned long long)*assign_ptr) * ((unsigned long long)numbases[*tree_ptr]) * ((unsigned long long)NUMCAT) * 8ULL
 		                           + ((unsigned long long)*startpos_ptr) * ((unsigned long long)NUMCAT) * 8ULL;
 		// printf("FRACLIKE index 7: %d vs %llu\n", *assign_ptr * numbases[*tree_ptr] * NUMCAT * 8 + *startpos_ptr * NUMCAT * 8, size);
 		FRACLIKE_ptr = &FRACLIKE[*tree_ptr][size];
 
-		for(unsigned long int i = *startpos_ptr; i < *readlength_ptr + *startpos_ptr; i++)		
+		for(unsigned long int i = *startpos_ptr; i < *readlength_ptr + *startpos_ptr; i++)
 		{
 			po = i - *startpos_ptr;
 			b = QUERYDATA[seq][po];
@@ -2371,9 +2371,9 @@ double getlike_gamma_root_in_trifucation_sample_age_brent(double parameters[], v
 					C[j] = logSumExp(B);
 				}
 				Like += logSumExp(C);
-			
-			}	
-				
+
+			}
+
 		}
 
 		// iterate to the next read
@@ -2592,8 +2592,8 @@ double getlike_gamma_root_in_trifurcation_Print_Lik(double times[3], double para
 	Like = 0.0;
 
 	// fraclike pointer starts where the read starts in the alignment at the right node
-	//FRACLIKE_ptr = &FRACLIKE[treeNum][node * numbases[treeNum] * NUMCAT * 8 + startpos[seq] * NUMCAT * 8];	
-	unsigned long long int size = ((unsigned long long)node) * ((unsigned long long)numbases[treeNum]) * ((unsigned long long)NUMCAT) * 8ULL 
+	//FRACLIKE_ptr = &FRACLIKE[treeNum][node * numbases[treeNum] * NUMCAT * 8 + startpos[seq] * NUMCAT * 8];
+	unsigned long long int size = ((unsigned long long)node) * ((unsigned long long)numbases[treeNum]) * ((unsigned long long)NUMCAT) * 8ULL
     									+ ((unsigned long long)startpos[seq]) * ((unsigned long long)NUMCAT) * 8ULL;
 	// printf("FRACLIKE index 9: %d vs %llu\n", node * numbases[treeNum] * NUMCAT * 8 + startpos[seq] * NUMCAT * 8, size);
 	FRACLIKE_ptr = &FRACLIKE[treeNum][size];
@@ -2723,7 +2723,7 @@ double getlike_gamma_root_in_trifurcation_Print(double times[3], double paramete
 	Like = 0.0;
 	// fraclike pointer starts where the read starts in the alignment at the right node
 	//FRACLIKE_ptr = &FRACLIKE[treeNum][node * numbases[treeNum] * NUMCAT * 8 + startpos[seq] * NUMCAT * 8];
-	unsigned long long int size = ((unsigned long long)node) * ((unsigned long long)numbases[treeNum]) * ((unsigned long long)NUMCAT) * 8ULL 
+	unsigned long long int size = ((unsigned long long)node) * ((unsigned long long)numbases[treeNum]) * ((unsigned long long)NUMCAT) * 8ULL
  	                         + ((unsigned long long)startpos[seq]) * ((unsigned long long)NUMCAT) * 8ULL;
 	// printf("FRACLIKE index 10: %d vs %llu\n", node * numbases[treeNum] * NUMCAT * 8 + startpos[seq] * NUMCAT * 8, size);
 	FRACLIKE_ptr = &FRACLIKE[treeNum][size];
@@ -3125,7 +3125,7 @@ void get_fractionalike(unsigned long int treeNum)
 	unsigned long long int size = ((long long int)(2 * numseq[treeNum] - 1)) * (long long int)numbases[treeNum] * (long long int)NUMCAT * 8LL;
 
 	//printf("Size of FRACLIKE[%d]: %lld bytes\n", treeNum, size);
-	
+
 	// fractional likelihoods. dimension: [2*numseq-1][numbase][NUMCAT][8]
 	//FRACLIKE[treeNum] = (double *)calloc((2 * numseq[treeNum] - 1) * numbase * NUMCAT * 8, sizeof(double));
 	//printf("Checking FRACLIKE sizes: %d vs %llu\n", (2 * numseq[treeNum] - 1) * numbase * NUMCAT * 8, size);
@@ -3189,15 +3189,15 @@ void get_fractionalike(unsigned long int treeNum)
 				        FRACLIKE[treeNum][idx] = a;
 				        // FRACLIKE[treeNum][k * numbase * NUMCAT * 8 + j * NUMCAT * 8 + i * 8 + v] = a;
 				        // printf("FRACLIKE index 1: %d vs %llu\n", k * numbase * NUMCAT * 8 + j * NUMCAT * 8 + i * 8 + v, idx);
-				}   
-			}           
-                                    
+				}
+			}
+
 			// non-leaf nodes with 8
 			for (k = numseq[treeNum]; k < 2 * numseq[treeNum] - 1; k++)
-			{           
+			{
 				// For fractional likelihood
 				for (v = 0; v < 4; v++)
-				{   
+				{
 				        fscanf(infile, "%lf", &a);
 				        //FRACLIKE[treeNum][k * numbases[treeNum] * NUMCAT * 8 + j * NUMCAT * 8 + i * 8 + v] = a;
 				        idx = ((unsigned long long)k) * numbases[treeNum] * NUMCAT * 8
@@ -3206,11 +3206,11 @@ void get_fractionalike(unsigned long int treeNum)
      				+ v;
 				        FRACLIKE[treeNum][idx] = a;
 				        // printf("FRACLIKE index 2: %d vs %llu\n", k * numbase * NUMCAT * 8 + j * NUMCAT * 8 + i * 8 + v, idx);
-				}   
-                                    
+				}
+
 				// For conditional likelihood
 				for (v = 0; v < 4; v++)
-				{   
+				{
 				        fscanf(infile, "%lf", &a);
 				        //FRACLIKE[treeNum][k * numbases[treeNum] * NUMCAT * 8 + j * NUMCAT * 8 + i * 8 + v + 4] = a;
 				        idx = ((unsigned long long)k) * numbases[treeNum] * NUMCAT * 8
@@ -3219,10 +3219,10 @@ void get_fractionalike(unsigned long int treeNum)
      				+ v + 4;
 				        FRACLIKE[treeNum][idx] = a;
 				        // printf("FRACLIKE index 3: %d vs %llu\n", k * numbase * NUMCAT * 8 + j * NUMCAT * 8 + i * 8 + v + 4, idx);
-				}   
-			}           
-		}                   
-	}                           
+				}
+			}
+		}
+	}
 
 
 	// double *test_ptr = &FRACLIKE[treeNum][0];
@@ -3349,7 +3349,7 @@ void make_readfraclike()
 	//		printf("Warning, error profile includes positions not in query alignment. Please review error profile, but ratePlacer is proceeding.\n");
 	//	}
 	}
-	
+
 	// Last line read in was not properly read in
 	 if(fscanf(infile, "%d", &read) != EOF)
 	{
@@ -3667,7 +3667,7 @@ void tronkoAssignmentTesting(int root, unsigned long int treeNum)
 
 			// remove an assignment count and then add to new
 			numReadsPerAssign[treeNum][originalNode]--;
-		}	
+		}
 		else // Internal node
 		{
 			//printf("\tInternal\n");
@@ -3775,7 +3775,7 @@ void tronkoAssignmentTesting(int root, unsigned long int treeNum)
 
 		//printf("\tFinal assignment %d\n", tempAssignments[treeNum][i]);
 	}
-	
+
 }
 
 void bestAssignment(int root, unsigned long int treeNum)
@@ -4083,7 +4083,7 @@ void bestAssignment(int root, unsigned long int treeNum)
 // This function merges all the reads that have been assigned to the same node
 void mergeReads(unsigned long int treeNum, unsigned long int refBases)
 {
-	// printf("Merging Reads\n");
+	printf("Merging Reads\n");
 	int **perEdgeReads = (int **)malloc((2 * numseq[treeNum] - 1) * sizeof(int *));
 	int *perEdgeIndex = (int *)calloc(2 * numseq[treeNum] - 1, sizeof(int));
 	unsigned long int firstPos, lastPos;
@@ -4283,7 +4283,7 @@ void mergeReads(unsigned long int treeNum, unsigned long int refBases)
 			treeAssign[index] = treeNum;
 			assignments[index] = i;
 
-			//printf("Sequence %lu, assignment %lu of length %lu starting at %lu containing %d reads covering %lu:\n", index, i, readlength[index], firstPos, numReadsPerAssign[treeNum][i], refCoverage);
+			printf("Sequence %lu, assignment %lu of length %lu starting at %lu containing %d reads covering %lu:\n", index, i, readlength[index], firstPos, numReadsPerAssign[treeNum][i], refCoverage);
 
 			for (unsigned long int pos = 0; pos < readlength[index]; pos++)
 			{
@@ -4336,22 +4336,22 @@ void mergeReads(unsigned long int treeNum, unsigned long int refBases)
 
 					if (base_a > base_select)
 					{
-						// printf("A");
+						printf("A");
 						QUERYDATA[index][pos] = 0;
 					}
 					else if (base_c > base_select)
 					{
-						// printf("C");
+						printf("C");
 						QUERYDATA[index][pos] = 1;
 					}
 					else if (base_g > base_select)
 					{
-						// printf("G");
+						printf("G");
 						QUERYDATA[index][pos] = 2;
 					}
 					else if (base_t >= base_select)
 					{
-						// printf("T");
+						printf("T");
 						QUERYDATA[index][pos] = 3;
 					}
 					else
@@ -4362,7 +4362,7 @@ void mergeReads(unsigned long int treeNum, unsigned long int refBases)
 				}
 			}
 
-			//printf("\n");
+			printf("\n");
 
 			// assign ages
 			assignAges[index] = nodeages[treeNum][i] + bls[treeNum][i];
@@ -4960,7 +4960,7 @@ void read_data(char *assignfile, char *fraclikefile, char *querydatafile, char *
 		if (mode != 0 && mode != 6 && mode != 8 && mode != 10 && mode != 11 && mode != 12 && mode != 13 && mode != 14 && mode != 15 && mode != 17)
 		{
 			bestAssignment(treeRoots[treeNum], treeNum);
-		} 
+		}
 		else if (tronko_check) {
 			tronkoAssignmentTesting(treeRoots[treeNum], treeNum);
 		}
@@ -5027,7 +5027,7 @@ void read_data(char *assignfile, char *fraclikefile, char *querydatafile, char *
 		exit(0);
 	}
 
-	// deallocate extra memory if needed/tree	
+	// deallocate extra memory if needed/tree
 	int* tempptr = (int *)realloc(treeAssign, tempnumquery * (sizeof(int)));
 	if (tempptr != NULL)
 	{
@@ -5118,7 +5118,7 @@ void read_data(char *assignfile, char *fraclikefile, char *querydatafile, char *
 	//			printf("%d is not valid", QUERYDATA[read][pos]);
 	//			exit(0);
 	//		}
-	
+
 	//	}
 	//	printf("\n");
 	//	//for(int pos = 0; pos < readlength[read]; pos++)
@@ -5270,7 +5270,7 @@ void maximize_like_seperately_for_all2D(double **par)
         printf("\tAssignment %d age: %.16f\n", assignments[i], nodeages[treeAssign[i]][assignments[i]]);
         printf("\tsequence age: %.16f\n",(1.0-invector[0])*(nodeages[treeAssign[i]][assignments[i]]+invector[1]));
 
-		
+
 	}
 }
 
