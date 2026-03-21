@@ -17,6 +17,9 @@
 #include <unistd.h>
 #include <getopt.h>
 #include <fcntl.h>
+#ifdef _OPENMP
+#include <omp.h>
+#endif
 
 #define MINBL 0.0000001
 #define MAXBL 5.0
@@ -33,12 +36,12 @@
 // assignAges holds the max possible age for the assignment node of a read! So nodeage + bls of assignment node for that read
 // double LRVEC[4][4], RRVEC[4][4], RRVAL[4], PMAT[3][NUMCAT][4][4];
 double **LRVEC, **RRVEC, **RRVAL; //, PMAT[3][NUMCAT][4][4];;
-double PMAT[3 * NUMCAT * 4 * 4];  // I think
+_Thread_local double PMAT[3 * NUMCAT * 4 * 4];  // I think
 double **statevector, **FRACLIKE, **nodeages, **bls, ***readlike, testAge, **pi, **par, *maxAges, totMaxAge, *assignAges, errorTest, rooted, curAgeBound;
 unsigned long int numbase, numquery, queryagesknown;
 int ***DATA, **QUERYDATA, *assignments, **nodeOrder, *usedReads, *treeAssign, *usedTrees, toMerge;
 unsigned long int *readlength, *startpos;
-int onDindic = 0; // hack to avoid passing this indicator around
+_Thread_local int onDindic = 0; // hack to avoid passing this indicator around
 unsigned long int *numseq, *treeRoots;
 long numTrees;
 
@@ -3572,8 +3575,11 @@ void tronkoAssignmentTesting(int root, unsigned long int treeNum)
 
 	// loops for only the number of reads assigned to the tree
 	// Test out .1 cutoff for reassignment
+#pragma omp parallel for schedule(dynamic, 1) \
+	private(surNodes, originalNode, extra_data, L1_lik, testLik, testLik2, invector)
 	for (i = 0; i < usedTrees[treeNum]; i++)
 	{
+		onDindic = 1;
 		// printf("Sequence %d of tree %d and node %d\n", i, treeNum, tempAssignments[treeNum][i]);
 		// GET INITIAL BRANCH AND PLACEMENT ESTIMATES
 
@@ -3656,16 +3662,19 @@ void tronkoAssignmentTesting(int root, unsigned long int treeNum)
 			if (L1_lik < testLik)
 			{
 				tempAssignments[treeNum][i] = surNodes[1];
+				#pragma omp atomic
 				numReadsPerAssign[treeNum][surNodes[1]]++;
 			}
 			else
 			{
 				// Child 2 better
 				tempAssignments[treeNum][i] = surNodes[2];
+				#pragma omp atomic
 				numReadsPerAssign[treeNum][surNodes[2]]++;
 			}
 
 			// remove an assignment count and then add to new
+			#pragma omp atomic
 			numReadsPerAssign[treeNum][originalNode]--;
 		}
 		else // Internal node
@@ -3762,13 +3771,17 @@ void tronkoAssignmentTesting(int root, unsigned long int treeNum)
 			if (testLik < testLik2 && testLik < L1_lik)
 			{
 				tempAssignments[treeNum][i] = surNodes[1];
+				#pragma omp atomic
 				numReadsPerAssign[treeNum][surNodes[1]]++;
+				#pragma omp atomic
 				numReadsPerAssign[treeNum][originalNode]--;
 			}
 			else if (testLik2 < testLik && testLik2 < L1_lik)
 			{
 				tempAssignments[treeNum][i] = surNodes[2];
+				#pragma omp atomic
 				numReadsPerAssign[treeNum][surNodes[2]]++;
+				#pragma omp atomic
 				numReadsPerAssign[treeNum][originalNode]--;
 			}
 		}
@@ -3785,12 +3798,13 @@ void bestAssignment(int root, unsigned long int treeNum)
 
 	printf("Testing assignments\n");
 
-	onDindic = 1;
-
 	// loops for only the number of reads assigned to the tree
 	// Test out .1 cutoff for reassignment
+#pragma omp parallel for schedule(dynamic, 1) \
+	private(L1, nfun, testNode, surNodes, extra_data, L1_lik, testLik, testLik2, invector)
 	for (i = 0; i < usedTrees[treeNum]; i++)
 	{
+		onDindic = 1;
 		// printf("Sequence %d of tree %d and node %d\n", i, treeNum, tempAssignments[treeNum][i]);
 		// GET INITIAL BRANCH AND PLACEMENT ESTIMATES
 
@@ -3871,7 +3885,9 @@ void bestAssignment(int root, unsigned long int treeNum)
 			}
 
 			// remove an assignment count and then add to new
+			#pragma omp atomic
 			numReadsPerAssign[treeNum][tempAssignments[treeNum][i]]--;
+			#pragma omp atomic
 			numReadsPerAssign[treeNum][L1]++;
 			tempAssignments[treeNum][i] = L1;
 			// assignAges[i] =  nodeages[treeNum][L1] + bls[treeNum][L1]; //done after merging reads now
@@ -3971,7 +3987,9 @@ void bestAssignment(int root, unsigned long int treeNum)
 					greedyUp(extra_data, &L1, &L1_lik, root);
 				}
 				// remove an assignment count and then add to new
+				#pragma omp atomic
 				numReadsPerAssign[treeNum][tempAssignments[treeNum][i]]--;
+				#pragma omp atomic
 				numReadsPerAssign[treeNum][L1]++;
 				tempAssignments[treeNum][i] = L1;
 				// assignAges[i] =  nodeages[treeNum][L1] + bls[treeNum][L1];
@@ -4068,7 +4086,9 @@ void bestAssignment(int root, unsigned long int treeNum)
 			}
 
 			// remove an assignment count and then add to new
+			#pragma omp atomic
 			numReadsPerAssign[treeNum][tempAssignments[treeNum][i]]--;
+			#pragma omp atomic
 			numReadsPerAssign[treeNum][L1]++;
 			tempAssignments[treeNum][i] = L1;
 			// assignAges[i] =  nodeages[treeNum][L1] + bls[treeNum][L1];
@@ -4292,7 +4312,7 @@ void mergeReads(unsigned long int treeNum, unsigned long int refBases)
 				if (baseCounts[refPos * 4] == 0 && baseCounts[refPos * 4 + 1] == 0 && baseCounts[refPos * 4 + 2] == 0 && baseCounts[refPos * 4 + 3] == 0)
 				{
 					QUERYDATA[index][pos] = -1;
-					// printf("-");
+					printf("-");
 					readlike[index][pos] = NULL;
 				}
 				else
@@ -6565,11 +6585,11 @@ int main(int argc, char *argv[])
 	int mode, allTrees, tronko_check;
 
 	// To do: make a more user friendly command/flag interface
-	if (argc < 13 || argc > 14) // Allow 13 or 14 arguments
+	if (argc < 13 || argc > 15) // Allow 13 to 15 arguments
 	{
 		// printf("Specify name of five infiles: assignmentfile,fractionallikehoodfile, querydatafile, referencedatafile, and GTR+Gamma parameterfile, assingment mode, and a likelihood mode option\nMaximum name length: 30 characters\n");
 		// printf("Specify path of sample assignment file, sample alignment file, likelihood directory, parameter/tree directory, number of trees, assignment mode, errorprofile, output file, 0/1 for each tree age estimate, age for LLR testing (0 if not testing or to modern), 0/1 for merging reads, 0/1 for tronko testing node assignments\n");
-		printf("Usage: %s assignfile querydatafile lik_dir param_tree_dir num_trees mode errorprofile outfile all_trees_flag compare_age merge_reads_flag tronko_check_flag [merge_coverage_threshold]\n", argv[0]);
+		printf("Usage: %s assignfile querydatafile lik_dir param_tree_dir num_trees mode errorprofile outfile all_trees_flag compare_age merge_reads_flag tronko_check_flag [merge_coverage_threshold] [num_threads]\n", argv[0]);
 		printf("  assignfile: Path to sample assignment file.\n");
 		printf("  querydatafile: Path to sample alignment file.\n");
 		printf("  lik_dir: Path to likelihood directory.\n");
@@ -6584,6 +6604,7 @@ int main(int argc, char *argv[])
 		printf("  trooko_check_flag: 0/1 - Test node assignments.\n");
 		printf("  merge_coverage_threshold (optional): Minimum coverage to keep merged read. Default '0.05f'.\n");
 		printf("    Examples: '0.05f' (5%% fraction), '50b' (50 base pairs).\n");
+		printf("  num_threads (optional): Number of OpenMP threads. Default 1.\n");
 		exit(-1);
 	}
 
@@ -6602,7 +6623,7 @@ int main(int argc, char *argv[])
 	// errorTest = atof(argv[10]);
 
 	// Parse optional merge coverage threshold (argv[13])
-	if (argc == 14) {
+	if (argc >= 14) {
 		char *threshold_str = argv[13];
 		int len = strlen(threshold_str);
 		char last_char = 'f'; // Default to fraction if no suffix
@@ -6640,6 +6661,19 @@ int main(int argc, char *argv[])
         // threshold_str[len-1] = last_char; // Not strictly needed as argv is read-only conceptually here
 	}
 	// else: use default values merge_coverage_threshold = 0.05, merge_coverage_mode = MERGE_MODE_FRACTION
+
+	int num_threads = 1;
+	if (argc == 15) {
+		num_threads = atoi(argv[14]);
+		if (num_threads < 1) {
+			fprintf(stderr, "Error: num_threads must be >= 1.\n");
+			exit(1);
+		}
+	}
+#ifdef _OPENMP
+	omp_set_num_threads(num_threads);
+#endif
+	printf("num_threads: %d\n", num_threads);
 
 	// printf("Mode: %d\n", mode);
 

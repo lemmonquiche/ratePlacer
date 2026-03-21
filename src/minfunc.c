@@ -167,21 +167,21 @@ double LocalMin (double a, double b, double eps, double t, MinimizeFxn f, double
 */
 
 /* following variables have scope of function 'PrAxis' in Algol, but must be global to file in C */
-static long int		praxisSeed;
-static int			nl;				/* number of line minimizations performed */
-static double		dmin;
-static double		ldt;
-static double		qf1;
-static double		qd0, qd1;
-static double		m2, m4;
-static double		eps2;
-static double		toler, htol;	/* global versions of PrAxis arguments */
-static MinimizeFxn	fxn;			/* objective function to minimize */
-static int			n;
-static double		*vv;
-static double		*gx, gfx;
-static double		*d, *q0, *q1;
-static double		*xnew;
+_Thread_local static long int		praxisSeed;
+_Thread_local static int			nl;				/* number of line minimizations performed */
+_Thread_local static double		dmin;
+_Thread_local static double		ldt;
+_Thread_local static double		qf1;
+_Thread_local static double		qd0, qd1;
+_Thread_local static double		m2, m4;
+_Thread_local static double		eps2;
+_Thread_local static double		toler, htol;	/* global versions of PrAxis arguments */
+_Thread_local static MinimizeFxn	fxn;			/* objective function to minimize */
+_Thread_local static int			n;
+_Thread_local static double		*vv;
+_Thread_local static double		*gx, gfx;
+_Thread_local static double		*d, *q0, *q1;
+_Thread_local static double		*xnew;
 
 double PrAxis (double tol, double h, int nn, double xx[], MinimizeFxn f, double v[], double work[], int maxIterations, void *extra_data)
 	/* double			tol;	tolerance used for convergence criterion */
