@@ -848,7 +848,7 @@ double GoldenSection_rough(double newinvecter[], double lowbound[], double upbou
 	}
 
 
-	if (yc < yd) 
+	if (yc < yd)
 	{
 		newinvecter[1] = (a + d)/2;
 		return(yc);
@@ -858,6 +858,50 @@ double GoldenSection_rough(double newinvecter[], double lowbound[], double upbou
 		newinvecter[1] = (b + c)/2;
 		return(yd);
 	}
+}
+
+/*
+ * Adapter for Brent1D: bridges GoldenSection-style callback
+ * double (*fun)(double x, double z[]) to MinimizeFxn double (*)(double *, void *).
+ */
+typedef struct {
+	double (*fun)(double x, double z[]);
+	double *otherstuff;
+} Brent1D_ctx;
+
+static double Brent1D_bridge(double *x, void *extra_data)
+{
+	Brent1D_ctx *ctx = (Brent1D_ctx *)extra_data;
+	return ctx->fun(*x, ctx->otherstuff);
+}
+
+/*
+ * 1D Brent's method (LocalMin) with the same calling convention as GoldenSection.
+ * Faster on smooth functions due to quadratic interpolation (superlinear convergence).
+ * Drop-in replacement: result stored in newinvecter[1], returns minimum value.
+ */
+double Brent1D(double newinvecter[], double lowbound[], double upbound[], int n,
+               double (*fun)(double x, double z[]), double in_otherstuff[], int n_otherstuff)
+{
+	int i;
+	double px, result;
+
+	/* Build the same combined otherstuff array layout as GoldenSection uses */
+	double *otherstuff = malloc((2 * n + n_otherstuff) * sizeof(double));
+	for (i = 0; i < n_otherstuff; i++)
+		otherstuff[i] = in_otherstuff[i];
+	for (i = 0; i < n; i++) {
+		otherstuff[2 * i + n_otherstuff]     = lowbound[i + 1];
+		otherstuff[2 * i + n_otherstuff + 1] = upbound[i + 1];
+	}
+
+	Brent1D_ctx ctx = {fun, otherstuff};
+	result = LocalMin(lowbound[1], upbound[1], sqrt(DBL_EPSILON), 1e-8,
+	                  Brent1D_bridge, &px, &ctx);
+
+	newinvecter[1] = px;
+	free(otherstuff);
+	return result;
 }
 
 //double minimize_brent(double newinvecter[], int n, double (*fun)(double x[]), int maxIterations) {

@@ -55,7 +55,7 @@ double ****readLikeTemp;
 
 int tip, comma = 0; /*globals used to read in the tree. Old code - don't ask.*/
 
-FILE *infile, *outfile;
+FILE *infile, *outfile, *readsfile = NULL;
 
 // Adding tree information so that we can do node uncertainity!!
 struct node
@@ -1684,7 +1684,7 @@ void make_transition_prob_matrices(double t[3], unsigned long int treeNum)
 // Calculates the log sum exp of log like + log prob for the tree calculations
 // This was implemented after scaling at base/pos was underflowing
 // always used on dim 4 vectors
-double logSumExp(double X[4])
+static inline double logSumExp(double X[4])
 {
 	int i;
 	double maxX = X[0];
@@ -3275,8 +3275,8 @@ void get_fractionalike(unsigned long int treeNum)
 // make default error 0.01
 void make_readfraclike()
 {
-	int i, j, k, pos, read, parseNum, treeNum, treeOrder;
-	double e, ec, err0, err1, err2, err3;
+	int i;
+	double e, ec;
 
 	// TO DO: fix this with more reasonable general errors
 	// Should probably make this an option for users, so need to update
@@ -3285,11 +3285,13 @@ void make_readfraclike()
 
 	// readlike = malloc(numquery*(sizeof(double**)));
 
-	// All reads get general error
+	// All reads get general error (parallelized: each read's slot is independent)
+	#pragma omp parallel for schedule(dynamic, 1)
 	for (i = 0; i < numquery; i++)
 	{
-		treeNum = treeAssign[i];
-		treeOrder = readOrder[i];
+		int treeNum = treeAssign[i];
+		int treeOrder = readOrder[i];
+		int j, k;
 
 		readLikeTemp[treeNum][treeOrder] = (double **)malloc(readLengthTemp[treeNum][treeOrder] * (sizeof(double *)));
 		// readlike[i] = malloc(readlength[i]*(sizeof(double*)));
@@ -3300,16 +3302,8 @@ void make_readfraclike()
 				readLikeTemp[treeNum][treeOrder][j] = malloc(4 * (sizeof(double)));
 				for (k = 0; k < 4; k++)
 				{
-					if (k == readsTreeSorted[treeNum][treeOrder][j])
-					{
-						// readlike[i][j][k] = ec + errorTestLog;
-						readLikeTemp[treeNum][treeOrder][j][k] = ec;
-					}
-					else
-					{
-						// readlike[i][j][k] = e + errorTestLog;
-						readLikeTemp[treeNum][treeOrder][j][k] = e;
-					}
+					readLikeTemp[treeNum][treeOrder][j][k] =
+						(k == readsTreeSorted[treeNum][treeOrder][j]) ? ec : e;
 				}
 			}
 			else
@@ -3323,42 +3317,36 @@ void make_readfraclike()
 	// Only rough implementation of new read preprocessing, double check when doing errors again
 	// fix error based on error profile
 	// Should be more flexible to custom error profiles even if not the most efficient
-	while (fscanf(infile,"%d %d %lf %lf %lf %lf", &read, &pos, &err0, &err1, &err2, &err3) == 6)
+	// Use fgets + strtol/strtod instead of fscanf: avoids per-call format string parsing overhead
 	{
-		treeNum = treeAssign[read];
-		treeOrder = readOrder[read];
-		if(readsTreeSorted[treeNum][treeOrder][pos] != -1)
+		char linebuf[256];
+		while (fgets(linebuf, sizeof(linebuf), infile) != NULL)
 		{
-			readLikeTemp[treeNum][treeOrder][pos][0] = err0;
-			readLikeTemp[treeNum][treeOrder][pos][1] = err1;
-			readLikeTemp[treeNum][treeOrder][pos][2] = err2;
-			readLikeTemp[treeNum][treeOrder][pos][3] = err3;
-		}
-		else
-		{
-			printf("Warning, error profile includes positions not in query alignment. Please review error profile, but ratePlacer is proceeding. For read %d pos %d\n", read, pos);
-		}
+			char *p = linebuf, *next;
+			int read_id = (int)strtol(p, &next, 10);
+			if (next == p) continue;  // blank or malformed line
+			p = next;
+			int pos_id  = (int)strtol(p, &next, 10);  p = next;
+			double err0 = strtod(p, &next);            p = next;
+			double err1 = strtod(p, &next);            p = next;
+			double err2 = strtod(p, &next);            p = next;
+			double err3 = strtod(p, &next);            p = next;
 
-	//
-	//	if(QUERYDATA[read][pos] != -1)
-	//	{
-	//		readlike[read][pos][0] = err0;
-	//		readlike[read][pos][1] = err1;
-	//		readlike[read][pos][2] = err2;
-	//		readlike[read][pos][3] = err3;
-	//	}
-	//	else
-	//	{
-	//		printf("Warning, error profile includes positions not in query alignment. Please review error profile, but ratePlacer is proceeding.\n");
-	//	}
+			int treeNum   = treeAssign[read_id];
+			int treeOrder = readOrder[read_id];
+			if (readsTreeSorted[treeNum][treeOrder][pos_id] != -1)
+			{
+				readLikeTemp[treeNum][treeOrder][pos_id][0] = err0;
+				readLikeTemp[treeNum][treeOrder][pos_id][1] = err1;
+				readLikeTemp[treeNum][treeOrder][pos_id][2] = err2;
+				readLikeTemp[treeNum][treeOrder][pos_id][3] = err3;
+			}
+			else
+			{
+				printf("Warning, error profile includes positions not in query alignment. Please review error profile, but ratePlacer is proceeding. For read %d pos %d\n", read_id, pos_id);
+			}
+		}
 	}
-
-	// Last line read in was not properly read in
-	 if(fscanf(infile, "%d", &read) != EOF)
-	{
-		printf("Error in reading in error profile\n");
-		exit(0);
-	 }
 
 	//for (i = 0; i < numquery; i++)
 	//{
@@ -4303,7 +4291,7 @@ void mergeReads(unsigned long int treeNum, unsigned long int refBases)
 			treeAssign[index] = treeNum;
 			assignments[index] = i;
 
-			printf("Sequence %lu, assignment %lu of length %lu starting at %lu containing %d reads covering %lu:\n", index, i, readlength[index], firstPos, numReadsPerAssign[treeNum][i], refCoverage);
+			if (readsfile) fprintf(readsfile, "Sequence %lu, assignment %lu of length %lu starting at %lu containing %d reads covering %lu:\n", index, i, readlength[index], firstPos, numReadsPerAssign[treeNum][i], refCoverage);
 
 			for (unsigned long int pos = 0; pos < readlength[index]; pos++)
 			{
@@ -4312,7 +4300,7 @@ void mergeReads(unsigned long int treeNum, unsigned long int refBases)
 				if (baseCounts[refPos * 4] == 0 && baseCounts[refPos * 4 + 1] == 0 && baseCounts[refPos * 4 + 2] == 0 && baseCounts[refPos * 4 + 3] == 0)
 				{
 					QUERYDATA[index][pos] = -1;
-					printf("-");
+					if (readsfile) fprintf(readsfile, "-");
 					readlike[index][pos] = NULL;
 				}
 				else
@@ -4356,22 +4344,22 @@ void mergeReads(unsigned long int treeNum, unsigned long int refBases)
 
 					if (base_a > base_select)
 					{
-						printf("A");
+						if (readsfile) fprintf(readsfile, "A");
 						QUERYDATA[index][pos] = 0;
 					}
 					else if (base_c > base_select)
 					{
-						printf("C");
+						if (readsfile) fprintf(readsfile, "C");
 						QUERYDATA[index][pos] = 1;
 					}
 					else if (base_g > base_select)
 					{
-						printf("G");
+						if (readsfile) fprintf(readsfile, "G");
 						QUERYDATA[index][pos] = 2;
 					}
 					else if (base_t >= base_select)
 					{
-						printf("T");
+						if (readsfile) fprintf(readsfile, "T");
 						QUERYDATA[index][pos] = 3;
 					}
 					else
@@ -4382,7 +4370,7 @@ void mergeReads(unsigned long int treeNum, unsigned long int refBases)
 				}
 			}
 
-			printf("\n");
+			if (readsfile) fprintf(readsfile, "\n");
 
 			// assign ages
 			assignAges[index] = nodeages[treeNum][i] + bls[treeNum][i];
@@ -4568,7 +4556,7 @@ void keepSeparateReads(unsigned long int treeNum)
 // numbase: total length of alignment of reference sequences
 // NUMCAT: number of categories in the gamma distribution
 // TO DO: Consider which memory allocated data structures should be single continuous chunk (if possible) for best speed
-void read_data(char *assignfile, char *fraclikefile, char *querydatafile, char *referencedatafile, char *errorfile, int mode, int tronko_check)
+void read_data(char *assignfile, char *fraclikefile, char *querydatafile, char *referencedatafile, char *errorfile, int mode, int reassign_mode)
 {
 	int i, j, k, v, nin, numcat, fd;
 	double a, b, checksum, MINLIKE = -INF;
@@ -4976,12 +4964,9 @@ void read_data(char *assignfile, char *fraclikefile, char *querydatafile, char *
 		fclose(infile);
 
 		//printtree(numseq[treeNum], treeRoots[treeNum], treeNum);
-		//printf("tronko_check: %d\n", tronko_check);
-		if (mode != 0 && mode != 6 && mode != 8 && mode != 10 && mode != 11 && mode != 12 && mode != 13 && mode != 14 && mode != 15 && mode != 17)
-		{
+		if (reassign_mode == 1) {
 			bestAssignment(treeRoots[treeNum], treeNum);
-		}
-		else if (tronko_check) {
+		} else if (reassign_mode == 2) {
 			tronkoAssignmentTesting(treeRoots[treeNum], treeNum);
 		}
 
@@ -5633,9 +5618,8 @@ double getlike_ages(double times, double parameters[7])
 	// The following should be thought about because it would be inconvienent to redo for each age
 	// May want to make userReads a global, but think after this is implemented and working
 	// TO DO TO DO TO DO!!!!
-	int readStart = parameters[0], i, nfun;
-	double invector[3], lowbound[3], upbound[3], eh0 = 3e-8, age_like = 0.0, ageIncr, L2;
-	double p[3];
+	int readStart = parameters[0], i;
+	double eh0 = 3e-8, age_like = 0.0, ageIncr;
 	double brent_invector[numquery];
 
 	//for(int j = 0; j < numquery; j++)
@@ -5645,30 +5629,34 @@ double getlike_ages(double times, double parameters[7])
 
 	//age_like = minimize_brent(brent_invector, numquery, getlike_gamma_root_in_trifucation_sample_age_brent, 10000, &testAge);
 
-	onDindic = 1;
-
 	// Drop any reads that cannot be of test age
-	for (i = readStart; i < numquery; i++)
+	#pragma omp parallel reduction(+:age_like)
 	{
-		// if(usedReads[i] != 85)
-		//	continue;
-		p[0] = usedReads[i];
-		p[1] = treeAssign[usedReads[i]];
-		p[2] = assignments[usedReads[i]];
+		onDindic = 1; // each worker thread must set its own thread-local copy
+		#pragma omp for schedule(dynamic, 1)
+		for (i = readStart; i < numquery; i++)
+		{
+			// if(usedReads[i] != 85)
+			//	continue;
+			double p[3], invector[3], lowbound[3], upbound[3], L2;
+			int nfun = 0;
+			p[0] = usedReads[i];
+			p[1] = treeAssign[usedReads[i]];
+			p[2] = assignments[usedReads[i]];
 
-		nfun = 0;
-		invector[1] = bls[treeAssign[usedReads[i]]][assignments[usedReads[i]]] / 2.0;
-		lowbound[1] = eh0;
-		upbound[1] = bls[treeAssign[usedReads[i]]][assignments[usedReads[i]]] - eh0;
+			invector[1] = bls[treeAssign[usedReads[i]]][assignments[usedReads[i]]] / 2.0;
+			lowbound[1] = eh0;
+			upbound[1] = bls[treeAssign[usedReads[i]]][assignments[usedReads[i]]] - eh0;
 
-		L2 = GoldenSection(invector, lowbound, upbound, 1, getlike_gamma_root_in_trifurcation_testAge, p, 3);
+			L2 = Brent1D(invector, lowbound, upbound, 1, getlike_gamma_root_in_trifurcation_testAge, p, 3);
 
-		// printf("Read %d\tTime: %.16f\tLikelihood: %.16f\n", usedReads[i], testAge, L2);
+			// printf("Read %d\tTime: %.16f\tLikelihood: %.16f\n", usedReads[i], testAge, L2);
 
-		// printf("\tRead %d assigned to tree %d and node %d with likelihood %.16f with root placement of %.16f\n", usedReads[i], treeAssign[usedReads[i]], assignments[usedReads[i]], L2, nodeages[treeAssign[usedReads[i]]][assignments[usedReads[i]]]+invector[1]);
+			// printf("\tRead %d assigned to tree %d and node %d with likelihood %.16f with root placement of %.16f\n", usedReads[i], treeAssign[usedReads[i]], assignments[usedReads[i]], L2, nodeages[treeAssign[usedReads[i]]][assignments[usedReads[i]]]+invector[1]);
 
-		age_like += L2; // sum of log likelihoods
-						// printf("\t\tassignment %d like contribution %.16f\n", assignments[usedReads[i]], L2);
+			age_like += L2; // sum of log likelihoods
+							// printf("\t\tassignment %d like contribution %.16f\n", assignments[usedReads[i]], L2);
+		}
 	}
 	// printf("Likelihood of age %.16f: %.16f\n", testAge, age_like);
 
@@ -5819,7 +5807,7 @@ void maximize_like_jointly_for_all2D(double **par, int allTrees)
 		//nfun = 0;
 		//onDindic = 0;
 
-		//L1 = GoldenSection(invector, lowbound, upbound, 1, getlike_ages, p, 3);
+		//L1 = Brent1D(invector, lowbound, upbound, 1, getlike_ages, p, 3);
 
 		//do{
 
@@ -5837,7 +5825,7 @@ void maximize_like_jointly_for_all2D(double **par, int allTrees)
 		//	upbound[1] = nextNodeAge - eh0;
 
 		//	L1 = getlike_ages(oldIn1, p);
-		//	L2 = GoldenSection(invector, lowbound, upbound, 1, getlike_ages, p, 3);
+		//	L2 = Brent1D(invector, lowbound, upbound, 1, getlike_ages, p, 3);
 
 		//	printf("L1(%.16f): %.16f\tL2(%.16f): %.16f\tLLR: %.16f\t%d of %d\n", oldIn1, L1, invector[1], L2, 2 * (L1 - L2), readStart, numquery);
 
@@ -5933,6 +5921,8 @@ void maximize_like_jointly_for_all2D(double **par, int allTrees)
 	// }
 	// printf("\n");
 
+	fprintf(outfile, "reads_used=%lu\n", numquery - readStart);
+
 	// Some bounds or fillers added
 	p[0] = readStart;
 	p[1] = nodePointer;
@@ -5946,7 +5936,7 @@ void maximize_like_jointly_for_all2D(double **par, int allTrees)
 	// double time3 = (double) clock()/CLOCKS_PER_SEC;
 
 	// Decide how the inputs may need to change at some point I guess
-	est_age_lik = GoldenSection(invector, lowbound, upbound, 1, getlike_ages, p, 3);
+	est_age_lik = Brent1D(invector, lowbound, upbound, 1, getlike_ages, p, 3);
 	// printf("The elapsed time for age estimation is %.16f seconds\n", ( ((double) clock()) / CLOCKS_PER_SEC) - time3);
 
 	est_age = invector[1];
@@ -5969,6 +5959,10 @@ void maximize_like_jointly_for_all2D(double **par, int allTrees)
 	// confI = 1.96 / sqrt(-secD);
 
 	printf("Estimated age is %.16f with likelihood %.16f and 95%% confidence interval [%.16f,%.16f]\n", est_age, est_age_lik, est_age - confI, est_age + confI);
+	fprintf(outfile, "estimated_age=%.16f\n", est_age);
+	fprintf(outfile, "likelihood=%.16f\n", est_age_lik);
+	fprintf(outfile, "CI_lower=%.16f\n", est_age - confI);
+	fprintf(outfile, "CI_upper=%.16f\n", est_age + confI);
 	// printf("%.16f,%.16f\n", est_age, est_age_lik);
 
 	// confidenceSearch(bounds, chiValue, maxAge, est_age, -est_age_lik, p);
@@ -6085,11 +6079,13 @@ void maximize_like_jointly_for_all2D_reassign(double **par, int allTrees)
 	 //}
 	 //printf("\n");
 
+	fprintf(outfile, "reads_used=%lu\n", numquery);
+
 	// Some bounds or fillers added
 	invectorL1[1] = nextNodeAge / 2;
 	upbound[1] = nextNodeAge - eh0;
 	// printf("Next node age is %.16f\n", nextNodeAge);
-	L1 = GoldenSection(invectorL1, lowbound, upbound, 1, getlike_ages, p, 3);
+	L1 = Brent1D(invectorL1, lowbound, upbound, 1, getlike_ages, p, 3);
 	//printf("L1 (%.16f, %.16f)\n", L1, invectorL1[1]);
 
 	//brent_invector[numquery] = nextNodeAge/2;
@@ -6125,7 +6121,7 @@ void maximize_like_jointly_for_all2D_reassign(double **par, int allTrees)
 			upbound[1] = nextNodeAge - eh0;
 			curAgeBound = nextNodeAge - eh0;
 
-			L2 = GoldenSection(invectorL2, lowbound, upbound, 1, getlike_ages, p, 3);
+			L2 = Brent1D(invectorL2, lowbound, upbound, 1, getlike_ages, p, 3);
 
 			// printf("L1 (%.16f, %.16f) vs L2 (%.16f, %.16f)\n", L1, invectorL1[1], L2, invectorL2[1]);
 
@@ -6200,6 +6196,10 @@ void maximize_like_jointly_for_all2D_reassign(double **par, int allTrees)
 	//printf("\n");
 
 	printf("Estimated age is %.16f with likelihood %.16f and 95%% confidence interval [%.16f,%.16f]\n", invectorL1[1], L1, invectorL1[1] - confI, invectorL2[1] + confI);
+	fprintf(outfile, "estimated_age=%.16f\n", invectorL1[1]);
+	fprintf(outfile, "likelihood=%.16f\n", L1);
+	fprintf(outfile, "CI_lower=%.16f\n", invectorL1[1] - confI);
+	fprintf(outfile, "CI_upper=%.16f\n", invectorL2[1] + confI);
 	// printf("%.16f,%.16f\n", est_age, est_age_lik);
 
 	// confidenceSearch(bounds, chiValue, maxAge, est_age, -est_age_lik, p);
@@ -6258,6 +6258,8 @@ void maximize_like_jointly_for_all_noDrop2D(double **par, int allTrees)
 
 	onDindic = 1;
 
+	fprintf(outfile, "reads_used=%lu\n", numquery);
+
 	// Some bounds or fillers added
 	p[0] = readStart;
 	p[1] = nodePointer;
@@ -6271,7 +6273,7 @@ void maximize_like_jointly_for_all_noDrop2D(double **par, int allTrees)
 	// double time3 = (double) clock()/CLOCKS_PER_SEC;
 
 	// Decide how the inputs may need to change at some point I guess
-	est_age_lik = GoldenSection(invector, lowbound, upbound, 1, getlike_ages, p, 3);
+	est_age_lik = Brent1D(invector, lowbound, upbound, 1, getlike_ages, p, 3);
 	// printf("The elapsed time for age estimation is %.16f seconds\n", ( ((double) clock()) / CLOCKS_PER_SEC) - time3);
 
 	est_age = invector[1];
@@ -6294,6 +6296,10 @@ void maximize_like_jointly_for_all_noDrop2D(double **par, int allTrees)
 	// confI = 1.96 / sqrt(-secD);
 
 	printf("Estimated age is %.16f with likelihood %.16f and 95%% confidence interval [%.16f,%.16f]\n", est_age, est_age_lik, est_age - confI, est_age + confI);
+	fprintf(outfile, "estimated_age=%.16f\n", est_age);
+	fprintf(outfile, "likelihood=%.16f\n", est_age_lik);
+	fprintf(outfile, "CI_lower=%.16f\n", est_age - confI);
+	fprintf(outfile, "CI_upper=%.16f\n", est_age + confI);
 
 	// confidenceSearch(bounds, chiValue, maxAge, est_age, -est_age_lik, p);
 	// printf("Estimated age is %.16f with likelihood %.16f and %.2f%% confidence interval [%.16f,%.16f]\n", est_age, est_age_lik, chiValue, bounds[0], bounds[2]);
@@ -6572,6 +6578,40 @@ void freeData()
 	free(LRVEC);
 }
 
+static void print_usage(const char *prog)
+{
+	printf("Usage: %s -a ASSIGN_FILE -q QUERY_FILE -l LIK_DIR -p PARAM_DIR \\\n", prog);
+	printf("              -n NUM_TREES -m MODE -e ERROR_FILE \\\n");
+	printf("              -A ALL_TREES -c COMPARE_AGE -r MERGE_READS -k REASSIGN \\\n");
+	printf("              -o OUT_PREFIX [-R] [-C COVERAGE] [-t THREADS]\n");
+	printf("  -a/--assign-file:  Path to sample assignment file.\n");
+	printf("  -q/--query-file:   Path to sample alignment file.\n");
+	printf("  -l/--lik-dir:      Path to likelihood directory.\n");
+	printf("  -p/--param-dir:    Path to parameter/tree directory.\n");
+	printf("  -n/--num-trees:    Number of trees.\n");
+	printf("  -m/--mode:         Estimation mode (0-9):\n");
+	printf("                       0=maximize_like_seperately_for_all2D_Print\n");
+	printf("                       1=maximize_like_seperately_for_all2D\n");
+	printf("                       2=likelihoodratiotest_for_all\n");
+	printf("                       3=maximize_like_jointly_for_all2D\n");
+	printf("                       4=age_like_distribution_jointly_for_all2D\n");
+	printf("                       5=age_like_distribution_jointly_for_all2D_upperLimit\n");
+	printf("                       6=maximize_like_jointly_for_all_noDrop2D\n");
+	printf("                       7=read_branch_like_dist\n");
+	printf("                       8=readContour\n");
+	printf("                       9=maximize_like_jointly_for_all2D_reassign\n");
+	printf("  -e/--error-file:   Path to error profile file.\n");
+	printf("  -A/--all-trees:    0/1 - estimate age for each tree individually or jointly.\n");
+	printf("  -c/--compare-age:  Age for Likelihood Ratio Test (0 if not testing or use modern).\n");
+	printf("  -r/--merge-reads:  0/1 - Merge reads assigned to the same edge.\n");
+	printf("  -k/--reassign:     0=keep inputted, 1=full (bestAssignment), 2=tronko.\n");
+	printf("  -o/--out-prefix:   Output file prefix (required). Creates <prefix>.summary.\n");
+	printf("  -R/--write-reads:  (optional) Write merged read sequences to <prefix>.reads.\n");
+	printf("  -C/--coverage:     (optional) Minimum coverage to keep merged read. Default '0.05f'.\n");
+	printf("                     Examples: '0.05f' (5%% fraction), '50b' (50 base pairs).\n");
+	printf("  -t/--threads:      (optional) Number of OpenMP threads. Default 1.\n");
+}
+
 int main(int argc, char *argv[])
 {
 	// time for whole program:
@@ -6582,105 +6622,140 @@ int main(int argc, char *argv[])
 	double L, compareAge;
 
 	char assignfile[500], fraclikefile[500], querydatafile[500], referencedatafile[500], errorfile[500], strTree[100], tempFileName[500];
-	int mode, allTrees, tronko_check;
+	int mode, allTrees, reassign_mode;
+	char out_prefix[500] = {0};
+	char num_trees_str[64] = {0};
 
-	// To do: make a more user friendly command/flag interface
-	if (argc < 13 || argc > 15) // Allow 13 to 15 arguments
-	{
-		// printf("Specify name of five infiles: assignmentfile,fractionallikehoodfile, querydatafile, referencedatafile, and GTR+Gamma parameterfile, assingment mode, and a likelihood mode option\nMaximum name length: 30 characters\n");
-		// printf("Specify path of sample assignment file, sample alignment file, likelihood directory, parameter/tree directory, number of trees, assignment mode, errorprofile, output file, 0/1 for each tree age estimate, age for LLR testing (0 if not testing or to modern), 0/1 for merging reads, 0/1 for tronko testing node assignments\n");
-		printf("Usage: %s assignfile querydatafile lik_dir param_tree_dir num_trees mode errorprofile outfile all_trees_flag compare_age merge_reads_flag tronko_check_flag [merge_coverage_threshold] [num_threads]\n", argv[0]);
-		printf("  assignfile: Path to sample assignment file.\n");
-		printf("  querydatafile: Path to sample alignment file.\n");
-		printf("  lik_dir: Path to likelihood directory.\n");
-		printf("  param_tree_dir: Path to parameter/tree directory.\n");
-		printf("  num_trees: Number of trees.\n");
-		printf("  mode: Assignment mode (integer).\n");
-		printf("  errorprofile: Path to error profile file.\n");
-		printf("  outfile: Path to output file.\n");
-		printf("  all_trees_flag: 0/1 - estimate age for each tree individually or jointly.\n");
-		printf("  compare_age: Age for Likelihood Ratio Test (0 if not testing or use modern).\n");
-		printf("  merge_reads_flag: 0/1 - Merge reads assigned to the same edge.\n");
-		printf("  trooko_check_flag: 0/1 - Test node assignments.\n");
-		printf("  merge_coverage_threshold (optional): Minimum coverage to keep merged read. Default '0.05f'.\n");
-		printf("    Examples: '0.05f' (5%% fraction), '50b' (50 base pairs).\n");
-		printf("  num_threads (optional): Number of OpenMP threads. Default 1.\n");
-		exit(-1);
-	}
+	static struct option long_options[] = {
+		{"assign-file",  required_argument, 0, 'a'},
+		{"query-file",   required_argument, 0, 'q'},
+		{"lik-dir",      required_argument, 0, 'l'},
+		{"param-dir",    required_argument, 0, 'p'},
+		{"num-trees",    required_argument, 0, 'n'},
+		{"mode",         required_argument, 0, 'm'},
+		{"error-file",   required_argument, 0, 'e'},
+		{"out-prefix",   required_argument, 0, 'o'},
+		{"all-trees",    required_argument, 0, 'A'},
+		{"compare-age",  required_argument, 0, 'c'},
+		{"merge-reads",  required_argument, 0, 'r'},
+		{"reassign",     required_argument, 0, 'k'},
+		{"coverage",     required_argument, 0, 'C'},
+		{"threads",      required_argument, 0, 't'},
+		{"write-reads",  no_argument,       0, 'R'},
+		{0, 0, 0, 0}
+	};
+	const char *short_opts = "a:q:l:p:n:m:e:o:A:c:r:k:C:t:R";
 
-	sprintf(assignfile, "%s", argv[1]);
-	sprintf(querydatafile, "%s", argv[2]);
-	sprintf(fraclikefile, "%s", argv[3]);	   // likelihoods
-	sprintf(referencedatafile, "%s", argv[4]); // parameters and reference data
-	// sprintf(GTRAparfile, "%s", argv[5]);
-	const char *nptr = argv[5];
-	mode = atoi(argv[6]);
-	sprintf(errorfile, "%s", argv[7]);
-	allTrees = atoi(argv[9]);
-	compareAge = atof(argv[10]);
-	toMerge = atoi(argv[11]);
-	tronko_check = atoi(argv[12]);
-	// errorTest = atof(argv[10]);
-
-	// Parse optional merge coverage threshold (argv[13])
-	if (argc >= 14) {
-		char *threshold_str = argv[13];
-		int len = strlen(threshold_str);
-		char last_char = 'f'; // Default to fraction if no suffix
-
-		if (len > 0 && (threshold_str[len-1] == 'f' || threshold_str[len-1] == 'b')) {
-			last_char = threshold_str[len-1];
-			threshold_str[len-1] = '\0'; // Temporarily remove suffix for parsing
-		}
-
-		char *endptr_thresh;
-		merge_coverage_threshold = strtod(threshold_str, &endptr_thresh);
-
-		if (threshold_str == endptr_thresh || *endptr_thresh != '\0' || merge_coverage_threshold < 0) {
-            fprintf(stderr, "Error: Invalid merge coverage threshold format: %s\\n", argv[13]);
-            fprintf(stderr, "Use format like '0.05f' or '50b'.\\n");
-            exit(1);
-        }
-
-
-		if (last_char == 'b') {
-			merge_coverage_mode = MERGE_MODE_BP;
-			// Ensure threshold is treated as an integer for BP mode internally, though parsed as double initially
-             if (merge_coverage_threshold != floor(merge_coverage_threshold)) {
-                 fprintf(stderr, "Warning: Base pair coverage threshold %s provided as non-integer. Using floor value %d.\\n", argv[13], (int)floor(merge_coverage_threshold));
-                 merge_coverage_threshold = floor(merge_coverage_threshold);
-             }
-		} else {
-			merge_coverage_mode = MERGE_MODE_FRACTION;
-			if (merge_coverage_threshold > 1.0) {
-                 fprintf(stderr, "Error: Fractional merge coverage threshold %s cannot be greater than 1.0.\\n", argv[13]);
-                 exit(1);
-             }
-		}
-		// Restore the original string if modified (optional, good practice)
-        // threshold_str[len-1] = last_char; // Not strictly needed as argv is read-only conceptually here
-	}
-	// else: use default values merge_coverage_threshold = 0.05, merge_coverage_mode = MERGE_MODE_FRACTION
-
+	int opt, option_index = 0;
+	int seen_a=0, seen_q=0, seen_l=0, seen_p=0, seen_n=0,
+	    seen_m=0, seen_e=0, seen_o=0, seen_A=0, seen_c=0, seen_r=0, seen_k=0;
 	int num_threads = 1;
-	if (argc == 15) {
-		num_threads = atoi(argv[14]);
-		if (num_threads < 1) {
-			fprintf(stderr, "Error: num_threads must be >= 1.\n");
-			exit(1);
+	int write_reads_flag = 0;
+
+	while ((opt = getopt_long(argc, argv, short_opts, long_options, &option_index)) != -1) {
+		switch (opt) {
+			case 'a': sprintf(assignfile, "%s", optarg);        seen_a=1; break;
+			case 'q': sprintf(querydatafile, "%s", optarg);     seen_q=1; break;
+			case 'l': sprintf(fraclikefile, "%s", optarg);      seen_l=1; break;
+			case 'p': sprintf(referencedatafile, "%s", optarg); seen_p=1; break;
+			case 'n': sprintf(num_trees_str, "%s", optarg);     seen_n=1; break;
+			case 'm': mode = atoi(optarg);                       seen_m=1; break;
+			case 'e': sprintf(errorfile, "%s", optarg);         seen_e=1; break;
+			case 'o': sprintf(out_prefix, "%s", optarg);        seen_o=1; break;
+		case 'R': write_reads_flag = 1;                      break;
+			case 'A': allTrees = atoi(optarg);                  seen_A=1; break;
+			case 'c': compareAge = atof(optarg);                seen_c=1; break;
+			case 'r': toMerge = atoi(optarg);                   seen_r=1; break;
+			case 'k':
+			reassign_mode = atoi(optarg); seen_k=1;
+			if (reassign_mode < 0 || reassign_mode > 2) {
+				fprintf(stderr, "Error: --reassign must be 0, 1, or 2.\n");
+				exit(1);
+			}
+			break;
+			case 'C': {
+				char *threshold_str = optarg;
+				int len = strlen(threshold_str);
+				char last_char = 'f';
+				if (len > 0 && (threshold_str[len-1] == 'f' || threshold_str[len-1] == 'b')) {
+					last_char = threshold_str[len-1];
+					threshold_str[len-1] = '\0';
+				}
+				char *endptr_thresh;
+				merge_coverage_threshold = strtod(threshold_str, &endptr_thresh);
+				if (threshold_str == endptr_thresh || *endptr_thresh != '\0' || merge_coverage_threshold < 0) {
+					fprintf(stderr, "Error: Invalid merge coverage threshold format: %s\n", optarg);
+					fprintf(stderr, "Use format like '0.05f' or '50b'.\n");
+					exit(1);
+				}
+				if (last_char == 'b') {
+					merge_coverage_mode = MERGE_MODE_BP;
+					if (merge_coverage_threshold != floor(merge_coverage_threshold)) {
+						fprintf(stderr, "Warning: Base pair coverage threshold provided as non-integer. Using floor value %d.\n", (int)floor(merge_coverage_threshold));
+						merge_coverage_threshold = floor(merge_coverage_threshold);
+					}
+				} else {
+					merge_coverage_mode = MERGE_MODE_FRACTION;
+					if (merge_coverage_threshold > 1.0) {
+						fprintf(stderr, "Error: Fractional merge coverage threshold cannot be greater than 1.0.\n");
+						exit(1);
+					}
+				}
+				break;
+			}
+			case 't':
+				num_threads = atoi(optarg);
+				if (num_threads < 1) {
+					fprintf(stderr, "Error: --threads must be >= 1.\n");
+					exit(1);
+				}
+				break;
+			default:
+				print_usage(argv[0]); exit(1);
 		}
 	}
+
+	if (!seen_a || !seen_q || !seen_l || !seen_p || !seen_n ||
+	    !seen_m || !seen_e || !seen_o || !seen_A || !seen_c || !seen_r || !seen_k) {
+		fprintf(stderr, "Error: missing required flag(s)\n");
+		if (!seen_a) fprintf(stderr, "  missing: -a/--assign-file\n");
+		if (!seen_q) fprintf(stderr, "  missing: -q/--query-file\n");
+		if (!seen_l) fprintf(stderr, "  missing: -l/--lik-dir\n");
+		if (!seen_p) fprintf(stderr, "  missing: -p/--param-dir\n");
+		if (!seen_n) fprintf(stderr, "  missing: -n/--num-trees\n");
+		if (!seen_m) fprintf(stderr, "  missing: -m/--mode\n");
+		if (!seen_e) fprintf(stderr, "  missing: -e/--error-file\n");
+		if (!seen_o) fprintf(stderr, "  missing: -o/--out-prefix\n");
+		if (!seen_A) fprintf(stderr, "  missing: -A/--all-trees\n");
+		if (!seen_c) fprintf(stderr, "  missing: -c/--compare-age\n");
+		if (!seen_r) fprintf(stderr, "  missing: -r/--merge-reads\n");
+		if (!seen_k) fprintf(stderr, "  missing: -k/--reassign\n");
+		print_usage(argv[0]); exit(1);
+	}
+
+	{
+		char summary_path[512], reads_path[512];
+		snprintf(summary_path, sizeof(summary_path), "%s.summary", out_prefix);
+		outfile = fopen(summary_path, "w");
+		if (!outfile) { perror("Cannot open summary file"); exit(1); }
+
+		if (write_reads_flag) {
+			snprintf(reads_path, sizeof(reads_path), "%s.reads", out_prefix);
+			readsfile = fopen(reads_path, "w");
+			if (!readsfile) { perror("Cannot open reads file"); exit(1); }
+		}
+	}
+
 #ifdef _OPENMP
 	omp_set_num_threads(num_threads);
 #endif
 	printf("num_threads: %d\n", num_threads);
 
-	// printf("Mode: %d\n", mode);
-
 	// New checks for reading in files, following guidelines from get_frac_like.c
 	// Get number of trees and check its a valid number
 	// Reference: https://stackoverflow.com/questions/26080829/detecting-strtol-failure
 
+	const char *nptr = num_trees_str;
 	char *endptr = NULL;
 	numTrees = 0;
 
@@ -6696,6 +6771,21 @@ int main(int argc, char *argv[])
 	}
 
 	// printf("Number of trees being read %lu\n", numTrees);
+
+	fprintf(outfile, "assign_file=%s\n", assignfile);
+	fprintf(outfile, "query_file=%s\n", querydatafile);
+	fprintf(outfile, "lik_dir=%s\n", fraclikefile);
+	fprintf(outfile, "param_dir=%s\n", referencedatafile);
+	fprintf(outfile, "num_trees=%lu\n", numTrees);
+	fprintf(outfile, "mode=%d\n", mode);
+	fprintf(outfile, "error_file=%s\n", errorfile);
+	fprintf(outfile, "all_trees=%d\n", allTrees);
+	fprintf(outfile, "compare_age=%f\n", compareAge);
+	fprintf(outfile, "merge_reads=%d\n", toMerge);
+	fprintf(outfile, "reassign_mode=%d\n", reassign_mode);
+	fprintf(outfile, "coverage_threshold=%f\n", merge_coverage_threshold);
+	fprintf(outfile, "coverage_mode=%s\n", merge_coverage_mode == MERGE_MODE_BP ? "bp" : "fraction");
+	fprintf(outfile, "num_threads=%d\n", num_threads);
 
 	numseq = (unsigned long int *)malloc(sizeof(unsigned long int) * numTrees);
 
@@ -6749,39 +6839,37 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	read_data(assignfile, fraclikefile, querydatafile, referencedatafile, errorfile, mode, tronko_check);
+	read_data(assignfile, fraclikefile, querydatafile, referencedatafile, errorfile, mode, reassign_mode);
+
+	fprintf(outfile, "input_reads=%lu\n", numquery);
 
 	// exit(0);
 
-	if (mode == 0 || mode == 5)
-	{
-		// 0 for no edge reassignment
-		// 5 for edge reassignment
+	if (mode == 0)
 		maximize_like_seperately_for_all2D_Print(par);
-	}
-	else if (mode == 1 || mode == 6)
+	else if (mode == 1)
 		maximize_like_seperately_for_all2D(par);
-	else if (mode == 2 || mode == 13)
+	else if (mode == 2)
 		likelihoodratiotest_for_all(par, compareAge);
-	else if (mode == 3 || mode == 8)
+	else if (mode == 3)
 		maximize_like_jointly_for_all2D(par, allTrees);
-	else if (mode == 4 || mode == 11)
-		// printf("Likelihood distribution for all currently broken\n");
+	else if (mode == 4)
 		age_like_distribution_jointly_for_all2D(par);
-	// Should we make a similar function but for each read??
-	else if (mode == 7 || mode == 12)
-		// make top age into optional input
+	else if (mode == 5)
 		age_like_distribution_jointly_for_all2D_upperLimit(par, 0.005);
-	else if (mode == 9 || mode == 10)
+	else if (mode == 6)
 		maximize_like_jointly_for_all_noDrop2D(par, allTrees);
-	else if (mode == 14)
+	else if (mode == 7)
 		read_branch_like_dist(par);
-	else if (mode == 15)
+	else if (mode == 8)
 		readContour(par);
-	else if (mode == 16 || mode == 17)
+	else if (mode == 9)
 		maximize_like_jointly_for_all2D_reassign(par, allTrees);
 	else
-		printf("Please specify run mode.\n 1 for age of each read, 2 for LLR of each read, 3 for sample age estimation, and 4 for likelihood surface\n");
+		printf("Invalid mode. Valid modes are 0-9.\n");
+
+	if (outfile)   fclose(outfile);
+	if (readsfile) fclose(readsfile);
 
 	freeNRinits(2);
 	freetreememmory();

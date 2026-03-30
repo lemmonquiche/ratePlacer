@@ -7,6 +7,6 @@ gfl: src/get_frac_like.c
 
 ratePlacer: src/RatePlacer.c
 	#gcc -fsanitize=address -o ratePlacer_noError_concat_bfgs src/RatePlacer.c src/bfgs.c -lm -g
-	gcc -o ratePlacer_error_longInt_noOpen_debug src/RatePlacer.c src/minfunc.c -lm -ggdb3
+	gcc -O3 -march=native -g -o ratePlacer_error_longInt_parallel_2 src/RatePlacer.c src/minfunc.c -lm -fopenmp
 
 
