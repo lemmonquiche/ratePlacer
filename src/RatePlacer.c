@@ -21,6 +21,9 @@
 #include <omp.h>
 #endif
 
+#pragma GCC diagnostic ignored "-Wstringop-overflow"
+#pragma GCC diagnostic ignored "-Wunused-result"
+
 #define MINBL 0.0000001
 #define MAXBL 5.0
 #define NUMCAT 4
@@ -94,7 +97,7 @@ int specsearch(int numleaves, int treeNum)
 	if ((ch != ')') && (ch != '(') && (ch != ',') && (ch != ' ') && (ch != '\t') && (ch != '\n') && (ch != EOF))
 	{
 		ungetc(ch, infile);
-		fscanf(infile, "%d", &tip);
+		(void)fscanf(infile, "%d", &tip);
 		while ((ch = fgetc(infile)) != ':' && (i < 10))
 			i++;
 		trees[treeNum][tip + numleaves - 2].up[0] = -1;
@@ -102,7 +105,7 @@ int specsearch(int numleaves, int treeNum)
 		while ((ch = (fgetc(infile))) == ' ')
 			;
 		ungetc(ch, infile);
-		fscanf(infile, "%lf", &trees[treeNum][tip + numleaves - 2].bl);
+		(void)fscanf(infile, "%lf", &trees[treeNum][tip + numleaves - 2].bl);
 		/*printf("\nbranchlength of node %i =%f",tip+numleaves-1,tree[tip+numleaves-2].bl);*/
 		return 1;
 	}
@@ -167,7 +170,7 @@ int getclade(int numleaves, int treeNum)
 					ch = (fgetc(infile));
 				} while ((ch == '\n') || (ch == ' '));
 				ungetc(ch, infile);
-				fscanf(infile, "%lf", &trees[treeNum][n3 - 1].bl);
+				(void)fscanf(infile, "%lf", &trees[treeNum][n3 - 1].bl);
 			}
 			// returns root node of the (sub)tree
 			return n3;
@@ -2985,7 +2988,7 @@ int readseq(int *nb, int treeNum)
 	int i, j, num, k = 0;
 	char c;
 
-	fscanf(infile, "%i %i", &num, nb);
+	(void)fscanf(infile, "%i %i", &num, nb);
 	// printf("there are %i species and %i bases in tree %i\n",num,*nb, treeNum);
 	if (num < 3)
 	{
@@ -3019,7 +3022,7 @@ int readseq(int *nb, int treeNum)
 					else
 					{
 						printf("\nBAD BASE (%c) in species %i base %i", c, i + 1, j + 1);
-						scanf("%i", &i);
+						(void)scanf("%i", &i);
 						exit(-1);
 					}
 					j++;
@@ -3051,8 +3054,8 @@ int read_query_data(int num)
 
 	for (i = 0; i < num; i++)
 	{
-		// fscanf(infile,"%i %i ",&length, &startpos[i]);
-		fscanf(infile, "%i %lu ", &length, &startposTemp[treeAssign[i]][numTreeAssigned[treeAssign[i]]]);
+		// (void)fscanf(infile,"%i %i ",&length, &startpos[i]);
+		(void)fscanf(infile, "%i %lu ", &length, &startposTemp[treeAssign[i]][numTreeAssigned[treeAssign[i]]]);
 		// readlength[i]=length;
 		// QUERYDATA[i]=malloc(length*(sizeof(int)));
 		// printf("Last test of memory location of readLengthTemp[%d] at %p\n", treeAssign[i], readLengthTemp[treeAssign[i]]);
@@ -3069,7 +3072,7 @@ int read_query_data(int num)
 		{
 			do
 			{
-				fscanf(infile, "%c", &c);
+				(void)fscanf(infile, "%c", &c);
 			} while (isblankorreturn(c) == 1);
 			c = tolower(c);
 			if (c == 'a')
@@ -3139,14 +3142,14 @@ void get_fractionalike(unsigned long int treeNum)
 	{
 		do
 		{
-			fscanf(infile, "%c", &c);
+			(void)fscanf(infile, "%c", &c);
 		} while (isblankorreturn(c) == 1);
 		if (c != 'C')
 		{
 			printf("error reading fractional likelihoods (C%i: %c != C)\n", i, c);
 			exit(-1);
 		}
-		fscanf(infile, "%i", &inin);
+		(void)fscanf(infile, "%i", &inin);
 		if (inin != i + 1)
 		{
 			printf("error reading fractional likelihoods (c%i: %i != %i)\n", i, inin, i + 1);
@@ -3156,14 +3159,14 @@ void get_fractionalike(unsigned long int treeNum)
 		{
 			do
 			{
-				fscanf(infile, "%c", &c);
+				(void)fscanf(infile, "%c", &c);
 			} while (isblankorreturn(c) == 1);
 			if (c != 'S')
 			{
 				printf("error reading fractional likelihoods (s%i: '%c' != S)\n", j, c);
 				exit(-1);
 			}
-			fscanf(infile, "%i", &inin);
+			(void)fscanf(infile, "%i", &inin);
 			if (inin != j + 1)
 			{
 				printf("error reading fractional likelihoods(s%i: %i != %i)\n", j, inin, j);
@@ -3171,7 +3174,7 @@ void get_fractionalike(unsigned long int treeNum)
 			}
 			do
 			{
-				fscanf(infile, "%c", &c);
+				(void)fscanf(infile, "%c", &c);
 			} while (isblankorreturn(c) == 1);
 			if (c != ':')
 			{
@@ -3184,7 +3187,7 @@ void get_fractionalike(unsigned long int treeNum)
 			{
 				for (v = 0; v < 4; v++)
 				{
-					fscanf(infile, "%lf", &a);
+					(void)fscanf(infile, "%lf", &a);
 					idx = ((unsigned long long)k) * numbases[treeNum] * NUMCAT * 8
      		         	+ ((unsigned long long)j) * NUMCAT * 8
      		         	+ ((unsigned long long)i) * 8
@@ -3201,7 +3204,7 @@ void get_fractionalike(unsigned long int treeNum)
 				// For fractional likelihood
 				for (v = 0; v < 4; v++)
 				{
-				        fscanf(infile, "%lf", &a);
+				        (void)fscanf(infile, "%lf", &a);
 				        //FRACLIKE[treeNum][k * numbases[treeNum] * NUMCAT * 8 + j * NUMCAT * 8 + i * 8 + v] = a;
 				        idx = ((unsigned long long)k) * numbases[treeNum] * NUMCAT * 8
      				+ ((unsigned long long)j) * NUMCAT * 8
@@ -3214,7 +3217,7 @@ void get_fractionalike(unsigned long int treeNum)
 				// For conditional likelihood
 				for (v = 0; v < 4; v++)
 				{
-				        fscanf(infile, "%lf", &a);
+				        (void)fscanf(infile, "%lf", &a);
 				        //FRACLIKE[treeNum][k * numbases[treeNum] * NUMCAT * 8 + j * NUMCAT * 8 + i * 8 + v + 4] = a;
 				        idx = ((unsigned long long)k) * numbases[treeNum] * NUMCAT * 8
      				+ ((unsigned long long)j) * NUMCAT * 8
@@ -4141,19 +4144,19 @@ void mergeReads(unsigned long int treeNum, unsigned long int refBases)
 		exit(0);
 	}
 
-	tempptr2 = (int *)realloc(assignments, tempnumquery * (sizeof(int)));
-	if (tempptr2 != NULL)
+	int *tempptr_int = (int *)realloc(assignments, tempnumquery * (sizeof(int)));
+	if (tempptr_int != NULL)
 	{
-		assignments = tempptr2;
+		assignments = tempptr_int;
 	} else {
 		printf("Failed to reallocate assignments in mergeReads\n");
 		exit(0);
 	}
 
-	tempptr2 = (int *)realloc(treeAssign, tempnumquery * (sizeof(int)));
-	if (tempptr2 != NULL)
+	tempptr_int = (int *)realloc(treeAssign, tempnumquery * (sizeof(int)));
+	if (tempptr_int != NULL)
 	{
-		treeAssign = tempptr2;
+		treeAssign = tempptr_int;
 	} else {
 		printf("Failed to reallocate treeAssign in mergeReads\n");
 		exit(0);
@@ -4460,19 +4463,19 @@ void keepSeparateReads(unsigned long int treeNum)
 		exit(0);
 	}
 
-	tempptr2 = (int *)realloc(assignments, tempnumquery * (sizeof(int)));
-	if (tempptr2 != NULL)
+	int *tempptr_int = (int *)realloc(assignments, tempnumquery * (sizeof(int)));
+	if (tempptr_int != NULL)
 	{
-		assignments = tempptr2;
+		assignments = tempptr_int;
 	} else {
 		printf("Failed to reallocate assignments in keepSeparateReads\n");
 		exit(0);
 	}
 
-	tempptr2 = (int *)realloc(treeAssign, tempnumquery * (sizeof(int)));
-	if (tempptr2 != NULL)
+	tempptr_int = (int *)realloc(treeAssign, tempnumquery * (sizeof(int)));
+	if (tempptr_int != NULL)
 	{
-		treeAssign = tempptr2;
+		treeAssign = tempptr_int;
 	} else {
 		printf("Failed to reallocate treeAssign in keepSeparateReads\n");
 		exit(0);
@@ -4594,7 +4597,7 @@ void read_data(char *assignfile, char *fraclikefile, char *querydatafile, char *
 	fd = fileno(infile);
 	posix_fadvise(fd, 0, 0, POSIX_FADV_SEQUENTIAL);
 
-	fscanf(infile, "%lu\n", &numquery);
+	(void)fscanf(infile, "%lu\n", &numquery);
 
 	assignments = (int *)malloc(numquery * (sizeof(int)));
 	treeAssign = (int *)malloc(numquery * (sizeof(int)));
@@ -4604,7 +4607,7 @@ void read_data(char *assignfile, char *fraclikefile, char *querydatafile, char *
 	for (i = 0; i < numquery; i++)
 	{
 		// read in tree assignment first
-		fscanf(infile, "%i", &v);
+		(void)fscanf(infile, "%i", &v);
 		treeAssign[i] = v;
 		usedTrees[v]++; // Not only to know if tree is used, but also how many reads
 		if (treeAssign[i] < 0 || treeAssign[i] >= numTrees)
@@ -4613,7 +4616,7 @@ void read_data(char *assignfile, char *fraclikefile, char *querydatafile, char *
 			exit(-1);
 		}
 		// node assignment
-		fscanf(infile, "%i", &v);
+		(void)fscanf(infile, "%i", &v);
 		assignments[i] = v - 1; // notice that we here convert from counting from 1 to counting from 0
 	}
 
@@ -4680,7 +4683,7 @@ void read_data(char *assignfile, char *fraclikefile, char *querydatafile, char *
 
 		// line 1
 		//  THERE IS AN ASSUMPTION THAT NUMBASE AND NUMCAT ALWAYS THE SAME, SHOULD MAKE A CHECK FOR THAT
-		fscanf(infile, "%lu %lu %i\n", &numseq[treeNum], &numbase, &numcat);
+		(void)fscanf(infile, "%lu %lu %i\n", &numseq[treeNum], &numbase, &numcat);
 		numbases[treeNum] = numbase;
 		if (VERBOSE)
 			printf("Reading in fractional likelihoods for %lu sequences\n", numseq[treeNum]);
@@ -4692,7 +4695,7 @@ void read_data(char *assignfile, char *fraclikefile, char *querydatafile, char *
 		statevector[treeNum] = malloc(NUMCAT * (sizeof(double)));
 		// line 2
 		for (i = 0; i < NUMCAT; i++)
-			fscanf(infile, "%lf ", &statevector[treeNum][i]);
+			(void)fscanf(infile, "%lf ", &statevector[treeNum][i]);
 
 		nodeages[treeNum] = (double *)malloc((2 * numseq[treeNum] - 1) * (sizeof(double))); // nodeages: ages of internal nodes in reference data
 		bls[treeNum] = (double *)malloc((2 * numseq[treeNum] - 1) * (sizeof(double)));		// bls: branch lengths associated with each node
@@ -4703,7 +4706,7 @@ void read_data(char *assignfile, char *fraclikefile, char *querydatafile, char *
 		// line 3 - numseq + 3, node ages
 		for (i = 0; i < 2 * numseq[treeNum] - 1; i++)
 		{
-			fscanf(infile, "%i", &j);
+			(void)fscanf(infile, "%i", &j);
 			if (j < 0 || j > 2 * numseq[treeNum] - 2)
 			{
 				printf("Error reading node ages");
@@ -4716,8 +4719,8 @@ void read_data(char *assignfile, char *fraclikefile, char *querydatafile, char *
 			}
 			else
 			{
-				fscanf(infile, "%lf", &a);
-				fscanf(infile, "%lf", &b);
+				(void)fscanf(infile, "%lf", &a);
+				(void)fscanf(infile, "%lf", &b);
 				nodeages[treeNum][j] = a;
 				bls[treeNum][j] = b;
 				nodeOrder[treeNum][i] = j;
@@ -4725,7 +4728,7 @@ void read_data(char *assignfile, char *fraclikefile, char *querydatafile, char *
 			}
 		}
 
-		fscanf(infile, "%lf", &maxAges[treeNum]);
+		(void)fscanf(infile, "%lf", &maxAges[treeNum]);
 		// printf("%.16f\n", maxAges[treeNum]);
 		// if(treeNum > 0 && maxAges[treeNum] > totMaxAge)
 		if (maxAges[treeNum] > totMaxAge)
@@ -4785,12 +4788,12 @@ void read_data(char *assignfile, char *fraclikefile, char *querydatafile, char *
 
 		checksum = 0.0;
 		// line 1
-		fscanf(infile, "%lf", &a);
+		(void)fscanf(infile, "%lf", &a);
 
 		// line 2: nucleotide frequencies
 		for (i = 0; i < 4; i++)
 		{
-			fscanf(infile, "%lf", &pi[treeNum][i]);
+			(void)fscanf(infile, "%lf", &pi[treeNum][i]);
 			checksum += pi[treeNum][i];
 		}
 
@@ -4802,7 +4805,7 @@ void read_data(char *assignfile, char *fraclikefile, char *querydatafile, char *
 
 		for (i = 0; i < 6; i++)
 		{
-			fscanf(infile, "%lf", &par[treeNum][i]);
+			(void)fscanf(infile, "%lf", &par[treeNum][i]);
 		}
 
 		posix_fadvise(fd, 0, 0, POSIX_FADV_DONTNEED);
@@ -4830,7 +4833,7 @@ void read_data(char *assignfile, char *fraclikefile, char *querydatafile, char *
 	posix_fadvise(fd, 0, 0, POSIX_FADV_SEQUENTIAL);
 
 	// Line 1, number of queries
-	fscanf(infile, "%lu", &numquery);
+	(void)fscanf(infile, "%lu", &numquery);
 	printf("There are %lu query sequences\n", numquery);
 	// QUERYDATA = malloc(numquery*(sizeof(int*)));
 	// startpos = malloc(numquery*(sizeof(int)));
@@ -4928,7 +4931,7 @@ void read_data(char *assignfile, char *fraclikefile, char *querydatafile, char *
 		fd = fileno(infile);
 		//posix_fadvise(fd, 0, 0, POSIX_FADV_SEQUENTIAL);
 
-		fscanf(infile, "%lu %lu", &numRef, &refBases);
+		(void)fscanf(infile, "%lu %lu", &numRef, &refBases);
 		// Calculate the file size
 		fseek(infile, 0, SEEK_END);
 		long file_size = ftell(infile);
@@ -5051,19 +5054,19 @@ void read_data(char *assignfile, char *fraclikefile, char *querydatafile, char *
 		exit(0);
 	}
 
-	tempptr = (unsigned long int *)realloc(startpos, tempnumquery * (sizeof(unsigned long int)));
-	if (tempptr != NULL)
+	unsigned long int *tempptr_ul = (unsigned long int *)realloc(startpos, tempnumquery * (sizeof(unsigned long int)));
+	if (tempptr_ul != NULL)
 	{
-		startpos = tempptr;
+		startpos = tempptr_ul;
 	} else {
 		printf("Failed to reallocate startpos in read_data\n");
 		exit(0);
 	}
 
-	tempptr = (unsigned long int *)realloc(readlength, tempnumquery * (sizeof(unsigned long int)));
-	if (tempptr != NULL)
+	tempptr_ul = (unsigned long int *)realloc(readlength, tempnumquery * (sizeof(unsigned long int)));
+	if (tempptr_ul != NULL)
 	{
-		readlength = tempptr;
+		readlength = tempptr_ul;
 	} else {
 		printf("Failed to reallocate readlength in read_data\n");
 		exit(0);
