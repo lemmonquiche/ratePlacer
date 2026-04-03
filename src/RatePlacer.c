@@ -5757,8 +5757,6 @@ double getlike_ages(double times, double parameters[7])
 	// TO DO TO DO TO DO!!!!
 	int readStart = parameters[0], i;
 	double eh0 = 3e-8, age_like = 0.0, ageIncr;
-	double brent_invector[numquery];
-
 	//for(int j = 0; j < numquery; j++)
 	//{
 	//	brent_invector[j] = nodeages[treeAssign[j]][assignments[j]] + bls[treeAssign[j]][assignments[j]]/2;
@@ -5766,8 +5764,11 @@ double getlike_ages(double times, double parameters[7])
 
 	//age_like = minimize_brent(brent_invector, numquery, getlike_gamma_root_in_trifucation_sample_age_brent, 10000, &testAge);
 
-	// Drop any reads that cannot be of test age
-	#pragma omp parallel reduction(+:age_like)
+	// Compute per-read likelihoods in parallel, store in fixed-indexed array to avoid
+	// floating-point non-associativity from OpenMP reduction ordering.
+	double L2_values[numquery - readStart];
+
+	#pragma omp parallel
 	{
 		onDindic = 1; // each worker thread must set its own thread-local copy
 		#pragma omp for schedule(dynamic, 1)
@@ -5775,7 +5776,7 @@ double getlike_ages(double times, double parameters[7])
 		{
 			// if(usedReads[i] != 85)
 			//	continue;
-			double p[3], invector[3], lowbound[3], upbound[3], L2;
+			double p[3], invector[3], lowbound[3], upbound[3];
 			int nfun = 0;
 			p[0] = usedReads[i];
 			p[1] = treeAssign[usedReads[i]];
@@ -5785,15 +5786,19 @@ double getlike_ages(double times, double parameters[7])
 			lowbound[1] = eh0;
 			upbound[1] = bls[treeAssign[usedReads[i]]][assignments[usedReads[i]]] - eh0;
 
-			L2 = Brent1D(invector, lowbound, upbound, 1, getlike_gamma_root_in_trifurcation_testAge, p, 3);
+			L2_values[i - readStart] = Brent1D(invector, lowbound, upbound, 1, getlike_gamma_root_in_trifurcation_testAge, p, 3);
 
-			// printf("Read %d\tTime: %.16f\tLikelihood: %.16f\n", usedReads[i], testAge, L2);
+			// printf("Read %d\tTime: %.16f\tLikelihood: %.16f\n", usedReads[i], testAge, L2_values[i - readStart]);
 
-			// printf("\tRead %d assigned to tree %d and node %d with likelihood %.16f with root placement of %.16f\n", usedReads[i], treeAssign[usedReads[i]], assignments[usedReads[i]], L2, nodeages[treeAssign[usedReads[i]]][assignments[usedReads[i]]]+invector[1]);
-
-			age_like += L2; // sum of log likelihoods
-							// printf("\t\tassignment %d like contribution %.16f\n", assignments[usedReads[i]], L2);
+			// printf("\tRead %d assigned to tree %d and node %d with likelihood %.16f with root placement of %.16f\n", usedReads[i], treeAssign[usedReads[i]], assignments[usedReads[i]], L2_values[i - readStart], nodeages[treeAssign[usedReads[i]]][assignments[usedReads[i]]]+invector[1]);
 		}
+	}
+
+	// Sum serially in fixed order — deterministic regardless of thread count
+	for (i = 0; i < (int)(numquery - readStart); i++)
+	{
+		age_like += L2_values[i];
+		// printf("\t\tassignment %d like contribution %.16f\n", assignments[usedReads[readStart + i]], L2_values[i]);
 	}
 	// printf("Likelihood of age %.16f: %.16f\n", testAge, age_like);
 
