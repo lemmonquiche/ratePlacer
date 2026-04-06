@@ -5875,8 +5875,10 @@ double getlike_ages_brent(double times, double parameters[7])
 //  We are giving -lik, so remember (and test) to convert back again. Test if this is really needed
 double confidenceIntervalFisher(double **par, double optAge, double optLik, int readStart)
 {
-	// Need to figure out good h!
-	double h = optAge / 100000, f_hx = 0.0, fx_h = 0.0, nSecondDeriv;
+	// Step size for centered finite-difference second derivative.
+	// Optimal h ~ eps^(1/4) * |x| ~ 4e-4 * optAge; floor prevents
+	// catastrophic cancellation when optAge is very small.
+	double h = fmax(4e-4 * optAge, 1e-6), f_hx = 0.0, fx_h = 0.0, nSecondDeriv;
 	int i, k, v, nfun;
 	double p[3];
 	double invector[3], lowbound[3], upbound[3], eh0 = 3e-8;
