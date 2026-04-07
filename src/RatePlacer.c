@@ -5341,12 +5341,12 @@ void maximize_like_seperately_for_all2D_Print(double **par)
 		upbound[2] = bls[treeAssign[i]][assignments[i]] - eh0;
 		nfun = 0;
 
-		printf("Sequence %d\n", i);
+		fprintf(outfile, "Sequence %d\n", i);
 		L1 = findmax_amoeba(invector, lowbound, upbound, 2, getlike_gamma_root_in_trifurcation_Print_Lik, p, 3);
-		printf("\tParameter estimates %.16f %.16f: %.16f\n", invector[1], invector[2], L1);
-		printf("\tAssignment %d of tree %d age: %.16f\n", assignments[i], treeAssign[i], nodeages[treeAssign[i]][assignments[i]]);
-		printf("\tsequence age: %.16f\n", (1.0 - invector[1]) * (nodeages[treeAssign[i]][assignments[i]] + invector[2]));
-		printf("Site scores:\n");
+		fprintf(outfile, "\tParameter estimates %.16f %.16f: %.16f\n", invector[1], invector[2], L1);
+		fprintf(outfile, "\tAssignment %d of tree %d age: %.16f\n", assignments[i], treeAssign[i], nodeages[treeAssign[i]][assignments[i]]);
+		fprintf(outfile, "\tsequence age: %.16f\n", (1.0 - invector[1]) * (nodeages[treeAssign[i]][assignments[i]] + invector[2]));
+		fprintf(outfile, "Site scores:\n");
 		getlike_gamma_root_in_trifurcation_Print(invector, p);
 	}
 }
@@ -5367,7 +5367,7 @@ void maximize_like_seperately_for_all2D(double **par)
 		p[1] = treeAssign[i];
 		p[2] = assignments[i];
 
-		printf("Sequence %d\n", i);
+		fprintf(outfile, "Sequence %d\n", i);
 
 		invector[1] = 0.5;
 		invector[2] = bls[treeAssign[i]][assignments[i]] / 2.0;
@@ -5381,9 +5381,9 @@ void maximize_like_seperately_for_all2D(double **par)
 
 		L1 = findmax_amoeba(invector, lowbound, upbound, 2, getlike_gamma_root_in_trifurcation, p, 3);
 
-		printf("\tParameter estimates %.16f %.16f: %.16f\n", invector[1], invector[2], L1);
-		printf("\tAssignment %d age: %.16f\n", assignments[i], nodeages[treeAssign[i]][assignments[i]]);
-		printf("\tsequence age: %.16f\n", (1.0 - invector[1]) * (nodeages[treeAssign[i]][assignments[i]] + invector[2]));
+		fprintf(outfile, "\tParameter estimates %.16f %.16f: %.16f\n", invector[1], invector[2], L1);
+		fprintf(outfile, "\tAssignment %d age: %.16f\n", assignments[i], nodeages[treeAssign[i]][assignments[i]]);
+		fprintf(outfile, "\tsequence age: %.16f\n", (1.0 - invector[1]) * (nodeages[treeAssign[i]][assignments[i]] + invector[2]));
 
 		invector[0] = 0.5;
 		invector[1] = bls[treeAssign[i]][assignments[i]] / 2.0;
@@ -5408,9 +5408,9 @@ void maximize_like_seperately_for_all2D(double **par)
 			invector[1] = bls[treeAssign[i]][assignments[i]] - 3e-8;
 		}
 
-		printf("\tParameter estimates brent %.16f %.16f: %.16f\n", invector[0], invector[1], L1);
-        printf("\tAssignment %d age: %.16f\n", assignments[i], nodeages[treeAssign[i]][assignments[i]]);
-        printf("\tsequence age: %.16f\n",(1.0-invector[0])*(nodeages[treeAssign[i]][assignments[i]]+invector[1]));
+		fprintf(outfile, "\tParameter estimates brent %.16f %.16f: %.16f\n", invector[0], invector[1], L1);
+		fprintf(outfile, "\tAssignment %d age: %.16f\n", assignments[i], nodeages[treeAssign[i]][assignments[i]]);
+		fprintf(outfile, "\tsequence age: %.16f\n", (1.0 - invector[0]) * (nodeages[treeAssign[i]][assignments[i]] + invector[1]));
 
 
 	}
@@ -5439,12 +5439,12 @@ void likelihoodratiotest_for_all(double **par, double compareAge)
 		// printf("Checking bls %.16f and node age %.16f\n", upbound[2], upbound[1]);
 		nfun = 0;
 		onDindic = 0;
-		printf("Sequence %d\n", i);
+		fprintf(outfile, "Sequence %d\n", i);
 		L1 = findmax_amoeba(invector, lowbound, upbound, 2, getlike_gamma_root_in_trifurcation, p, 3);
 
-		printf("\tParameter estimates %.16f %.16f (%.16f): %.16f\n", invector[1], invector[2], bls[treeAssign[i]][assignments[i]], L1);
-		printf("\tAssignment %d age of tree %d: %.16f\n", assignments[i], treeAssign[i], nodeages[treeAssign[i]][assignments[i]]);
-		printf("\tsequence age: %.16f\n", (1.0 - invector[1]) * (nodeages[treeAssign[i]][assignments[i]] + invector[2]));
+		fprintf(outfile, "\tParameter estimates %.16f %.16f (%.16f): %.16f\n", invector[1], invector[2], bls[treeAssign[i]][assignments[i]], L1);
+		fprintf(outfile, "\tAssignment %d age of tree %d: %.16f\n", assignments[i], treeAssign[i], nodeages[treeAssign[i]][assignments[i]]);
+		fprintf(outfile, "\tsequence age: %.16f\n", (1.0 - invector[1]) * (nodeages[treeAssign[i]][assignments[i]] + invector[2]));
 
 		invector[1] = bls[treeAssign[i]][assignments[i]] / 2.0;
 		lowbound[1] = eh0;
@@ -5463,8 +5463,8 @@ void likelihoodratiotest_for_all(double **par, double compareAge)
 		testAge = compareAge;
 		L2 = Brent1D(invector, lowbound, upbound, 1, getlike_gamma_root_in_trifurcation_testAge, p, 3);
 
-		printf("\tParameter estimates llr %.16f: %.16f\n", invector[1], L2);
-		printf("\tLikelihood ratio statistic to %.16f: %.16f\n", testAge, 2.0 * (L1 - L2));
+		fprintf(outfile, "\tParameter estimates llr %.16f: %.16f\n", invector[1], L2);
+		fprintf(outfile, "\tLikelihood ratio statistic to %.16f: %.16f\n", testAge, 2.0 * (L1 - L2));
 	}
 }
 
@@ -5512,7 +5512,7 @@ void readContour(double **par)
 			{
 				L = getlike_gamma_root_in_trifurcation(times, parameters);
 
-				printf("%d,%.16f,%.16f,%.16f,%.16f\n", i, times[1], times[2], L, (1.0 - times[1]) * (nodeages[treeAssign[i]][assignments[i]] + times[2]));
+				fprintf(outfile, "%d,%.16f,%.16f,%.16f,%.16f\n", i, times[1], times[2], L, (1.0 - times[1]) * (nodeages[treeAssign[i]][assignments[i]] + times[2]));
 
 				times[2] += bl_increment;
 			}
@@ -5528,7 +5528,7 @@ void readContour(double **par)
 			L = getlike_gamma_root_in_trifurcation(times, parameters);
 
 			//printf("%d,%.16f,%.16f,%.16f\n", i, times[1], times[2], L);
-			printf("%d,%.16f,%.16f,%.16f,%.16f\n", i, times[1], times[2], L, (1.0 - times[1]) * (nodeages[treeAssign[i]][assignments[i]] + times[2]));
+			fprintf(outfile, "%d,%.16f,%.16f,%.16f,%.16f\n", i, times[1], times[2], L, (1.0 - times[1]) * (nodeages[treeAssign[i]][assignments[i]] + times[2]));
 
 			times[1] += alpha_increment;
 		}
@@ -6521,7 +6521,7 @@ void age_like_distribution_jointly_for_all2D_upperLimit(double **par, double top
 
 			testAge = eh0;
 		}
-		printf("Testing age %.16f with dropped rounds %d with nextNodeAge %.16f and read start at %d:\n", testAge, numDrops, nextNodeAge, readStart);
+		fprintf(outfile, "Testing age %.16f with dropped rounds %d with nextNodeAge %.16f and read start at %d:\n", testAge, numDrops, nextNodeAge, readStart);
 		for (i = readStart; i < numquery; i++)
 		{
 			p[0] = usedReads[i];
@@ -6539,7 +6539,7 @@ void age_like_distribution_jointly_for_all2D_upperLimit(double **par, double top
 
 			age_like += L2; // sum of log likelihoods
 		}
-		printf("\tLikelihood: %.16f\n", age_like);
+		fprintf(outfile, "\tLikelihood: %.16f\n", age_like);
 		age_like = 0.0;
 		testAge += ageIncr;
 	}
@@ -6590,7 +6590,7 @@ void age_like_distribution_jointly_for_all2D(double **par)
 
 			testAge = eh0;
 		}
-		printf("Testing age %.16f with dropped rounds %d with nextNodeAge %.16f and read start at %d:\n", testAge, numDrops, nextNodeAge, readStart);
+		fprintf(outfile, "Testing age %.16f with dropped rounds %d with nextNodeAge %.16f and read start at %d:\n", testAge, numDrops, nextNodeAge, readStart);
 		for (i = readStart; i < numquery; i++)
 		{
 			p[0] = usedReads[i];
@@ -6608,7 +6608,7 @@ void age_like_distribution_jointly_for_all2D(double **par)
 
 			age_like += L2; // sum of log likelihoods
 		}
-		printf("\tLikelihood: %.16f\n", age_like);
+		fprintf(outfile, "\tLikelihood: %.16f\n", age_like);
 		age_like = 0.0;
 		testAge += ageIncr;
 	}
@@ -6643,7 +6643,7 @@ void read_branch_like_dist(double **par)
 
 			L2 = Brent1D(invector, lowbound, upbound, 1, getlike_gamma_root_in_trifurcation_testRoot, p, 3);
 
-			printf("%d,%d,%d,%.16f,%.16f\n", i, treeAssign[i], assignments[i], rooted, L2);
+			fprintf(outfile, "%d,%d,%d,%.16f,%.16f\n", i, treeAssign[i], assignments[i], rooted, L2);
 			rooted += increment;
 		}
 	}
