@@ -3495,7 +3495,7 @@ void greedyDown(int extra_data[3], int *L, double *L_lik, int root)
 	testLik = minimize_brent(invector, 2, getlike_gamma_root_in_trifucation_single_read_brent_reassign_trans, 100, extra_data);
 
 	{ double _a0 = 1.0/(1.0+exp(-invector[0])), _a1 = bls[extra_data[1]][testNodes[1]]/(1.0+exp(-invector[1]));
-	printf("seq=%d tree=%d greedydown cur=%d cur_lik=%.16f child1=%d like=%.16f age=%.16f\n", extra_data[0], extra_data[1], *L, *L_lik, testNodes[1], testLik, (1.0-_a0)*(nodeages[extra_data[1]][testNodes[1]]+_a1)); }
+	printf("seq=%d tree=%d greedydown cur=%d cur_lik=%.16f child1=%d like=%.16f age=%.16f bl=%.16f pl=%.16\n", extra_data[0], extra_data[1], *L, *L_lik, testNodes[1], testLik, (1.0-_a0)*(nodeages[extra_data[1]][testNodes[1]]+_a1),_a0,_a1); }
 	// printf("\t\t\tGreedy down L (%d) L_lik %.16f with child 1 (%d) like %.16f and ", *L, *L_lik, testNodes[1], testLik);
 
 	// Child 2
@@ -3508,7 +3508,7 @@ void greedyDown(int extra_data[3], int *L, double *L_lik, int root)
 	testLik2 = minimize_brent(invector, 2, getlike_gamma_root_in_trifucation_single_read_brent_reassign_trans, 100, extra_data);
 
 	{ double _a0 = 1.0/(1.0+exp(-invector[0])), _a1 = bls[extra_data[1]][testNodes[2]]/(1.0+exp(-invector[1]));
-	printf("seq=%d tree=%d greedydown child2=%d like=%.16f age=%.16f\n", extra_data[0], extra_data[1], testNodes[2], testLik2, (1.0-_a0)*(nodeages[extra_data[1]][testNodes[2]]+_a1)); }
+	printf("seq=%d tree=%d greedydown child2=%d like=%.16f age=%.16f bl=%.16f pl=%.16\n", extra_data[0], extra_data[1], testNodes[2], testLik2, (1.0-_a0)*(nodeages[extra_data[1]][testNodes[2]]+_a1),_a0,_a1); }
 	// printf("child 2 (%d) like %.16f\n", testNodes[2], testLik2);
 
 	// if L_lik best, return
@@ -3584,7 +3584,7 @@ void greedyUp(int extra_data[3], int *L, double *L_lik, int root)
 		// testLik2 = GoldenSection(invector, lowbound, upbound, 1, reassign_singleReadAge, p, 3);
 		testLik2 = minimize_brent(invector, 2, getlike_gamma_root_in_trifucation_single_read_brent_reassign_trans, 100, extra_data);
 		{ double _a0 = 1.0/(1.0+exp(-invector[0])), _a1 = bls[extra_data[1]][testNodes[1]]/(1.0+exp(-invector[1]));
-		printf("seq=%d tree=%d greedyup cur=%d cur_lik=%.16f parent=%d like=%.16f age=%.16f\n", extra_data[0], extra_data[1], *L, *L_lik, testNodes[1], testLik2, (1.0-_a0)*(nodeages[extra_data[1]][testNodes[1]]+_a1)); }
+		printf("seq=%d tree=%d greedyup cur=%d cur_lik=%.16f parent=%d like=%.16f age=%.16f bl=%.16f pl=%.16\n", extra_data[0], extra_data[1], *L, *L_lik, testNodes[1], testLik2, (1.0-_a0)*(nodeages[extra_data[1]][testNodes[1]]+_a1),_a0,_a1); }
 	}
 	// printf("\t\t\tGreedy up L (%d) L_lik %.16f with parent (%d) like %.16f ", *L, *L_lik, testNodes[1], testLik2);
 
@@ -3598,7 +3598,7 @@ void greedyUp(int extra_data[3], int *L, double *L_lik, int root)
 	testLik = minimize_brent(invector, 2, getlike_gamma_root_in_trifucation_single_read_brent_reassign_trans, 100, extra_data);
 
 	{ double _a0 = 1.0/(1.0+exp(-invector[0])), _a1 = bls[extra_data[1]][testNodes[2]]/(1.0+exp(-invector[1]));
-	printf("seq=%d tree=%d greedyup sibling=%d like=%.16f age=%.16f\n", extra_data[0], extra_data[1], testNodes[2], testLik, (1.0-_a0)*(nodeages[extra_data[1]][testNodes[2]]+_a1)); }
+	printf("seq=%d tree=%d greedyup sibling=%d like=%.16f age=%.16f bl=%.16f pl=%.16\n", extra_data[0], extra_data[1], testNodes[2], testLik, (1.0-_a0)*(nodeages[extra_data[1]][testNodes[2]]+_a1),_a0,_a1); }
 	// printf("and sibling (%d) like %.16f\n", testNodes[2], testLik);
 
 	// if L_lik best, return
@@ -3907,7 +3907,7 @@ void bestAssignment(int root, unsigned long int treeNum)
 			L1_lik = minimize_brent(invector, 2, getlike_gamma_root_in_trifucation_single_read_brent_reassign_trans, 100, extra_data);
 
 			{ double _a0 = 1.0/(1.0+exp(-invector[0])), _a1 = bls[treeNum][testNode]/(1.0+exp(-invector[1]));
-			printf("seq=%d tree=%ld child1=%d like=%.16f age=%.16f\n", i, treeNum, surNodes[1], L1_lik, (1.0-_a0)*(nodeages[treeNum][testNode]+_a1)); }
+			printf("seq=%d tree=%ld child1=%d like=%.16f age=%.16f bl=%.16f pl=%.16\n", i, treeNum, surNodes[1], L1_lik, (1.0-_a0)*(nodeages[treeNum][testNode]+_a1),_a0,_a1); }
 			// printf("\t\tChild 1 (%d) like %.16f and ", surNodes[1], L1_lik);
 
 			// Child 2
@@ -3925,7 +3925,7 @@ void bestAssignment(int root, unsigned long int treeNum)
 			// Child 1 better (remember these are -loglik outputs)
 
 			{ double _a0 = 1.0/(1.0+exp(-invector[0])), _a1 = bls[treeNum][testNode]/(1.0+exp(-invector[1]));
-			printf("seq=%d tree=%ld child2=%d like=%.16f age=%.16f\n", i, treeNum, surNodes[2], testLik, (1.0-_a0)*(nodeages[treeNum][testNode]+_a1)); }
+			printf("seq=%d tree=%ld child2=%d like=%.16f age=%.16f bl=%.16f pl=%.16\n", i, treeNum, surNodes[2], testLik, (1.0-_a0)*(nodeages[treeNum][testNode]+_a1),_a0,_a1); }
 			// printf("child 2 (%d) like %.16f\n",  surNodes[2], testLik);
 
 			if (L1_lik < testLik)
@@ -3985,7 +3985,7 @@ void bestAssignment(int root, unsigned long int treeNum)
 			L1_lik = minimize_brent(invector, 2, getlike_gamma_root_in_trifucation_single_read_brent_reassign_trans, 100, extra_data);
 
 			{ double _a0 = 1.0/(1.0+exp(-invector[0])), _a1 = bls[treeNum][testNode]/(1.0+exp(-invector[1]));
-			printf("seq=%d tree=%ld original=%d like=%.16f age=%.16f\n", i, treeNum, L1, L1_lik, (1.0-_a0)*(nodeages[treeNum][testNode]+_a1)); }
+			printf("seq=%d tree=%ld original=%d like=%.16f age=%.16f bl=%.16f pl=%.16\n", i, treeNum, L1, L1_lik, (1.0-_a0)*(nodeages[treeNum][testNode]+_a1),_a0,_a1); }
 			// printf("\t\tOriginal (%d) like %.16f ", L1, L1_lik);
 
 			// Sibling
@@ -3999,7 +3999,7 @@ void bestAssignment(int root, unsigned long int treeNum)
 			testLik = minimize_brent(invector, 2, getlike_gamma_root_in_trifucation_single_read_brent_reassign_trans, 100, extra_data);
 
 			{ double _a0 = 1.0/(1.0+exp(-invector[0])), _a1 = bls[treeNum][testNode]/(1.0+exp(-invector[1]));
-			printf("seq=%d tree=%ld sibling=%d like=%.16f age=%.16f\n", i, treeNum, surNodes[2], testLik, (1.0-_a0)*(nodeages[treeNum][testNode]+_a1)); }
+			printf("seq=%d tree=%ld sibling=%d like=%.16f age=%.16f bl=%.16f pl=%.16\n", i, treeNum, surNodes[2], testLik, (1.0-_a0)*(nodeages[treeNum][testNode]+_a1),_a0,_a1); }
 			// printf("sibling (%d) like %.16f and ", surNodes[2], testLik);
 
 			// Parent
@@ -4020,7 +4020,7 @@ void bestAssignment(int root, unsigned long int treeNum)
 				//testLik2 = GoldenSection(invector, lowbound, upbound, 1, reassign_singleReadAge, p, 3);
 				testLik2 = minimize_brent(invector, 2, getlike_gamma_root_in_trifucation_single_read_brent_reassign_trans, 100, extra_data);
 				{ double _a0 = 1.0/(1.0+exp(-invector[0])), _a1 = bls[treeNum][testNode]/(1.0+exp(-invector[1]));
-				printf("seq=%d tree=%ld parent=%d like=%.16f age=%.16f\n", i, treeNum, surNodes[1], testLik2, (1.0-_a0)*(nodeages[treeNum][testNode]+_a1)); }
+				printf("seq=%d tree=%ld parent=%d like=%.16f age=%.16f bl=%.16f pl=%.16\n", i, treeNum, surNodes[1], testLik2, (1.0-_a0)*(nodeages[treeNum][testNode]+_a1),_a0,_a1); }
 			}
 			// printf("parent (%d) like %.16f\n", surNodes[1], testLik2);
 
@@ -4092,7 +4092,7 @@ void bestAssignment(int root, unsigned long int treeNum)
 			L1_lik = minimize_brent(invector, 2, getlike_gamma_root_in_trifucation_single_read_brent_reassign_trans, 100, extra_data);
 
 			{ double _a0 = 1.0/(1.0+exp(-invector[0])), _a1 = bls[treeNum][testNode]/(1.0+exp(-invector[1]));
-			printf("seq=%d tree=%ld original=%d like=%.16f age=%.16f\n", i, treeNum, L1, L1_lik, (1.0-_a0)*(nodeages[treeNum][testNode]+_a1)); }
+			printf("seq=%d tree=%ld original=%d like=%.16f age=%.16f bl=%.16f pl=%.16\n", i, treeNum, L1, L1_lik, (1.0-_a0)*(nodeages[treeNum][testNode]+_a1),_a0,_a1); }
 			// printf("\t\tOriginal (%d) like %.16f ", L1, L1_lik);
 
 			// Child 1
@@ -4106,7 +4106,7 @@ void bestAssignment(int root, unsigned long int treeNum)
 			testLik = minimize_brent(invector, 2, getlike_gamma_root_in_trifucation_single_read_brent_reassign_trans, 100, extra_data);
 
 			{ double _a0 = 1.0/(1.0+exp(-invector[0])), _a1 = bls[treeNum][testNode]/(1.0+exp(-invector[1]));
-			printf("seq=%d tree=%ld child1=%d like=%.16f age=%.16f\n", i, treeNum, surNodes[1], testLik, (1.0-_a0)*(nodeages[treeNum][testNode]+_a1)); }
+			printf("seq=%d tree=%ld child1=%d like=%.16f age=%.16f bl=%.16f pl=%.16\n", i, treeNum, surNodes[1], testLik, (1.0-_a0)*(nodeages[treeNum][testNode]+_a1),_a0,_a1); }
 			// printf("child 1 (%d) like %.16f and ", surNodes[1], testLik);
 
 			// Child 2
@@ -4120,7 +4120,7 @@ void bestAssignment(int root, unsigned long int treeNum)
 			testLik2 = minimize_brent(invector, 2, getlike_gamma_root_in_trifucation_single_read_brent_reassign_trans, 100, extra_data);
 
 			{ double _a0 = 1.0/(1.0+exp(-invector[0])), _a1 = bls[treeNum][testNode]/(1.0+exp(-invector[1]));
-			printf("seq=%d tree=%ld child2=%d like=%.16f age=%.16f\n", i, treeNum, surNodes[2], testLik2, (1.0-_a0)*(nodeages[treeNum][testNode]+_a1)); }
+			printf("seq=%d tree=%ld child2=%d like=%.16f age=%.16f bl=%.16f pl=%.16\n", i, treeNum, surNodes[2], testLik2, (1.0-_a0)*(nodeages[treeNum][testNode]+_a1),_a0,_a1); }
 			// printf("child 2 (%d) like %.16f\n", surNodes[2], testLik2);
 
 			// If parent > children, go up
