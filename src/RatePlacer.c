@@ -2106,32 +2106,6 @@ double getlike_gamma_root_in_trifucation_single_read_brent_reassign(double times
 
 	//printf("\tseq: %d\t treeNum: %d\t node: %d\n", seq, treeNum, node);
 
-	if (times[0] < 3e-8)
-	{
-		times[0] = 3e-8;
-		//printf("Likelihood: %.16f\n", 1000000000.0 - times[0]);
-		//return (1000000000.0 - times[0]);
-	}
-	else if (times[0] > 1.0 - 3e-8)
-	{
-		times[0] = 1.0 - 3e-8;
-		//printf("Likelihood: %.16f\n", 1000000000.0 + times[0]);
-		//return (1000000000.0 + times[0]);
-	}
-
-	if (times[1] < 3e-8)
-	{
-		times[1] = 3e-8;
-		//printf("Likelihood: %.16f\n", 1000000000.0 - times[1]);
-		//return (1000000000.0 - times[1]);
-	}
-	else if (times[1] > bls[treeNum][node] - 3e-8)
-	{
-		times[1] = bls[treeNum][node] - 3e-8;
-		//printf("Likelihood: %.16f\n", 1000000000.0 + times[1]);
-		//return (1000000000.0 + times[1]);
-	}
-
 	//printf("\ttimes[0]: %.16f\ttimes[1]: %.16f\n", times[0], times[1]);
 
 	t[1] = times[1];										// length from node to position where query joins
@@ -2282,6 +2256,19 @@ double getlike_gamma_root_in_trifucation_single_read_brent_reassign(double times
 	// exit(0);
 
 	return -Like; // Notice: a scaling factor of NUMCAT^(number of sites) is missing
+}
+
+// Wrapper that transforms unbounded x[] → bounded times[] via sigmoid,
+// so PrAxis operates in unconstrained space and the bounds are always satisfied.
+double getlike_gamma_root_in_trifucation_single_read_brent_reassign_trans(double x[], void *extra_data)
+{
+	int treeNum = *((int *)extra_data + 1);
+	int node    = *((int *)extra_data + 2);
+	double bl   = bls[treeNum][node];
+	double times[2];
+	times[0] = 1.0 / (1.0 + exp(-x[0]));   // sigmoid: alpha in (0,1)
+	times[1] = bl  / (1.0 + exp(-x[1]));    // scaled sigmoid: pos in (0,bl)
+	return getlike_gamma_root_in_trifucation_single_read_brent_reassign(times, extra_data);
 }
 
 // This function is used as the function for Brent's method to estimate the sample age
@@ -3500,26 +3487,28 @@ void greedyDown(int extra_data[3], int *L, double *L_lik, int root)
 	// Test two children
 	// Child 1
 	extra_data[2] = testNodes[1];
-	invector[0] = 0.5;
-	invector[1] = bls[extra_data[1]][testNodes[1]] / 2.0;
+	invector[0] = 0.0;
+	invector[1] = 0.0;
 	// testLik = findmax_amoeba_rand(invector,lowbound, upbound, 2, getlike_gamma_root_in_trifurcation_reassign, p, 3);
 	// testLik = findmax_amoeba_rand_trans(invector,lowbound, upbound, 2, getlike_gamma_root_in_trifurcation_reassign_transform, p, 3);
 	// testLik = GoldenSection(invector, lowbound, upbound, 1, reassign_singleReadAge, p, 3);
-	testLik = minimize_brent(invector, 2, getlike_gamma_root_in_trifucation_single_read_brent_reassign, 100, extra_data);
+	testLik = minimize_brent(invector, 2, getlike_gamma_root_in_trifucation_single_read_brent_reassign_trans, 100, extra_data);
 
-	printf("seq=%d tree=%d greedydown cur=%d cur_lik=%.16f child1=%d like=%.16f age=%.16f\n", extra_data[0], extra_data[1], *L, *L_lik, testNodes[1], testLik, (1.0-invector[0])*(nodeages[extra_data[1]][testNodes[1]]+invector[1]));
+	{ double _a0 = 1.0/(1.0+exp(-invector[0])), _a1 = bls[extra_data[1]][testNodes[1]]/(1.0+exp(-invector[1]));
+	printf("seq=%d tree=%d greedydown cur=%d cur_lik=%.16f child1=%d like=%.16f age=%.16f\n", extra_data[0], extra_data[1], *L, *L_lik, testNodes[1], testLik, (1.0-_a0)*(nodeages[extra_data[1]][testNodes[1]]+_a1)); }
 	// printf("\t\t\tGreedy down L (%d) L_lik %.16f with child 1 (%d) like %.16f and ", *L, *L_lik, testNodes[1], testLik);
 
 	// Child 2
 	extra_data[2] = testNodes[2];
-	invector[0] = 0.5;
-	invector[1] = bls[extra_data[1]][testNodes[2]] / 2.0;
+	invector[0] = 0.0;
+	invector[1] = 0.0;
 	// testLik2 = findmax_amoeba_rand(invector,lowbound, upbound, 2, getlike_gamma_root_in_trifurcation_reassign, p, 3);
 	// testLik2 = findmax_amoeba_rand_trans(invector,lowbound, upbound, 2, getlike_gamma_root_in_trifurcation_reassign_transform, p, 3);
 	// testLik2 = GoldenSection(invector, lowbound, upbound, 1, reassign_singleReadAge, p, 3);
-	testLik2 = minimize_brent(invector, 2, getlike_gamma_root_in_trifucation_single_read_brent_reassign, 100, extra_data);
+	testLik2 = minimize_brent(invector, 2, getlike_gamma_root_in_trifucation_single_read_brent_reassign_trans, 100, extra_data);
 
-	printf("seq=%d tree=%d greedydown child2=%d like=%.16f age=%.16f\n", extra_data[0], extra_data[1], testNodes[2], testLik2, (1.0-invector[0])*(nodeages[extra_data[1]][testNodes[2]]+invector[1]));
+	{ double _a0 = 1.0/(1.0+exp(-invector[0])), _a1 = bls[extra_data[1]][testNodes[2]]/(1.0+exp(-invector[1]));
+	printf("seq=%d tree=%d greedydown child2=%d like=%.16f age=%.16f\n", extra_data[0], extra_data[1], testNodes[2], testLik2, (1.0-_a0)*(nodeages[extra_data[1]][testNodes[2]]+_a1)); }
 	// printf("child 2 (%d) like %.16f\n", testNodes[2], testLik2);
 
 	// if L_lik best, return
@@ -3588,26 +3577,28 @@ void greedyUp(int extra_data[3], int *L, double *L_lik, int root)
 	else
 	{
 		extra_data[2] = testNodes[1];
-		invector[0] = 0.5;
-		invector[1] = bls[extra_data[1]][testNodes[1]] / 2.0;
+		invector[0] = 0.0;
+		invector[1] = 0.0;
 		// testLik2 = findmax_amoeba_rand(invector,lowbound, upbound, 2, getlike_gamma_root_in_trifurcation_reassign, p, 3);
 		// testLik2 = findmax_amoeba_rand_trans(invector,lowbound, upbound, 2, getlike_gamma_root_in_trifurcation_reassign_transform, p, 3);
 		// testLik2 = GoldenSection(invector, lowbound, upbound, 1, reassign_singleReadAge, p, 3);
-		testLik2 = minimize_brent(invector, 2, getlike_gamma_root_in_trifucation_single_read_brent_reassign, 100, extra_data);
-		printf("seq=%d tree=%d greedyup cur=%d cur_lik=%.16f parent=%d like=%.16f age=%.16f\n", extra_data[0], extra_data[1], *L, *L_lik, testNodes[1], testLik2, (1.0-invector[0])*(nodeages[extra_data[1]][testNodes[1]]+invector[1]));
+		testLik2 = minimize_brent(invector, 2, getlike_gamma_root_in_trifucation_single_read_brent_reassign_trans, 100, extra_data);
+		{ double _a0 = 1.0/(1.0+exp(-invector[0])), _a1 = bls[extra_data[1]][testNodes[1]]/(1.0+exp(-invector[1]));
+		printf("seq=%d tree=%d greedyup cur=%d cur_lik=%.16f parent=%d like=%.16f age=%.16f\n", extra_data[0], extra_data[1], *L, *L_lik, testNodes[1], testLik2, (1.0-_a0)*(nodeages[extra_data[1]][testNodes[1]]+_a1)); }
 	}
 	// printf("\t\t\tGreedy up L (%d) L_lik %.16f with parent (%d) like %.16f ", *L, *L_lik, testNodes[1], testLik2);
 
 	// Sibling
 	extra_data[2] = testNodes[2];
-	invector[0] = 0.5;
-	invector[1] = bls[extra_data[1]][testNodes[2]] / 2.0;
+	invector[0] = 0.0;
+	invector[1] = 0.0;
 	// testLik = findmax_amoeba_rand(invector,lowbound, upbound, 2, getlike_gamma_root_in_trifurcation_reassign, p, 3);
 	// testLik = findmax_amoeba_rand_trans(invector,lowbound, upbound, 2, getlike_gamma_root_in_trifurcation_reassign_transform, p, 3);
 	// testLik = GoldenSection(invector, lowbound, upbound, 1, reassign_singleReadAge, p, 3);
-	testLik = minimize_brent(invector, 2, getlike_gamma_root_in_trifucation_single_read_brent_reassign, 100, extra_data);
+	testLik = minimize_brent(invector, 2, getlike_gamma_root_in_trifucation_single_read_brent_reassign_trans, 100, extra_data);
 
-	printf("seq=%d tree=%d greedyup sibling=%d like=%.16f age=%.16f\n", extra_data[0], extra_data[1], testNodes[2], testLik, (1.0-invector[0])*(nodeages[extra_data[1]][testNodes[2]]+invector[1]));
+	{ double _a0 = 1.0/(1.0+exp(-invector[0])), _a1 = bls[extra_data[1]][testNodes[2]]/(1.0+exp(-invector[1]));
+	printf("seq=%d tree=%d greedyup sibling=%d like=%.16f age=%.16f\n", extra_data[0], extra_data[1], testNodes[2], testLik, (1.0-_a0)*(nodeages[extra_data[1]][testNodes[2]]+_a1)); }
 	// printf("and sibling (%d) like %.16f\n", testNodes[2], testLik);
 
 	// if L_lik best, return
@@ -3688,9 +3679,9 @@ void tronkoAssignmentTesting(int root, unsigned long int treeNum)
 			// Test two children
 			// Child 1
 			extra_data[2] = surNodes[1];
-			invector[0] = 0.5;
-			invector[1] = bls[treeNum][surNodes[1]] / 2.0;
-			L1_lik = minimize_brent(invector, 2, getlike_gamma_root_in_trifucation_single_read_brent_reassign, 100, extra_data);
+			invector[0] = 0.0;
+			invector[1] = 0.0;
+			L1_lik = minimize_brent(invector, 2, getlike_gamma_root_in_trifucation_single_read_brent_reassign_trans, 100, extra_data);
 
 			//if (invector[0] < 3e-8)
 			//{
@@ -3715,9 +3706,9 @@ void tronkoAssignmentTesting(int root, unsigned long int treeNum)
 
 			// Child 2
 			extra_data[2] = surNodes[2];
-			invector[0] = 0.5;
-			invector[1] = bls[treeNum][surNodes[2]] / 2.0;
-			testLik = minimize_brent(invector, 2, getlike_gamma_root_in_trifucation_single_read_brent_reassign, 100, extra_data);
+			invector[0] = 0.0;
+			invector[1] = 0.0;
+			testLik = minimize_brent(invector, 2, getlike_gamma_root_in_trifucation_single_read_brent_reassign_trans, 100, extra_data);
 
 			//if (invector[0] < 3e-8)
 			//{
@@ -3769,9 +3760,9 @@ void tronkoAssignmentTesting(int root, unsigned long int treeNum)
 			// Test current and two children
 			//  Original Assignment
 			extra_data[2] = originalNode;
-			invector[0] = 0.5;
-			invector[1] = bls[treeNum][originalNode] / 2.0;
-			L1_lik = minimize_brent(invector, 2, getlike_gamma_root_in_trifucation_single_read_brent_reassign, 100, extra_data);
+			invector[0] = 0.0;
+			invector[1] = 0.0;
+			L1_lik = minimize_brent(invector, 2, getlike_gamma_root_in_trifucation_single_read_brent_reassign_trans, 100, extra_data);
 
 			//if (invector[0] < 3e-8)
 			//{
@@ -3796,9 +3787,9 @@ void tronkoAssignmentTesting(int root, unsigned long int treeNum)
 
 			// Child 1
 			extra_data[2] = surNodes[1];
-			invector[0] = 0.5;
-			invector[1] = bls[treeNum][surNodes[1]] / 2.0;
-			testLik = minimize_brent(invector, 2, getlike_gamma_root_in_trifucation_single_read_brent_reassign, 100, extra_data);
+			invector[0] = 0.0;
+			invector[1] = 0.0;
+			testLik = minimize_brent(invector, 2, getlike_gamma_root_in_trifucation_single_read_brent_reassign_trans, 100, extra_data);
 
 			//if (invector[0] < 3e-8)
 			//{
@@ -3823,9 +3814,9 @@ void tronkoAssignmentTesting(int root, unsigned long int treeNum)
 
 			// Child 2
 			extra_data[2] = surNodes[2];
-			invector[0] = 0.5;
-			invector[1] = bls[treeNum][surNodes[2]] / 2.0;
-			testLik2 = minimize_brent(invector, 2, getlike_gamma_root_in_trifucation_single_read_brent_reassign, 100, extra_data);
+			invector[0] = 0.0;
+			invector[1] = 0.0;
+			testLik2 = minimize_brent(invector, 2, getlike_gamma_root_in_trifucation_single_read_brent_reassign_trans, 100, extra_data);
 
 			//if (invector[0] < 3e-8)
 			//{
@@ -3908,31 +3899,33 @@ void bestAssignment(int root, unsigned long int treeNum)
 			// Child 1
 			testNode = surNodes[1];
 			extra_data[2] = testNode;
-			invector[0] = 0.5;
-			invector[1] = bls[treeNum][testNode] / 2.0;
+			invector[0] = 0.0;
+			invector[1] = 0.0;
 			// L1_lik = findmax_amoeba_rand(invector,lowbound, upbound, 2, getlike_gamma_root_in_trifurcation_reassign, p, 3);
 			// L1_lik = findmax_amoeba_rand_trans(invector,lowbound, upbound, 2, getlike_gamma_root_in_trifurcation_reassign_transform, p, 3);
 			//L1_lik = GoldenSection(invector, lowbound, upbound, 1, reassign_singleReadAge, p, 3);
-			L1_lik = minimize_brent(invector, 2, getlike_gamma_root_in_trifucation_single_read_brent_reassign, 100, extra_data);
+			L1_lik = minimize_brent(invector, 2, getlike_gamma_root_in_trifucation_single_read_brent_reassign_trans, 100, extra_data);
 
-			printf("seq=%d tree=%ld child1=%d like=%.16f age=%.16f\n", i, treeNum, surNodes[1], L1_lik, (1.0-invector[0])*(nodeages[treeNum][testNode]+invector[1]));
+			{ double _a0 = 1.0/(1.0+exp(-invector[0])), _a1 = bls[treeNum][testNode]/(1.0+exp(-invector[1]));
+			printf("seq=%d tree=%ld child1=%d like=%.16f age=%.16f\n", i, treeNum, surNodes[1], L1_lik, (1.0-_a0)*(nodeages[treeNum][testNode]+_a1)); }
 			// printf("\t\tChild 1 (%d) like %.16f and ", surNodes[1], L1_lik);
 
 			// Child 2
 			testNode = surNodes[2];
 			extra_data[2] = testNode;
-			invector[0] = 0.5;
-			invector[1] = bls[treeNum][testNode] / 2.0;
+			invector[0] = 0.0;
+			invector[1] = 0.0;
 			// testLik = findmax_amoeba_rand(invector,lowbound, upbound, 2, getlike_gamma_root_in_trifurcation_reassign, p, 3);
 			// testLik = findmax_amoeba_rand_trans(invector,lowbound, upbound, 2, getlike_gamma_root_in_trifurcation_reassign_transform, p, 3);
 			//testLik = GoldenSection(invector, lowbound, upbound, 1, reassign_singleReadAge, p, 3);
-			testLik = minimize_brent(invector, 2, getlike_gamma_root_in_trifucation_single_read_brent_reassign, 100, extra_data);
+			testLik = minimize_brent(invector, 2, getlike_gamma_root_in_trifucation_single_read_brent_reassign_trans, 100, extra_data);
 
 			// Pick max
 			// Traverse down based on max
 			// Child 1 better (remember these are -loglik outputs)
 
-			printf("seq=%d tree=%ld child2=%d like=%.16f age=%.16f\n", i, treeNum, surNodes[2], testLik, (1.0-invector[0])*(nodeages[treeNum][testNode]+invector[1]));
+			{ double _a0 = 1.0/(1.0+exp(-invector[0])), _a1 = bls[treeNum][testNode]/(1.0+exp(-invector[1]));
+			printf("seq=%d tree=%ld child2=%d like=%.16f age=%.16f\n", i, treeNum, surNodes[2], testLik, (1.0-_a0)*(nodeages[treeNum][testNode]+_a1)); }
 			// printf("child 2 (%d) like %.16f\n",  surNodes[2], testLik);
 
 			if (L1_lik < testLik)
@@ -3984,27 +3977,29 @@ void bestAssignment(int root, unsigned long int treeNum)
 			// Test
 			//  Original Assignment
 			testNode = extra_data[2];
-			invector[0] = 0.5;
-			invector[1] = bls[treeNum][testNode] / 2.0;
+			invector[0] = 0.0;
+			invector[1] = 0.0;
 			// L1_lik = findmax_amoeba_rand(invector,lowbound, upbound, 2, getlike_gamma_root_in_trifurcation_reassign, p, 3);
 			// L1_lik = findmax_amoeba_rand_trans(invector,lowbound, upbound, 2, getlike_gamma_root_in_trifurcation_reassign_transform, p, 3);
 			//L1_lik = GoldenSection(invector, lowbound, upbound, 1, reassign_singleReadAge, p, 3);
-			L1_lik = minimize_brent(invector, 2, getlike_gamma_root_in_trifucation_single_read_brent_reassign, 100, extra_data);
+			L1_lik = minimize_brent(invector, 2, getlike_gamma_root_in_trifucation_single_read_brent_reassign_trans, 100, extra_data);
 
-			printf("seq=%d tree=%ld original=%d like=%.16f age=%.16f\n", i, treeNum, L1, L1_lik, (1.0-invector[0])*(nodeages[treeNum][testNode]+invector[1]));
+			{ double _a0 = 1.0/(1.0+exp(-invector[0])), _a1 = bls[treeNum][testNode]/(1.0+exp(-invector[1]));
+			printf("seq=%d tree=%ld original=%d like=%.16f age=%.16f\n", i, treeNum, L1, L1_lik, (1.0-_a0)*(nodeages[treeNum][testNode]+_a1)); }
 			// printf("\t\tOriginal (%d) like %.16f ", L1, L1_lik);
 
 			// Sibling
 			testNode = surNodes[2];
 			extra_data[2] = testNode;
-			invector[0] = 0.5;
-			invector[1] = bls[treeNum][testNode] / 2.0;
+			invector[0] = 0.0;
+			invector[1] = 0.0;
 			// testLik = findmax_amoeba_rand(invector,lowbound, upbound, 2, getlike_gamma_root_in_trifurcation_reassign, p, 3);
 			// testLik = findmax_amoeba_rand_trans(invector,lowbound, upbound, 2, getlike_gamma_root_in_trifurcation_reassign_transform, p, 3);
 			//testLik = GoldenSection(invector, lowbound, upbound, 1, reassign_singleReadAge, p, 3);
-			testLik = minimize_brent(invector, 2, getlike_gamma_root_in_trifucation_single_read_brent_reassign, 100, extra_data);
+			testLik = minimize_brent(invector, 2, getlike_gamma_root_in_trifucation_single_read_brent_reassign_trans, 100, extra_data);
 
-			printf("seq=%d tree=%ld sibling=%d like=%.16f age=%.16f\n", i, treeNum, surNodes[2], testLik, (1.0-invector[0])*(nodeages[treeNum][testNode]+invector[1]));
+			{ double _a0 = 1.0/(1.0+exp(-invector[0])), _a1 = bls[treeNum][testNode]/(1.0+exp(-invector[1]));
+			printf("seq=%d tree=%ld sibling=%d like=%.16f age=%.16f\n", i, treeNum, surNodes[2], testLik, (1.0-_a0)*(nodeages[treeNum][testNode]+_a1)); }
 			// printf("sibling (%d) like %.16f and ", surNodes[2], testLik);
 
 			// Parent
@@ -4018,13 +4013,14 @@ void bestAssignment(int root, unsigned long int treeNum)
 			{
 				testNode = surNodes[1];
 				extra_data[2] = testNode;
-				invector[0] = 0.5;
-				invector[1] = bls[treeNum][testNode] / 2.0;
+				invector[0] = 0.0;
+				invector[1] = 0.0;
 				// testLik2 = findmax_amoeba_rand(invector,lowbound, upbound, 2, getlike_gamma_root_in_trifurcation_reassign, p, 3);
 				// testLik2 = findmax_amoeba_rand_trans(invector,lowbound, upbound, 2, getlike_gamma_root_in_trifurcation_reassign_transform, p, 3);
 				//testLik2 = GoldenSection(invector, lowbound, upbound, 1, reassign_singleReadAge, p, 3);
-				testLik2 = minimize_brent(invector, 2, getlike_gamma_root_in_trifucation_single_read_brent_reassign, 100, extra_data);
-				printf("seq=%d tree=%ld parent=%d like=%.16f age=%.16f\n", i, treeNum, surNodes[1], testLik2, (1.0-invector[0])*(nodeages[treeNum][testNode]+invector[1]));
+				testLik2 = minimize_brent(invector, 2, getlike_gamma_root_in_trifucation_single_read_brent_reassign_trans, 100, extra_data);
+				{ double _a0 = 1.0/(1.0+exp(-invector[0])), _a1 = bls[treeNum][testNode]/(1.0+exp(-invector[1]));
+				printf("seq=%d tree=%ld parent=%d like=%.16f age=%.16f\n", i, treeNum, surNodes[1], testLik2, (1.0-_a0)*(nodeages[treeNum][testNode]+_a1)); }
 			}
 			// printf("parent (%d) like %.16f\n", surNodes[1], testLik2);
 
@@ -4088,40 +4084,43 @@ void bestAssignment(int root, unsigned long int treeNum)
 			// Test current and two children
 			//  Original Assignment
 			testNode = extra_data[2];
-			invector[0] = 0.5;
-			invector[1] = bls[treeNum][testNode] / 2.0;
+			invector[0] = 0.0;
+			invector[1] = 0.0;
 			// L1_lik = findmax_amoeba_rand(invector,lowbound, upbound, 2, getlike_gamma_root_in_trifurcation_reassign, p, 3);
 			// L1_lik = findmax_amoeba_rand_trans(invector,lowbound, upbound, 2, getlike_gamma_root_in_trifurcation_reassign_transform, p, 3);
 			//L1_lik = GoldenSection(invector, lowbound, upbound, 1, reassign_singleReadAge, p, 3);
-			L1_lik = minimize_brent(invector, 2, getlike_gamma_root_in_trifucation_single_read_brent_reassign, 100, extra_data);
+			L1_lik = minimize_brent(invector, 2, getlike_gamma_root_in_trifucation_single_read_brent_reassign_trans, 100, extra_data);
 
-			printf("seq=%d tree=%ld original=%d like=%.16f age=%.16f\n", i, treeNum, L1, L1_lik, (1.0-invector[0])*(nodeages[treeNum][testNode]+invector[1]));
+			{ double _a0 = 1.0/(1.0+exp(-invector[0])), _a1 = bls[treeNum][testNode]/(1.0+exp(-invector[1]));
+			printf("seq=%d tree=%ld original=%d like=%.16f age=%.16f\n", i, treeNum, L1, L1_lik, (1.0-_a0)*(nodeages[treeNum][testNode]+_a1)); }
 			// printf("\t\tOriginal (%d) like %.16f ", L1, L1_lik);
 
 			// Child 1
 			testNode = surNodes[1];
 			extra_data[2] = testNode;
-			invector[0] = 0.5;
-			invector[1] = bls[treeNum][testNode] / 2.0;
+			invector[0] = 0.0;
+			invector[1] = 0.0;
 			// testLik = findmax_amoeba_rand(invector,lowbound, upbound, 2, getlike_gamma_root_in_trifurcation_reassign, p, 3);
 			// testLik = findmax_amoeba_rand_trans(invector,lowbound, upbound, 2, getlike_gamma_root_in_trifurcation_reassign_transform, p, 3);
 			// testLik = GoldenSection(invector, lowbound, upbound, 1, reassign_singleReadAge, p, 3);
-			testLik = minimize_brent(invector, 2, getlike_gamma_root_in_trifucation_single_read_brent_reassign, 100, extra_data);
+			testLik = minimize_brent(invector, 2, getlike_gamma_root_in_trifucation_single_read_brent_reassign_trans, 100, extra_data);
 
-			printf("seq=%d tree=%ld child1=%d like=%.16f age=%.16f\n", i, treeNum, surNodes[1], testLik, (1.0-invector[0])*(nodeages[treeNum][testNode]+invector[1]));
+			{ double _a0 = 1.0/(1.0+exp(-invector[0])), _a1 = bls[treeNum][testNode]/(1.0+exp(-invector[1]));
+			printf("seq=%d tree=%ld child1=%d like=%.16f age=%.16f\n", i, treeNum, surNodes[1], testLik, (1.0-_a0)*(nodeages[treeNum][testNode]+_a1)); }
 			// printf("child 1 (%d) like %.16f and ", surNodes[1], testLik);
 
 			// Child 2
 			testNode = surNodes[2];
 			extra_data[2] = testNode;
-			invector[0] = 0.5;
-			invector[1] = bls[treeNum][testNode] / 2.0;
+			invector[0] = 0.0;
+			invector[1] = 0.0;
 			// testLik2 = findmax_amoeba_rand(invector,lowbound, upbound, 2, getlike_gamma_root_in_trifurcation_reassign, p, 3);
 			// testLik2 = findmax_amoeba_rand_trans(invector,lowbound, upbound, 2, getlike_gamma_root_in_trifurcation_reassign_transform, p, 3);
 			// testLik2 = GoldenSection(invector, lowbound, upbound, 1, reassign_singleReadAge, p, 3);
-			testLik2 = minimize_brent(invector, 2, getlike_gamma_root_in_trifucation_single_read_brent_reassign, 100, extra_data);
+			testLik2 = minimize_brent(invector, 2, getlike_gamma_root_in_trifucation_single_read_brent_reassign_trans, 100, extra_data);
 
-			printf("seq=%d tree=%ld child2=%d like=%.16f age=%.16f\n", i, treeNum, surNodes[2], testLik2, (1.0-invector[0])*(nodeages[treeNum][testNode]+invector[1]));
+			{ double _a0 = 1.0/(1.0+exp(-invector[0])), _a1 = bls[treeNum][testNode]/(1.0+exp(-invector[1]));
+			printf("seq=%d tree=%ld child2=%d like=%.16f age=%.16f\n", i, treeNum, surNodes[2], testLik2, (1.0-_a0)*(nodeages[treeNum][testNode]+_a1)); }
 			// printf("child 2 (%d) like %.16f\n", surNodes[2], testLik2);
 
 			// If parent > children, go up
