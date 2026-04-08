@@ -1932,6 +1932,113 @@ double getlike_gamma_root_in_trifurcation(double times[3], double parameters[7])
 	return -Like; // Notice: a scaling factor of NUMCAT^(number of sites) is missing
 }
 
+// Brent-compatible version of getlike_gamma_root_in_trifurcation.
+// Uses void *extra_data (int[3]: seq, treeNum, node) and 0-based times[] indexing
+// (times[0]=alpha, times[1]=pos). No onDindic boundary check — bounds handled by caller
+// via sigmoid transformation.
+double getlike_gamma_root_in_trifurcation_brent(double times[], void *extra_data)
+{
+	int i, j, k, b, c, v, po, node, seq, treeNum;
+	double Like, t[3], A[4], B[4], C[4];
+	double *PMAT_ptr_0, *PMAT_ptr_1, *PMAT_ptr_2, *FRACLIKE_ptr;
+	// diagonalizaiton has previously been done
+
+	seq     = *((int *)extra_data);
+	treeNum = *((int *)extra_data + 1);
+	node    = *((int *)extra_data + 2);
+
+	t[1] = times[1];										// length from node to position where query joins
+	t[0] = (times[1] + nodeages[treeNum][node]) * times[0]; // length from age of query node to position where query joins
+	t[2] = bls[treeNum][node] - times[1];					// length from position where query joins to parent node
+
+	make_transition_prob_matrices(t, treeNum);
+
+	Like = 0.0;
+	unsigned long long int size = ((unsigned long long)node) * ((unsigned long long)numbases[treeNum]) * ((unsigned long long)NUMCAT) * 8ULL
+                           + ((unsigned long long)startpos[seq]) * ((unsigned long long)NUMCAT) * 8ULL;
+	FRACLIKE_ptr = &FRACLIKE[treeNum][size];
+
+	for (i = startpos[seq]; i < readlength[seq] + startpos[seq]; i++)
+	{
+		po = i - startpos[seq];
+		b = QUERYDATA[seq][po];
+
+		if (b == -1)
+		{
+			FRACLIKE_ptr += 32; // NUMCAT (4) * 8;
+		}
+		else
+		{
+			PMAT_ptr_1 = &PMAT[64];	 // 1*NUMCAT(4)*4*4
+			PMAT_ptr_2 = &PMAT[128]; // 2*NUMCAT(4)*4*4
+			for (j = 0; j < NUMCAT; j++)
+			{
+				PMAT_ptr_0 = &PMAT[j * 4 * 4];
+				for (k = 0; k < 4; k++)
+				{
+					for (v = 0; v < 4; v++)
+					{
+						A[v] = pi[treeNum][v] + *(PMAT_ptr_0 + v * 4 + k) + readlike[seq][po][v];
+					}
+					B[k] = logSumExp(A);
+					if (node >= numseq[treeNum])
+					{ // If not leaf node. Assumes leaf nodes are numbered from 0 to numseq-1
+						for (v = 0; v < 4; v++)
+						{
+							A[v] = *PMAT_ptr_2 + *FRACLIKE_ptr;
+							PMAT_ptr_2++;
+							FRACLIKE_ptr++;
+						}
+						B[k] += logSumExp(A);
+						for (v = 0; v < 4; v++)
+						{
+							A[v] = *PMAT_ptr_1 + *FRACLIKE_ptr;
+							PMAT_ptr_1++;
+							FRACLIKE_ptr++;
+						}
+						B[k] += logSumExp(A);
+						FRACLIKE_ptr -= 8;
+					}
+					else
+					{ // If leaf node
+						if ((c = DATA[treeNum][node][i]) > -1)
+						{
+							B[k] += *(PMAT_ptr_1 + c);
+							PMAT_ptr_1 += 4;
+						}
+						for (v = 0; v < 4; v++)
+						{
+							A[v] = *PMAT_ptr_2 + *FRACLIKE_ptr;
+							PMAT_ptr_2++;
+							FRACLIKE_ptr++;
+						}
+						B[k] += logSumExp(A);
+						FRACLIKE_ptr -= 4;
+					}
+				}
+				FRACLIKE_ptr += 8;
+				C[j] = logSumExp(B);
+			}
+			Like += logSumExp(C);
+		}
+	}
+
+	return -Like; // Notice: a scaling factor of NUMCAT^(number of sites) is missing
+}
+
+// Sigmoid wrapper: transforms unbounded x[] → bounded times[] so PrAxis operates
+// in unconstrained space. times[0]=alpha in (0,1), times[1]=pos in (0,bl).
+double getlike_gamma_root_in_trifurcation_brent_trans(double x[], void *extra_data)
+{
+	int treeNum = *((int *)extra_data + 1);
+	int node    = *((int *)extra_data + 2);
+	double bl   = bls[treeNum][node];
+	double times[2];
+	times[0] = 1.0 / (1.0 + exp(-x[0]));  // sigmoid: alpha in (0,1)
+	times[1] = bl  / (1.0 + exp(-x[1]));  // scaled sigmoid: pos in (0,bl)
+	return getlike_gamma_root_in_trifurcation_brent(times, extra_data);
+}
+
 double getlike_gamma_root_in_trifucation_single_read_brent(double times[], void *extra_data)
 {
 	int i, j, k, b, c, v, po, node, seq, treeNum;
@@ -2751,6 +2858,115 @@ double getlike_gamma_root_in_trifurcation_Print_Lik(double times[3], double para
 	printf("\t\t%d,%d,%d,%.16f,%.16f,%.16f,%.16f\n", seq, node, treeNum, (1.0 - times[1]) * (nodeages[treeNum][seq] + times[2]), times[1], times[2], Like);
 
 	return -Like; // Notice: a scaling factor of NUMCAT^(number of sites) is missing
+}
+
+// Brent-compatible version of getlike_gamma_root_in_trifurcation_Print_Lik.
+// Uses void *extra_data (int[3]: seq, treeNum, node) and 0-based times[] indexing
+// (times[0]=alpha, times[1]=pos). No onDindic boundary check — bounds handled by caller
+// via sigmoid transformation.
+double getlike_gamma_root_in_trifurcation_Print_Lik_brent(double times[], void *extra_data)
+{
+	int i, j, k, b, c, v, po, node, seq, treeNum;
+	double Like, t[3], A[4], B[4], C[4];
+	double *PMAT_ptr_0, *PMAT_ptr_1, *PMAT_ptr_2, *FRACLIKE_ptr;
+	// diagonalizaiton has previously been done
+
+	seq     = *((int *)extra_data);
+	treeNum = *((int *)extra_data + 1);
+	node    = *((int *)extra_data + 2);
+
+	t[1] = times[1];										// length from node to position where query joins
+	t[0] = (times[1] + nodeages[treeNum][node]) * times[0]; // length from age of query node to position where query joins
+	t[2] = bls[treeNum][node] - times[1];					// length from position where query joins to parent node
+
+	make_transition_prob_matrices(t, treeNum);
+
+	Like = 0.0;
+	unsigned long long int size = ((unsigned long long)node) * ((unsigned long long)numbases[treeNum]) * ((unsigned long long)NUMCAT) * 8ULL
+    								+ ((unsigned long long)startpos[seq]) * ((unsigned long long)NUMCAT) * 8ULL;
+	FRACLIKE_ptr = &FRACLIKE[treeNum][size];
+
+	for (i = startpos[seq]; i < readlength[seq] + startpos[seq]; i++)
+	{
+		po = i - startpos[seq];
+		b = QUERYDATA[seq][po];
+
+		if (b == -1)
+		{
+			FRACLIKE_ptr += 32; // NUMCAT (4) * 8
+		}
+		else
+		{
+			PMAT_ptr_1 = &PMAT[64];	 // 1*NUMCAT*4*4 (4 * 4 * 4)
+			PMAT_ptr_2 = &PMAT[128]; // 2*NUMCAT*4*4 (2 * 4 * 4 * 4)
+			for (j = 0; j < NUMCAT; j++)
+			{
+				PMAT_ptr_0 = &PMAT[j * 16 + b * 4];
+				for (k = 0; k < 4; k++)
+				{
+					for (v = 0; v < 4; v++)
+					{
+						A[v] = pi[treeNum][v] + *(PMAT_ptr_0 + v * 4 + k) + readlike[seq][po][v];
+					}
+					B[k] = logSumExp(A);
+					if (node >= numseq[treeNum])
+					{ // If not leaf node. Assumes the leaf nodes are numbered from 0 to numseq-1
+						for (v = 0; v < 4; v++)
+						{
+							A[v] = *PMAT_ptr_2 + *FRACLIKE_ptr;
+							PMAT_ptr_2++;
+							FRACLIKE_ptr++;
+						}
+						B[k] += logSumExp(A);
+						for (v = 0; v < 4; v++)
+						{
+							A[v] = *PMAT_ptr_1 + *FRACLIKE_ptr;
+							PMAT_ptr_1++;
+							FRACLIKE_ptr++;
+						}
+						B[k] += logSumExp(A);
+						FRACLIKE_ptr -= 8;
+					}
+					else
+					{ // If leaf node
+						if ((c = DATA[treeNum][node][i]) > -1)
+						{
+							B[k] += *(PMAT_ptr_1 + c);
+							PMAT_ptr_1 += 4;
+						}
+						for (v = 0; v < 4; v++)
+						{
+							A[v] = *PMAT_ptr_2 + *FRACLIKE_ptr;
+							PMAT_ptr_2++;
+							FRACLIKE_ptr++;
+						}
+						B[k] += logSumExp(A);
+						FRACLIKE_ptr -= 4;
+					}
+				}
+				FRACLIKE_ptr += 8;
+				C[j] = logSumExp(B);
+			}
+			Like += logSumExp(C);
+		}
+	}
+
+	printf("\t\t%d,%d,%d,%.16f,%.16f,%.16f,%.16f\n", seq, node, treeNum,
+		(1.0 - times[0]) * (nodeages[treeNum][seq] + times[1]), times[0], times[1], Like);
+
+	return -Like; // Notice: a scaling factor of NUMCAT^(number of sites) is missing
+}
+
+// Sigmoid wrapper for getlike_gamma_root_in_trifurcation_Print_Lik_brent.
+double getlike_gamma_root_in_trifurcation_Print_Lik_brent_trans(double x[], void *extra_data)
+{
+	int treeNum = *((int *)extra_data + 1);
+	int node    = *((int *)extra_data + 2);
+	double bl   = bls[treeNum][node];
+	double times[2];
+	times[0] = 1.0 / (1.0 + exp(-x[0]));  // sigmoid: alpha in (0,1)
+	times[1] = bl  / (1.0 + exp(-x[1]));  // scaled sigmoid: pos in (0,bl)
+	return getlike_gamma_root_in_trifurcation_Print_Lik_brent(times, extra_data);
 }
 
 // Same as above, but used to print out site scores
@@ -5318,33 +5534,32 @@ void maximize_like_seperately_for_all2D_Print(double **par)
 {
 	printf("Starting maximize seperately for all\n");
 	int i, k, v, nfun;
-	double p[3];
-	double L1, invector[3], lowbound[3], upbound[3], eh0 = 3e-8;
+	int extra_data[3];
+	double L1, invector[2];
 
 	onDindic = 0;
 
 	// assignmentMode of 0 means single assignment given
 	for (i = 0; i < numquery; i++)
 	{
-		p[0] = i;
-		p[1] = treeAssign[i];
-		p[2] = assignments[i];
+		extra_data[0] = i;
+		extra_data[1] = treeAssign[i];
+		extra_data[2] = assignments[i];
 
-		invector[1] = 0.5;
-		invector[2] = bls[treeAssign[i]][assignments[i]] / 2.0;
-		lowbound[1] = eh0;
-		lowbound[2] = eh0;
-		upbound[1] = 1.0 - eh0;
-		upbound[2] = bls[treeAssign[i]][assignments[i]] - eh0;
-		nfun = 0;
+		invector[0] = 0.0;  // sigmoid(0) = 0.5 → starting alpha
+		invector[1] = 0.0;  // scaled sigmoid(0) = bl/2 → starting pos
 
 		fprintf(outfile, "Sequence %d\n", i);
-		L1 = findmax_amoeba(invector, lowbound, upbound, 2, getlike_gamma_root_in_trifurcation_Print_Lik, p, 3);
-		fprintf(outfile, "\tParameter estimates %.16f %.16f: %.16f\n", invector[1], invector[2], L1);
+		// L1 = findmax_amoeba(invector, lowbound, upbound, 2, getlike_gamma_root_in_trifurcation_Print_Lik, p, 3);
+		L1 = minimize_brent(invector, 2, getlike_gamma_root_in_trifurcation_Print_Lik_brent_trans, 100, extra_data);
+		{ double _a0 = 1.0/(1.0+exp(-invector[0])), _a1 = bls[treeAssign[i]][assignments[i]]/(1.0+exp(-invector[1]));
+		fprintf(outfile, "\tParameter estimates %.16f %.16f: %.16f\n", _a0, _a1, L1);
 		fprintf(outfile, "\tAssignment %d of tree %d age: %.16f\n", assignments[i], treeAssign[i], nodeages[treeAssign[i]][assignments[i]]);
-		fprintf(outfile, "\tsequence age: %.16f\n", (1.0 - invector[1]) * (nodeages[treeAssign[i]][assignments[i]] + invector[2]));
+		fprintf(outfile, "\tsequence age: %.16f\n", (1.0 - _a0) * (nodeages[treeAssign[i]][assignments[i]] + _a1));
 		fprintf(outfile, "Site scores:\n");
-		getlike_gamma_root_in_trifurcation_Print(invector, p);
+		double decoded_times[3] = {0.0, _a0, _a1};
+		double decoded_p[3] = {(double)extra_data[0], (double)extra_data[1], (double)extra_data[2]};
+		getlike_gamma_root_in_trifurcation_Print(decoded_times, decoded_p); }
 	}
 }
 
@@ -5352,35 +5567,30 @@ void maximize_like_seperately_for_all2D(double **par)
 {
 	printf("Starting maximize seperately for all\n");
 	int i, k, v, nfun;
-	double p[3];
-	double L1, invector[3], lowbound[3], upbound[3], eh0 = 3e-8;
+	int extra_data[3];
+	double L1, invector[3];
 
 	onDindic = 0;
 
 	// assignmentMode of 0 means single assignment given
 	for (i = 0; i < numquery; i++)
 	{
-		p[0] = i;
-		p[1] = treeAssign[i];
-		p[2] = assignments[i];
+		extra_data[0] = i;
+		extra_data[1] = treeAssign[i];
+		extra_data[2] = assignments[i];
 
 		fprintf(outfile, "Sequence %d\n", i);
 
-		invector[1] = 0.5;
-		invector[2] = bls[treeAssign[i]][assignments[i]] / 2.0;
-		lowbound[1] = eh0;
-		lowbound[2] = eh0;
-		upbound[1] = 1.0 - eh0;
-		upbound[2] = bls[treeAssign[i]][assignments[i]] - eh0;
-		nfun = 0;
+		invector[0] = 0.0;  // sigmoid(0) = 0.5 → starting alpha
+		invector[1] = 0.0;  // scaled sigmoid(0) = bl/2 → starting pos
 
-		// printf("\tParameter initial %.16f %.16f\n", invector[1],invector[2]);
+		// L1 = findmax_amoeba(invector, lowbound, upbound, 2, getlike_gamma_root_in_trifurcation, p, 3);
+		L1 = minimize_brent(invector, 2, getlike_gamma_root_in_trifurcation_brent_trans, 100, extra_data);
 
-		L1 = findmax_amoeba(invector, lowbound, upbound, 2, getlike_gamma_root_in_trifurcation, p, 3);
-
-		fprintf(outfile, "\tParameter estimates %.16f %.16f: %.16f\n", invector[1], invector[2], L1);
+		{ double _a0 = 1.0/(1.0+exp(-invector[0])), _a1 = bls[treeAssign[i]][assignments[i]]/(1.0+exp(-invector[1]));
+		fprintf(outfile, "\tParameter estimates %.16f %.16f: %.16f\n", _a0, _a1, L1);
 		fprintf(outfile, "\tAssignment %d age: %.16f\n", assignments[i], nodeages[treeAssign[i]][assignments[i]]);
-		fprintf(outfile, "\tsequence age: %.16f\n", (1.0 - invector[1]) * (nodeages[treeAssign[i]][assignments[i]] + invector[2]));
+		fprintf(outfile, "\tsequence age: %.16f\n", (1.0 - _a0) * (nodeages[treeAssign[i]][assignments[i]] + _a1)); }
 
 		invector[0] = 0.5;
 		invector[1] = bls[treeAssign[i]][assignments[i]] / 2.0;
@@ -5417,31 +5627,30 @@ void likelihoodratiotest_for_all(double **par, double compareAge)
 {
 	printf("Starting maximize seperately with likelihood ratio test for all\n");
 	int i, k, v, nfun;
+	int extra_data[3];
 	double p[3], L1, L2;
 	double invector[3], lowbound[3], upbound[3], eh0 = 3e-8;
 
 	// assignmentMode of 0 means single assignment given
 	for (i = 0; i < numquery; i++)
 	{
-		p[0] = i;
-		p[1] = treeAssign[i];
-		p[2] = assignments[i];
+		extra_data[0] = i;
+		extra_data[1] = treeAssign[i];
+		extra_data[2] = assignments[i];
+		p[0] = i; p[1] = treeAssign[i]; p[2] = assignments[i]; // for L2 Brent1D call
 
-		invector[1] = 0.5;
-		invector[2] = bls[treeAssign[i]][assignments[i]] / 2.0;
-		lowbound[1] = eh0;
-		lowbound[2] = eh0;
-		upbound[1] = 1.0 - eh0;
-		upbound[2] = bls[treeAssign[i]][assignments[i]] - eh0;
+		invector[0] = 0.0;  // sigmoid(0) = 0.5 → starting alpha
+		invector[1] = 0.0;  // scaled sigmoid(0) = bl/2 → starting pos
 		// printf("Checking bls %.16f and node age %.16f\n", upbound[2], upbound[1]);
-		nfun = 0;
 		onDindic = 0;
 		fprintf(outfile, "Sequence %d\n", i);
-		L1 = findmax_amoeba(invector, lowbound, upbound, 2, getlike_gamma_root_in_trifurcation, p, 3);
+		// L1 = findmax_amoeba(invector, lowbound, upbound, 2, getlike_gamma_root_in_trifurcation, p, 3);
+		L1 = minimize_brent(invector, 2, getlike_gamma_root_in_trifurcation_brent_trans, 100, extra_data);
 
-		fprintf(outfile, "\tParameter estimates %.16f %.16f (%.16f): %.16f\n", invector[1], invector[2], bls[treeAssign[i]][assignments[i]], L1);
+		{ double _a0 = 1.0/(1.0+exp(-invector[0])), _a1 = bls[treeAssign[i]][assignments[i]]/(1.0+exp(-invector[1]));
+		fprintf(outfile, "\tParameter estimates %.16f %.16f (%.16f): %.16f\n", _a0, _a1, bls[treeAssign[i]][assignments[i]], L1);
 		fprintf(outfile, "\tAssignment %d age of tree %d: %.16f\n", assignments[i], treeAssign[i], nodeages[treeAssign[i]][assignments[i]]);
-		fprintf(outfile, "\tsequence age: %.16f\n", (1.0 - invector[1]) * (nodeages[treeAssign[i]][assignments[i]] + invector[2]));
+		fprintf(outfile, "\tsequence age: %.16f\n", (1.0 - _a0) * (nodeages[treeAssign[i]][assignments[i]] + _a1)); }
 
 		invector[1] = bls[treeAssign[i]][assignments[i]] / 2.0;
 		lowbound[1] = eh0;
