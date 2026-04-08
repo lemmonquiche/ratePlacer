@@ -59,7 +59,7 @@ double ****readLikeTemp;
 _Thread_local int tip, comma = 0; /*globals used to read in the tree. Old code - don't ask.*/
 
 _Thread_local FILE *infile;
-FILE *outfile, *readsfile = NULL;
+FILE *outfile, *readsfile = NULL, *logfile = NULL;
 
 /* ---- gzip-transparent file helpers ---- */
 static _Thread_local int   infile_is_pipe = 0;
@@ -2855,7 +2855,7 @@ double getlike_gamma_root_in_trifurcation_Print_Lik(double times[3], double para
 	}
 
 	// printf("\tLikelihood: %.16f\n", Like);
-	printf("\t\t%d,%d,%d,%.16f,%.16f,%.16f,%.16f\n", seq, node, treeNum, (1.0 - times[1]) * (nodeages[treeNum][seq] + times[2]), times[1], times[2], Like);
+	fprintf(logfile, "\t\t%d,%d,%d,%.16f,%.16f,%.16f,%.16f\n", seq, node, treeNum, (1.0 - times[1]) * (nodeages[treeNum][seq] + times[2]), times[1], times[2], Like);
 
 	return -Like; // Notice: a scaling factor of NUMCAT^(number of sites) is missing
 }
@@ -2951,7 +2951,7 @@ double getlike_gamma_root_in_trifurcation_Print_Lik_brent(double times[], void *
 		}
 	}
 
-	printf("\t\t%d,%d,%d,%.16f,%.16f,%.16f,%.16f\n", seq, node, treeNum,
+	fprintf(logfile, "\t\t%d,%d,%d,%.16f,%.16f,%.16f,%.16f\n", seq, node, treeNum,
 		(1.0 - times[0]) * (nodeages[treeNum][seq] + times[1]), times[0], times[1], Like);
 
 	return -Like; // Notice: a scaling factor of NUMCAT^(number of sites) is missing
@@ -3065,7 +3065,7 @@ double getlike_gamma_root_in_trifurcation_Print(double times[3], double paramete
 				FRACLIKE_ptr += 8;
 				C[j] = logSumExp(B);
 			}
-			printf("%d, %.16f\n", i, logSumExp(C));
+			fprintf(logfile, "%d, %.16f\n", i, logSumExp(C));
 			Like += logSumExp(C);
 		}
 	}
@@ -6308,7 +6308,7 @@ void maximize_like_jointly_for_all2D(double **par, int allTrees)
 	// Would need to be able to calculate the z-score from the user given value
 	// confI = 1.96 / sqrt(-secD);
 
-	printf("Estimated age is %.16f with likelihood %.16f and 95%% confidence interval [%.16f,%.16f]\n", est_age, est_age_lik, est_age - confI, est_age + confI);
+	fprintf(logfile, "Estimated age is %.16f with likelihood %.16f and 95%% confidence interval [%.16f,%.16f]\n", est_age, est_age_lik, est_age - confI, est_age + confI);
 	fprintf(outfile, "estimated_age=%.16f\n", est_age);
 	fprintf(outfile, "likelihood=%.16f\n", est_age_lik);
 	fprintf(outfile, "CI_lower=%.16f\n", est_age - confI);
@@ -6341,7 +6341,7 @@ void maximize_like_jointly_for_all2D(double **par, int allTrees)
 
 			est_age = invector[1];
 
-			printf("Estimated age is %.16f with likelihood %.16f for tree %lu\n", est_age, est_age_lik, i);
+			fprintf(logfile, "Estimated age is %.16f with likelihood %.16f for tree %lu\n", est_age, est_age_lik, i);
 		}
 	}
 }
@@ -6545,7 +6545,7 @@ void maximize_like_jointly_for_all2D_reassign(double **par, int allTrees)
 	//}
 	//printf("\n");
 
-	printf("Estimated age is %.16f with likelihood %.16f and 95%% confidence interval [%.16f,%.16f]\n", invectorL1[1], L1, invectorL1[1] - confI, invectorL2[1] + confI);
+	fprintf(logfile, "Estimated age is %.16f with likelihood %.16f and 95%% confidence interval [%.16f,%.16f]\n", invectorL1[1], L1, invectorL1[1] - confI, invectorL2[1] + confI);
 	fprintf(outfile, "estimated_age=%.16f\n", invectorL1[1]);
 	fprintf(outfile, "likelihood=%.16f\n", L1);
 	fprintf(outfile, "CI_lower=%.16f\n", invectorL1[1] - confI);
@@ -6645,7 +6645,7 @@ void maximize_like_jointly_for_all_noDrop2D(double **par, int allTrees)
 	// Would need to be able to calculate the z-score from the user given value
 	// confI = 1.96 / sqrt(-secD);
 
-	printf("Estimated age is %.16f with likelihood %.16f and 95%% confidence interval [%.16f,%.16f]\n", est_age, est_age_lik, est_age - confI, est_age + confI);
+	fprintf(logfile, "Estimated age is %.16f with likelihood %.16f and 95%% confidence interval [%.16f,%.16f]\n", est_age, est_age_lik, est_age - confI, est_age + confI);
 	fprintf(outfile, "estimated_age=%.16f\n", est_age);
 	fprintf(outfile, "likelihood=%.16f\n", est_age_lik);
 	fprintf(outfile, "CI_lower=%.16f\n", est_age - confI);
@@ -6677,7 +6677,7 @@ void maximize_like_jointly_for_all_noDrop2D(double **par, int allTrees)
 
 			est_age = invector[1];
 
-			printf("Estimated age is %.16f with likelihood %.16f for tree %lu\n", est_age, est_age_lik, i);
+			fprintf(logfile, "Estimated age is %.16f with likelihood %.16f for tree %lu\n", est_age, est_age_lik, i);
 		}
 	}
 }
@@ -7089,6 +7089,11 @@ int main(int argc, char *argv[])
 		outfile = fopen(summary_path, "w");
 		if (!outfile) { perror("Cannot open summary file"); exit(1); }
 
+		char log_path[512];
+		snprintf(log_path, sizeof(log_path), "%s.log", out_prefix);
+		logfile = fopen(log_path, "w");
+		if (!logfile) { perror("Cannot open log file"); exit(1); }
+
 		if (write_reads_flag) {
 			snprintf(reads_path, sizeof(reads_path), "%s.reads", out_prefix);
 			readsfile = fopen(reads_path, "w");
@@ -7220,6 +7225,7 @@ int main(int argc, char *argv[])
 
 	if (outfile)   fclose(outfile);
 	if (readsfile) fclose(readsfile);
+	if (logfile)   fclose(logfile);
 
 	freeNRinits(2);
 	freetreememmory();
