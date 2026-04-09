@@ -52,14 +52,17 @@ long numTrees;
 //int curRead, curTree;
 
 // temps for processing of reads
-int ***readsTreeSorted, *readOrder, **tempAssignments, **numReadsPerAssign;
+int ***readsTreeSorted, *readOrder, **origReadIndex, **tempAssignments, **numReadsPerAssign;
 unsigned long int *numbases, **readLengthTemp, **startposTemp, tempnumquery;
 double ****readLikeTemp;
 
 _Thread_local int tip, comma = 0; /*globals used to read in the tree. Old code - don't ask.*/
 
 _Thread_local FILE *infile;
-FILE *outfile, *readsfile = NULL, *logfile = NULL;
+FILE *outfile, *readsfile = NULL, *logfile = NULL, *tossedfile = NULL;
+unsigned long int totalTossed = 0;
+int toss_root_reads_flag = 0;
+char toss_branches_file[512] = "";
 
 /* ---- gzip-transparent file helpers ---- */
 static _Thread_local int   infile_is_pipe = 0;
@@ -3388,6 +3391,7 @@ int read_query_data(int num)
 		// Store reads based on tree assignment
 		readsTreeSorted[treeAssign[i]][numTreeAssigned[treeAssign[i]]] = malloc(length * (sizeof(int)));
 		readOrder[i] = numTreeAssigned[treeAssign[i]];
+		origReadIndex[treeAssign[i]][numTreeAssigned[treeAssign[i]]] = i;
 		tempAssignments[treeAssign[i]][numTreeAssigned[treeAssign[i]]] = assignments[i];
 		numReadsPerAssign[treeAssign[i]][assignments[i]]++;
 		numTreeAssigned[treeAssign[i]]++;
@@ -4397,6 +4401,136 @@ void bestAssignment(int root, unsigned long int treeNum)
 	}
 }
 
+// Returns a malloc'd array of ratePlacer node IDs to toss for the given tree.
+// If branches_file is non-empty, reads (tree, node) pairs from it.
+// Otherwise defaults to the two direct children of the root.
+// Sets *count to the number of nodes in the returned array.
+int *determineTossNodes(unsigned long int treeNum, const char *branches_file, int *count)
+{
+	if (branches_file == NULL || branches_file[0] == '\0')
+	{
+		// Default: direct children of root
+		int childNodes[3];
+		getGFLChildren((int)treeRoots[treeNum], childNodes, treeNum);
+		int *nodes = (int *)malloc(2 * sizeof(int));
+		nodes[0] = childNodes[1];
+		nodes[1] = childNodes[2];
+		*count = 2;
+		return nodes;
+	}
+
+	// Parse file for (tree_num node_num) pairs matching this treeNum
+	FILE *f = fopen(branches_file, "r");
+	if (!f)
+	{
+		fprintf(stderr, "Cannot open toss-branches file: %s\n", branches_file);
+		exit(1);
+	}
+
+	int capacity = 8;
+	int *nodes = (int *)malloc(capacity * sizeof(int));
+	*count = 0;
+	int file_tree, file_node;
+	while (fscanf(f, "%d %d", &file_tree, &file_node) == 2)
+	{
+		if ((unsigned long int)file_tree == treeNum)
+		{
+			if (*count == capacity)
+			{
+				capacity *= 2;
+				nodes = (int *)realloc(nodes, capacity * sizeof(int));
+			}
+			nodes[(*count)++] = file_node;
+		}
+	}
+	fclose(f);
+	return nodes;
+}
+
+// Removes reads assigned to any node in tossNodes[] from the per-tree data structures,
+// before merging. Writes tossed reads to tossedfile if open.
+// Returns the number of reads tossed.
+unsigned long int tossReads(unsigned long int treeNum, int *tossNodes, int numTossNodes)
+{
+	unsigned long int n = (unsigned long int)usedTrees[treeNum];
+	if (n == 0 || numTossNodes == 0)
+		return 0;
+
+	char *tossed = (char *)calloc(n, sizeof(char));
+	if (!tossed) { fprintf(stderr, "tossReads: calloc failed\n"); exit(1); }
+
+	unsigned long int toss_count = 0;
+
+	for (unsigned long int j = 0; j < n; j++)
+	{
+		int node = tempAssignments[treeNum][j];
+		int should_toss = 0;
+		for (int k = 0; k < numTossNodes; k++)
+		{
+			if (node == tossNodes[k])
+			{
+				should_toss = 1;
+				break;
+			}
+		}
+		if (!should_toss)
+			continue;
+
+		tossed[j] = 1;
+		toss_count++;
+
+		// Write to tossed reads file if open
+		if (tossedfile != NULL)
+		{
+			fprintf(tossedfile, ">read_%d tree=%lu node=%d start=%lu\n",
+				origReadIndex[treeNum][j], treeNum, node, startposTemp[treeNum][j]);
+			unsigned long int len = readLengthTemp[treeNum][j];
+			for (unsigned long int p = 0; p < len; p++)
+			{
+				int base = readsTreeSorted[treeNum][j][p];
+				char c;
+				if      (base == 0)  c = 'A';
+				else if (base == 1)  c = 'C';
+				else if (base == 2)  c = 'G';
+				else if (base == 3)  c = 'T';
+				else                 c = '-';
+				fputc(c, tossedfile);
+			}
+			fputc('\n', tossedfile);
+		}
+
+		// Update per-node count
+		numReadsPerAssign[treeNum][node]--;
+
+		// Free read data
+		free(readsTreeSorted[treeNum][j]);
+		unsigned long int len = readLengthTemp[treeNum][j];
+		for (unsigned long int p = 0; p < len; p++)
+			free(readLikeTemp[treeNum][j][p]);
+		free(readLikeTemp[treeNum][j]);
+	}
+
+	// Compact arrays in-place (remove tossed slots)
+	unsigned long int w = 0;
+	for (unsigned long int j = 0; j < n; j++)
+	{
+		if (!tossed[j])
+		{
+			readsTreeSorted[treeNum][w] = readsTreeSorted[treeNum][j];
+			readLengthTemp[treeNum][w]  = readLengthTemp[treeNum][j];
+			startposTemp[treeNum][w]    = startposTemp[treeNum][j];
+			tempAssignments[treeNum][w] = tempAssignments[treeNum][j];
+			readLikeTemp[treeNum][w]    = readLikeTemp[treeNum][j];
+			origReadIndex[treeNum][w]   = origReadIndex[treeNum][j];
+			w++;
+		}
+	}
+
+	free(tossed);
+	usedTrees[treeNum] -= (int)toss_count;
+	return toss_count;
+}
+
 // This function merges all the reads that have been assigned to the same node
 void mergeReads(unsigned long int treeNum, unsigned long int refBases)
 {
@@ -4991,6 +5125,9 @@ void read_data(char *assignfile, char *fraclikefile, char *querydatafile, char *
 	// stores number of assignments per edge in a tree
 	numReadsPerAssign = (int **)malloc(numTrees * sizeof(int *));
 
+	// stores original read index (0..numquery-1) for each per-tree read slot
+	origReadIndex = (int **)calloc(numTrees, sizeof(int *));
+
 #pragma omp parallel for schedule(dynamic) reduction(max: totMaxAge)
 	for (unsigned long int treeNum = 0; treeNum < numTrees; treeNum++)
 	{
@@ -5011,6 +5148,7 @@ void read_data(char *assignfile, char *fraclikefile, char *querydatafile, char *
 		readLikeTemp[treeNum] = (double ***)malloc(usedTrees[treeNum] * sizeof(double **));
 		startposTemp[treeNum] = (unsigned long int *)malloc(usedTrees[treeNum] * sizeof(unsigned long int));
 		tempAssignments[treeNum] = (int *)malloc(usedTrees[treeNum] * sizeof(int));
+		origReadIndex[treeNum] = (int *)malloc(usedTrees[treeNum] * sizeof(int));
 
 		sprintf(strTree, "%01lu", treeNum);
 		tempFileName[0] = '\0';
@@ -5320,6 +5458,16 @@ void read_data(char *assignfile, char *fraclikefile, char *querydatafile, char *
 			tronkoAssignmentTesting(treeRoots[treeNum], treeNum);
 		}
 
+		if (toss_root_reads_flag)
+		{
+			int numTossNodes = 0;
+			int *tossNodes = determineTossNodes(treeNum, toss_branches_file, &numTossNodes);
+			unsigned long int n = tossReads(treeNum, tossNodes, numTossNodes);
+			totalTossed += n;
+			printf("Tossed %lu reads from tree %lu\n", n, treeNum);
+			free(tossNodes);
+		}
+
 		// Depending on mode, we don't need to merge! Should make a function/edit mergeReads that just transfers to the correct datastructures for the rest of ratePlacer
 		if (toMerge)
 		{
@@ -5370,10 +5518,17 @@ void read_data(char *assignfile, char *fraclikefile, char *querydatafile, char *
 			free(tempAssignments[i]);
 			printf("Freed tempAssignments[%lu] %p\n", i, tempAssignments[i]);
 		}
+		// Free origReadIndex per-tree
+		for (unsigned long int i2 = 0; i2 < numTrees; i2++)
+		{
+			if (origReadIndex[i2] != NULL)
+				free(origReadIndex[i2]);
+		}
 		free(readLikeTemp);
 
 		free(readsTreeSorted);
 		free(readOrder);
+		free(origReadIndex);
 		free(readLengthTemp);
 		free(startposTemp);
 		free(tempAssignments);
@@ -5518,10 +5673,17 @@ void read_data(char *assignfile, char *fraclikefile, char *querydatafile, char *
 		free(tempAssignments[i]);
 		//printf("Freed tempAssignments[%d] %p\n", i, tempAssignments[i]);
 	}
+	// Free origReadIndex per-tree (may be non-NULL even if usedTrees[i]==0 after tossing)
+	for (unsigned long int i = 0; i < numTrees; i++)
+	{
+		if (origReadIndex[i] != NULL)
+			free(origReadIndex[i]);
+	}
 	free(readLikeTemp);
 
 	free(readsTreeSorted);
 	free(readOrder);
+	free(origReadIndex);
 	free(readLengthTemp);
 	free(startposTemp);
 	free(tempAssignments);
@@ -6992,9 +7154,11 @@ int main(int argc, char *argv[])
 		{"coverage",     required_argument, 0, 'C'},
 		{"threads",      required_argument, 0, 't'},
 		{"write-reads",  no_argument,       0, 'R'},
+		{"toss-root-reads", no_argument,       0, 'T'},
+		{"toss-branches",   required_argument, 0, 'b'},
 		{0, 0, 0, 0}
 	};
-	const char *short_opts = "a:q:l:p:n:m:e:o:A:c:r:k:C:t:R";
+	const char *short_opts = "a:q:l:p:n:m:e:o:A:c:r:k:C:t:Rb:T";
 
 	int opt, option_index = 0;
 	int seen_a=0, seen_q=0, seen_l=0, seen_p=0, seen_n=0,
@@ -7013,6 +7177,8 @@ int main(int argc, char *argv[])
 			case 'e': sprintf(errorfile, "%s", optarg);         seen_e=1; break;
 			case 'o': sprintf(out_prefix, "%s", optarg);        seen_o=1; break;
 		case 'R': write_reads_flag = 1;                      break;
+			case 'T': toss_root_reads_flag = 1;                  break;
+			case 'b': sprintf(toss_branches_file, "%s", optarg); break;
 			case 'A': allTrees = atoi(optarg);                  seen_A=1; break;
 			case 'c': compareAge = atof(optarg);                seen_c=1; break;
 			case 'r': toMerge = atoi(optarg);                   seen_r=1; break;
@@ -7099,6 +7265,13 @@ int main(int argc, char *argv[])
 			readsfile = fopen(reads_path, "w");
 			if (!readsfile) { perror("Cannot open reads file"); exit(1); }
 		}
+
+		if (toss_root_reads_flag) {
+			char tossed_path[512];
+			snprintf(tossed_path, sizeof(tossed_path), "%s.tossed", out_prefix);
+			tossedfile = fopen(tossed_path, "w");
+			if (!tossedfile) { perror("Cannot open tossed reads file"); exit(1); }
+		}
 	}
 
 #ifdef _OPENMP
@@ -7141,6 +7314,9 @@ int main(int argc, char *argv[])
 	fprintf(outfile, "coverage_threshold=%f\n", merge_coverage_threshold);
 	fprintf(outfile, "coverage_mode=%s\n", merge_coverage_mode == MERGE_MODE_BP ? "bp" : "fraction");
 	fprintf(outfile, "num_threads=%d\n", num_threads);
+	fprintf(outfile, "toss_root_reads=%d\n", toss_root_reads_flag);
+	if (toss_branches_file[0] != '\0')
+		fprintf(outfile, "toss_branches_file=%s\n", toss_branches_file);
 
 	numseq = (unsigned long int *)malloc(sizeof(unsigned long int) * numTrees);
 
@@ -7197,6 +7373,8 @@ int main(int argc, char *argv[])
 	read_data(assignfile, fraclikefile, querydatafile, referencedatafile, errorfile, mode, reassign_mode);
 
 	fprintf(outfile, "input_reads=%lu\n", numquery);
+	if (toss_root_reads_flag)
+		fprintf(outfile, "tossed_reads=%lu\n", totalTossed);
 
 	// exit(0);
 
@@ -7223,9 +7401,10 @@ int main(int argc, char *argv[])
 	else
 		printf("Invalid mode. Valid modes are 0-9.\n");
 
-	if (outfile)   fclose(outfile);
-	if (readsfile) fclose(readsfile);
-	if (logfile)   fclose(logfile);
+	if (outfile)    fclose(outfile);
+	if (readsfile)  fclose(readsfile);
+	if (logfile)    fclose(logfile);
+	if (tossedfile) fclose(tossedfile);
 
 	freeNRinits(2);
 	freetreememmory();
