@@ -40,7 +40,8 @@
 // double LRVEC[4][4], RRVEC[4][4], RRVAL[4], PMAT[3][NUMCAT][4][4];
 double **LRVEC, **RRVEC, **RRVAL; //, PMAT[3][NUMCAT][4][4];;
 _Thread_local double PMAT[3 * NUMCAT * 4 * 4];  // I think
-double **statevector, **FRACLIKE, **nodeages, **bls, ***readlike, testAge, **pi, **par, *maxAges, totMaxAge, *assignAges, errorTest, rooted, curAgeBound;
+double **statevector, **FRACLIKE, **nodeages, **bls, ***readlike, **pi, **par, *maxAges, totMaxAge, *assignAges, errorTest, rooted, curAgeBound;
+_Thread_local double testAge = 0.0;
 unsigned long int numbase, numquery, queryagesknown;
 int ***DATA, **QUERYDATA, *assignments, **nodeOrder, *usedReads, *treeAssign, *usedTrees, toMerge;
 unsigned long int *readlength, *startpos;
@@ -3452,6 +3453,11 @@ void get_fractionalike(unsigned long int treeNum)
 	unsigned long long int size = ((long long int)(2 * numseq[treeNum] - 1)) * (long long int)numbases[treeNum] * (long long int)NUMCAT * 8LL;
 
 	FRACLIKE[treeNum] = (double *)calloc(size, sizeof(double));
+	if (FRACLIKE[treeNum] == NULL)
+	{
+		fprintf(stderr, "calloc failed for FRACLIKE[%lu]: requested %llu bytes\n", treeNum, size * (unsigned long long)sizeof(double));
+		exit(-1);
+	}
 
 	ChunkBuf cb;
 	cb.pos = 0; cb.len = 0;
@@ -6237,13 +6243,7 @@ double getlike_ages_rough(double times, double parameters[7])
 
 double getlike_ages(double times, double parameters[7])
 {
-	// age for optimization should be times, is redudant and should fix?
-	// printf("Testing age %.16f in getlike\n", times);
-	testAge = times;
-
-	// printf("get like test age of %.16f\n", testAge);
-
-	if (testAge < 0.0)
+	if (times < 0.0)
 	{
 		return 1000000000.0;
 	}
@@ -6252,13 +6252,7 @@ double getlike_ages(double times, double parameters[7])
 	// May want to make userReads a global, but think after this is implemented and working
 	// TO DO TO DO TO DO!!!!
 	int readStart = parameters[0], i;
-	double eh0 = 3e-8, age_like = 0.0, ageIncr;
-	//for(int j = 0; j < numquery; j++)
-	//{
-	//	brent_invector[j] = nodeages[treeAssign[j]][assignments[j]] + bls[treeAssign[j]][assignments[j]]/2;
-	//}
-
-	//age_like = minimize_brent(brent_invector, numquery, getlike_gamma_root_in_trifucation_sample_age_brent, 10000, &testAge);
+	double eh0 = 3e-8, age_like = 0.0;
 
 	// Compute per-read likelihoods in parallel, store in fixed-indexed array to avoid
 	// floating-point non-associativity from OpenMP reduction ordering.
@@ -6266,12 +6260,11 @@ double getlike_ages(double times, double parameters[7])
 
 	#pragma omp parallel
 	{
-		onDindic = 1; // each worker thread must set its own thread-local copy
+		testAge = times; // each worker thread sets its own TLS copy
+		onDindic = 1;
 		#pragma omp for schedule(dynamic, 1)
-		for (i = readStart; i < numquery; i++)
+		for (i = readStart; i < (int)numquery; i++)
 		{
-			// if(usedReads[i] != 85)
-			//	continue;
 			double p[3], invector[3], lowbound[3], upbound[3];
 			int nfun = 0;
 			p[0] = usedReads[i];
@@ -6375,42 +6368,41 @@ double confidenceIntervalFisher(double **par, double optAge, double optLik, int 
 	// Optimal h ~ eps^(1/4) * |x| ~ 4e-4 * optAge; floor prevents
 	// catastrophic cancellation when optAge is very small.
 	double h = fmax(4e-4 * optAge, 1e-6), f_hx = 0.0, fx_h = 0.0, nSecondDeriv;
-	int i, k, v, nfun;
-	double p[3];
-	double invector[3], lowbound[3], upbound[3], eh0 = 3e-8;
+	double eh0 = 3e-8;
+	int i;
 
-	// Drop any reads that cannot be of test age
-	for (i = readStart; i < numquery; i++)
+	// Each thread handles one read and computes both f(x+h) and f(x-h) for it.
+	// testAge is _Thread_local so each thread sets its own copy safely.
+	#pragma omp parallel reduction(+:f_hx, fx_h) private(i)
 	{
-		p[0] = usedReads[i];
-		p[1] = treeAssign[usedReads[i]];
-		p[2] = assignments[usedReads[i]];
+		onDindic = 1;
+		#pragma omp for schedule(dynamic, 1)
+		for (i = readStart; i < (int)numquery; i++)
+		{
+			double p[3], invector[3], lowbound[3], upbound[3];
+			double bl = bls[treeAssign[usedReads[i]]][assignments[usedReads[i]]];
+			p[0] = usedReads[i];
+			p[1] = treeAssign[usedReads[i]];
+			p[2] = assignments[usedReads[i]];
 
-		nfun = 0;
-		invector[1] = bls[treeAssign[usedReads[i]]][assignments[usedReads[i]]] / 2.0;
-		lowbound[1] = eh0;
-		upbound[1] = bls[treeAssign[usedReads[i]]][assignments[usedReads[i]]] - eh0;
+			invector[1] = bl / 2.0;
+			lowbound[1] = eh0;
+			upbound[1] = bl - eh0;
+			testAge = optAge + h;
+			f_hx += Brent1D(invector, lowbound, upbound, 1, getlike_gamma_root_in_trifurcation_testAge, p, 3);
 
-		// Does there need to be a test if this passes some internal node that reads need to be dropped in?
-		testAge = optAge + h;
-		f_hx += Brent1D(invector, lowbound, upbound, 1, getlike_gamma_root_in_trifurcation_testAge, p, 3);
-
-		invector[1] = bls[treeAssign[usedReads[i]]][assignments[usedReads[i]]] / 2.0;
-		lowbound[1] = eh0;
-		upbound[1] = bls[treeAssign[usedReads[i]]][assignments[usedReads[i]]] - eh0;
-
-		testAge = optAge - h;
-		fx_h += Brent1D(invector, lowbound, upbound, 1, getlike_gamma_root_in_trifurcation_testAge, p, 3);
+			invector[1] = bl / 2.0;
+			lowbound[1] = eh0;
+			upbound[1] = bl - eh0;
+			testAge = optAge - h;
+			fx_h += Brent1D(invector, lowbound, upbound, 1, getlike_gamma_root_in_trifurcation_testAge, p, 3);
+		}
 	}
 
 	// printf("f(x-h): %.16f\nf(x+h):%.16f\nf(x) - f(x-h): %.16f\nf(x) - f(x+h): %.16f\nSec Deriv: %.16f\n", fx_h, f_hx, optLik - fx_h, optLik - f_hx, (2 * optLik - fx_h - f_hx)/(pow(h,2.0)));
 
-	// equivalent to f_hx - 2*f_x + fx_h if getlike_gamma didn't return -Lik
-	// Potentially implement as f_xh - 2 * f_x + fx_h so that -1 already incorporated to take the second derivate for
-	// return((2 * optLik - fx_h - f_hx)/(pow(h,2.0)));
-
 	//-1 * second derivative
-	nSecondDeriv = (f_hx - 2 * optLik + fx_h) / (pow(h, 2.0));
+	nSecondDeriv = (f_hx - 2.0 * optLik + fx_h) / (h * h);
 
 	// printf("%.16f\n", nSecondDeriv);
 
@@ -6638,51 +6630,35 @@ void maximize_like_jointly_for_all2D(double **par, int allTrees)
 
 int reassign_up(int move_node, int treeNum)
 {
-	int i;
-	int assignmentChanged;
 	double move_node_age = nodeages[treeNum][move_node] + bls[treeNum][move_node];
+	int hit_root = 0;
+	int i;
 
-	// printf("Changing assignment of at least node %d in tree %d\n", move_node, treeNum);
-	// printf("Original assignments: ");
-	// for(i = 0; i < numquery; i++)
-	//{
-	//	printf("%d ", assignments[i]);
-	// }
-	// printf("\n");
-
-	// assignmentChanged = getGFLPar(move_node, treeNum);
-
-	// if(assignmentChanged == treeRoots[treeNum])
-	//{
-	//	return(-1);
-	// }
-
-	// printf("New assignments: ");
-	for (i = 0; i < numquery; i++)
+	// getGFLPar is read-only; per-read writes to assignments[i] and assignAges[i]
+	// have no cross-iteration dependency, so the loop is safe to parallelize.
+	// The early-return-on-root is converted to a reduction flag with the same semantics:
+	// the caller only uses the return value to decide whether to stop the outer loop.
+	#pragma omp parallel for schedule(static) reduction(|:hit_root) private(i)
+	for (i = 0; i < (int)numquery; i++)
 	{
 		if (move_node_age >= assignAges[i])
 		{
 			assignments[i] = getGFLPar(assignments[i], treeAssign[i]);
 			assignAges[i] = nodeages[treeAssign[i]][assignments[i]] + bls[treeAssign[i]][assignments[i]];
 			if (assignments[i] == treeRoots[treeAssign[i]])
-			{
-				return (-1);
-			}
+				hit_root = 1;
 		}
-		// printf("%d ", assignments[i]);
 	}
-	// printf("\n");
 
-	// indicate success
-	return (0);
+	return hit_root ? -1 : 0;
 }
 
 void storeOldOrder(int *oldAssign)
 {
-	for (unsigned long int i = 0; i < numquery; i++)
-	{
+	unsigned long int i;
+	#pragma omp parallel for schedule(static) private(i)
+	for (i = 0; i < numquery; i++)
 		oldAssign[i] = assignments[i];
-	}
 }
 
 void maximize_like_jointly_for_all2D_reassign(double **par, int allTrees)
