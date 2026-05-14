@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <math.h>
 #include <ctype.h>
 #include "tools.h"
@@ -10,6 +11,42 @@
 #include <limits.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+
+// --- Open-addressing hash map: uint64_t key -> uint32_t pattern_id ---
+typedef struct {
+	uint64_t *keys;
+	uint32_t *vals;
+	uint8_t  *occ;
+	uint64_t  cap;   // must be a power of 2
+} PatternMap;
+
+static void pmap_init(PatternMap *m, uint64_t cap)
+{
+	m->cap  = cap;
+	m->keys = calloc(cap, sizeof(uint64_t));
+	m->vals = calloc(cap, sizeof(uint32_t));
+	m->occ  = calloc(cap, sizeof(uint8_t));
+}
+
+// Returns 1 if key is new (inserts with value new_val), 0 if already present.
+// Sets *out to the stored value either way.
+static int pmap_get_or_insert(PatternMap *m, uint64_t key, uint32_t new_val, uint32_t *out)
+{
+	uint64_t h = key * 11400714819323198485ULL; // Fibonacci hash
+	uint64_t i = h & (m->cap - 1);
+	while (m->occ[i] && m->keys[i] != key)
+		i = (i + 1) & (m->cap - 1);
+	if (m->occ[i]) { *out = m->vals[i]; return 0; }
+	m->occ[i] = 1; m->keys[i] = key; m->vals[i] = new_val;
+	*out = new_val;
+	return 1;
+}
+
+static void pmap_free(PatternMap *m)
+{
+	free(m->keys); free(m->vals); free(m->occ);
+}
+
 
 #define STATESPACE 4 //for the four nucleotides
 #define NUMCAT 4/*number of categories in the discretization of the gamma for the nucleotide substituion model*/
@@ -42,6 +79,15 @@ struct node {
 
 // initializing tree into global
 struct node *tree;
+
+// Encode site pattern as uint64_t (base+1 packed, base-5 radix).
+static uint64_t encode_pattern(int numleaves, int site)
+{
+	uint64_t code = 0;
+	for (int i = 0; i < numleaves; i++)
+		code = code * 5 + (uint64_t)(tree[i + numleaves - 1].seq[site] + 1);
+	return code;
+}
 
 
 /*subfunction needed by ‘getclade*/
@@ -2095,7 +2141,27 @@ int main(int argc, char *argv[])
 		statevector = malloc(NUMCAT*(sizeof(double)));
 		definegammaquantiles(NUMCAT, alpha, alpha);
 
-		//OPENS THE INFILE FOR PRINITNG THE FRACTIONAL LIKELIHOODS
+		// --- Site pattern compression: first pass over all sites (sequences in memory) ---
+		uint64_t map_cap = 1;
+		while (map_cap < (uint64_t)numbase * 2) map_cap <<= 1;
+		PatternMap pmap;
+		pmap_init(&pmap, map_cap);
+
+		uint32_t *site_to_pattern = malloc((size_t)numbase * sizeof(uint32_t));
+		uint32_t *example_site    = malloc((size_t)numbase * sizeof(uint32_t));
+		uint32_t numPatterns = 0;
+
+		for (int jj = 0; jj < numbase; jj++) {
+			uint64_t key = encode_pattern(numleaves, jj);
+			uint32_t pid;
+			if (pmap_get_or_insert(&pmap, key, numPatterns, &pid))
+				example_site[numPatterns++] = (uint32_t)jj;
+			site_to_pattern[jj] = pid;
+		}
+		pmap_free(&pmap);
+		printf("Tree %d: %u unique site patterns out of %d sites\n", treeNum, numPatterns, numbase);
+
+		//OPENS THE OUTFILE FOR PRINTING THE FRACTIONAL LIKELIHOODS
 		outfilePath[0] = '\0';
 		strcat(outfilePath, outputDir);
 		strcat(outfilePath, "/");
@@ -2105,50 +2171,48 @@ int main(int argc, char *argv[])
 		if (NULL==(outfile=fopen(outfilePath,"w"))){
 			puts("Hmm, cannot open outfile for likelihoods...");
 			exit(-1);}
-		fprintf(outfile,"%i %i %i\n",numleaves,numbase,NUMCAT);
+
+		// Header: numleaves numbase NUMCAT numPatterns (4-field header signals compressed format)
+		fprintf(outfile,"%i %i %i %u\n", numleaves, numbase, NUMCAT, numPatterns);
 		for (i=0; i<NUMCAT; i++)
 			fprintf(outfile,"%.15f ",statevector[i]);
 		fprintf(outfile,"\n");
 
-		//int nodeOrder[2*numleaves-1];
-		//double nodebl[2*numleaves-1], nodeAge[2*numleaves-1];
-
 		nodeOrder = (int*)malloc(sizeof(int) * (2*numleaves-1));
 		nodebl = (double*)malloc(sizeof(double) * (2*numleaves-1));
 		nodeAge = (double*)malloc(sizeof(double) * (2*numleaves-1));
-		find_ages(root, numleaves, nodeOrder, nodeAge, nodebl);//PRINT OUT NODE AGES - MODIFY THIS IF CHANGING NODE LABELING
+		find_ages(root, numleaves, nodeOrder, nodeAge, nodebl);
 
 		maxAge = nodeAge[root + numleaves];
 
-		//maxAge = getMaxAge(root); //go from root to leaves --- may not actually need this function if we already gather it
-		// Thought: Instead of printing within find_ages, we sort and then print to keep likelihood file clean  
-		sort_ages(numleaves, nodeOrder, nodeAge, nodebl);
+		sort_ages(numleaves, nodeOrder, nodeAge, nodebl); // sorts and writes node ages to outfile
 
 		fprintf(outfile, "%.15f\n", maxAge);
 
-		//printf("Starting calculations\n");
-		//LOOPS OVER ALL CATEGORIES OF THE DISCRETIZED GAMMA DISTRIBUTION AND OVER ALL SITES
-		for (i=0; i<NUMCAT; i++) //LOOPS OVER CATEGORIES
+		// Write site->pattern index array (one uint32 per reference site)
+		for (int jj = 0; jj < numbase; jj++)
+			fprintf(outfile, "%u ", site_to_pattern[jj]);
+		fprintf(outfile, "\n");
+
+		//LOOPS OVER ALL CATEGORIES OF THE DISCRETIZED GAMMA DISTRIBUTION AND OVER ALL UNIQUE PATTERNS
+		for (i=0; i<NUMCAT; i++)
 		{
 			if (DEBUG) printf("Calculating fractional likelihoods for category %i with rate %.15f\n",i+1,statevector[i]);
 			fprintf(outfile,"C%i\n",i+1);
-			scale_branch_lengths(numleaves, statevector[i]); //THIS FUNCTION IS RESPONSIBLE FOR SCALING THE BRANCHLENGTHS ACCORIDNG TO THE GAMMA DISCRETIZATION
-			for (j=0; j<numbase; j++){//LOOPS OVER SITES
-				fprintf(outfile,"S%i: ",j+1);
-				get_likes(numleaves, root, j, pi);//CALCULATES THE FRACTIONAL LIKELIHOODS FOR EACH NODE
-				if (DEBUG) check_likecalc(j, numleaves, root, pi);
-				if (DEBUG) printf("Calculated likes for site %i\n",j);
-				if (DEBUG) print_likes(j, numleaves); //prints fractional likelihoods. 
-				printffraclikelihoods(numleaves);//PRINTS THE FRACTIONAL LIKELIHOODS
+			scale_branch_lengths(numleaves, statevector[i]);
+			for (uint32_t p = 0; p < numPatterns; p++) {
+				fprintf(outfile,"S%u: ", p+1);
+				get_likes(numleaves, root, (int)example_site[p], pi);
+				if (DEBUG) printf("Calculated likes for pattern %u (example site %u)\n", p, example_site[p]);
+				printffraclikelihoods(numleaves);
 				fprintf(outfile,"\n");
 			}
-			if (CHECKACCURACY) checkaccuracy(numleaves, numbase, root, pi);//THIS FUNCTION CAN BE USED TO CHECK FOR NUMERICAL PRECISION
+			if (CHECKACCURACY) checkaccuracy(numleaves, numbase, root, pi);
 		}
-		//if (CALCFULLLIKE) calculate_full_likelihood(root, numbase, numleaves, pi);
-
-		//printtree(numleaves, root);
 
 		fclose(outfile);
+		free(site_to_pattern);
+		free(example_site);
 		free(statevector);
 		freetreememmory(numleaves);
 		free(nodeOrder);

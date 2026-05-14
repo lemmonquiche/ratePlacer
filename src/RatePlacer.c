@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 #include <math.h>
 #include <ctype.h>
@@ -54,8 +55,12 @@ long numTrees;
 
 // temps for processing of reads
 int ***readsTreeSorted, *readOrder, **origReadIndex, **tempAssignments, **numReadsPerAssign;
-unsigned long int *numbases, **readLengthTemp, **startposTemp, tempnumquery;
+unsigned long int *numbases, *numPatterns, **readLengthTemp, **startposTemp, tempnumquery;
+uint32_t **SITE_PATTERN;  // [treeNum][site] -> pattern_id; NULL per tree if uncompressed
 double ****readLikeTemp;
+
+// Resolves site i to its FRACLIKE pattern index (transparent for uncompressed files)
+#define SITE_PAT(t, i) (SITE_PATTERN[t] ? SITE_PATTERN[t][i] : (uint32_t)(i))
 
 _Thread_local int tip, comma = 0; /*globals used to read in the tree. Old code - don't ask.*/
 
@@ -1826,10 +1831,7 @@ double getlike_gamma_root_in_trifurcation(double times[3], double parameters[7])
 	//FRACLIKE_ptr = &FRACLIKE[treeNum][node * numbases[treeNum] * NUMCAT * 8 + startpos[seq] * NUMCAT * 8];
 	// printf("%d\t%d\n", numbases[treeNum], node * numbases[treeNum] * NUMCAT * 8 + startpos[seq] * NUMCAT * 8);
 	// FRACLIKE[treeNum][k * numbase * NUMCAT * 8 + j * NUMCAT * 8 + i * 8 + v] = a;
-	unsigned long long int size = ((unsigned long long)node) * ((unsigned long long)numbases[treeNum]) * ((unsigned long long)NUMCAT) * 8ULL
-                           + ((unsigned long long)startpos[seq]) * ((unsigned long long)NUMCAT) * 8ULL;
-	//printf("FRACLIKE index 4: %d vs %llu\n", node * numbases[treeNum] * NUMCAT * 8 + startpos[seq] * NUMCAT * 8, size);
-	FRACLIKE_ptr = &FRACLIKE[treeNum][size];
+	double *node_base = &FRACLIKE[treeNum][(unsigned long long)node * numPatterns[treeNum] * NUMCAT * 8];
 
 	// printf("Sequence %d\n", seq);
 
@@ -1842,11 +1844,12 @@ double getlike_gamma_root_in_trifurcation(double times[3], double parameters[7])
 
 		if (b == -1)
 		{
-			FRACLIKE_ptr += 32; // NUMCAT (4) * 8;
+			/* gap: no FRACLIKE access */
 		}
-		// if (b!=-1){
+		// if (b!=-1):
 		else
 		{
+			FRACLIKE_ptr = node_base + (unsigned long long)SITE_PAT(treeNum, i) * NUMCAT * 8;
 			// PMAT_ptr_0 = PMAT; 		//0*NUMCAT*4*4
 			PMAT_ptr_1 = &PMAT[64];	 // 1*NUMCAT(4)*4*4
 			PMAT_ptr_2 = &PMAT[128]; // 2*NUMCAT(4)*4*4
@@ -1959,9 +1962,7 @@ double getlike_gamma_root_in_trifurcation_brent(double times[], void *extra_data
 	make_transition_prob_matrices(t, treeNum);
 
 	Like = 0.0;
-	unsigned long long int size = ((unsigned long long)node) * ((unsigned long long)numbases[treeNum]) * ((unsigned long long)NUMCAT) * 8ULL
-                           + ((unsigned long long)startpos[seq]) * ((unsigned long long)NUMCAT) * 8ULL;
-	FRACLIKE_ptr = &FRACLIKE[treeNum][size];
+	double *node_base = &FRACLIKE[treeNum][(unsigned long long)node * numPatterns[treeNum] * NUMCAT * 8];
 
 	for (i = startpos[seq]; i < readlength[seq] + startpos[seq]; i++)
 	{
@@ -1970,10 +1971,11 @@ double getlike_gamma_root_in_trifurcation_brent(double times[], void *extra_data
 
 		if (b == -1)
 		{
-			FRACLIKE_ptr += 32; // NUMCAT (4) * 8;
+			/* gap: no FRACLIKE access */
 		}
 		else
 		{
+			FRACLIKE_ptr = node_base + (unsigned long long)SITE_PAT(treeNum, i) * NUMCAT * 8;
 			PMAT_ptr_1 = &PMAT[64];	 // 1*NUMCAT(4)*4*4
 			PMAT_ptr_2 = &PMAT[128]; // 2*NUMCAT(4)*4*4
 			for (j = 0; j < NUMCAT; j++)
@@ -2095,10 +2097,7 @@ double getlike_gamma_root_in_trifucation_single_read_brent(double times[], void 
 	Like = 0.0;
 	//FRACLIKE_ptr = &FRACLIKE[treeNum][node * numbases[treeNum] * NUMCAT * 8 + startpos[seq] * NUMCAT * 8];
 	// printf("%d\t%d\n", numbases[treeNum], node * numbases[treeNum] * NUMCAT * 8 + startpos[seq] * NUMCAT * 8);
-	unsigned long long int size = ((unsigned long long)node) * ((unsigned long long)numbases[treeNum]) * ((unsigned long long)NUMCAT) * 8ULL
-	                            + ((unsigned long long)startpos[seq]) * ((unsigned long long)NUMCAT) * 8ULL;
-	// printf("FRACLIKE index 5: %d vs %llu\n", node * numbases[treeNum] * NUMCAT * 8 + startpos[seq] * NUMCAT * 8, size);
-	FRACLIKE_ptr = &FRACLIKE[treeNum][size];
+	double *node_base = &FRACLIKE[treeNum][(unsigned long long)node * numPatterns[treeNum] * NUMCAT * 8];
 
 	// printf("Sequence %d\n", seq);
 
@@ -2111,11 +2110,12 @@ double getlike_gamma_root_in_trifucation_single_read_brent(double times[], void 
 
 		if (b == -1)
 		{
-			FRACLIKE_ptr += 32; // NUMCAT (4) * 8;
+			/* gap: no FRACLIKE access */
 		}
-		// if (b!=-1){
+		// if (b!=-1):
 		else
 		{
+			FRACLIKE_ptr = node_base + (unsigned long long)SITE_PAT(treeNum, i) * NUMCAT * 8;
 			// PMAT_ptr_0 = PMAT; 		//0*NUMCAT*4*4
 			PMAT_ptr_1 = &PMAT[64];	 // 1*NUMCAT(4)*4*4
 			PMAT_ptr_2 = &PMAT[128]; // 2*NUMCAT(4)*4*4
@@ -2232,22 +2232,7 @@ double getlike_gamma_root_in_trifucation_single_read_brent_reassign(double times
 	// fraclike pointer starts where the read starts in the alignment at the right node
 	//FRACLIKE_ptr = &FRACLIKE[treeNum][node * numbases[treeNum] * NUMCAT * 8 + startposTemp[treeNum][seq] * NUMCAT * 8];
 
-	unsigned long long int size = ((unsigned long long)node) * ((unsigned long long)numbases[treeNum]) * ((unsigned long long)NUMCAT) * 8ULL
-	                            + ((unsigned long long)startposTemp[treeNum][seq]) * ((unsigned long long)NUMCAT) * 8ULL;
-
-	// printf("FRACLIKE index 6: %d vs %llu\n", node * numbases[treeNum] * NUMCAT * 8 + startposTemp[treeNum][seq] * NUMCAT * 8, size);
-	FRACLIKE_ptr = &FRACLIKE[treeNum][size];
-
-	//for(k = 0; k < 4; k++)
-	//{
-	//	for(v = 0; v < 4; v++)
-	//	{
-	//		printf("PMAT[0][0][%d][%d]: %.16f\t", k, v, PMAT[k * 4 + v]);
-	//	}
-	//	printf("\n");
-	//}
-
-	//exit(0);
+	double *node_base = &FRACLIKE[treeNum][(unsigned long long)node * numPatterns[treeNum] * NUMCAT * 8];
 
 	for (i = startposTemp[treeNum][seq]; i < readLengthTemp[treeNum][seq] + startposTemp[treeNum][seq]; i++)
 	{
@@ -2258,11 +2243,12 @@ double getlike_gamma_root_in_trifucation_single_read_brent_reassign(double times
 
 		if (b == -1)
 		{
-			FRACLIKE_ptr += 32; // NUMCAT(4) * 8;
+			/* gap: no FRACLIKE access */
 		}
 		else
 		{
-			// if (b!=-1){
+			FRACLIKE_ptr = node_base + (unsigned long long)SITE_PAT(treeNum, i) * NUMCAT * 8;
+			// if (b!=-1):
 			// PMAT_ptr_0 = PMAT; 		//0*NUMCAT*4*4
 			PMAT_ptr_1 = &PMAT[64];	 // 1*NUMCAT(4)*4*4
 			PMAT_ptr_2 = &PMAT[128]; // 2*NUMCAT(4)*4*4
@@ -2464,10 +2450,7 @@ double getlike_gamma_root_in_trifucation_sample_age_brent(double parameters[], v
 
 		//FRACLIKE_ptr = &FRACLIKE[*tree_ptr][*assign_ptr * numbases[*tree_ptr] * NUMCAT * 8 + *startpos_ptr * NUMCAT * 8];
 
-		unsigned long long int size = ((unsigned long long)*assign_ptr) * ((unsigned long long)numbases[*tree_ptr]) * ((unsigned long long)NUMCAT) * 8ULL
-		                           + ((unsigned long long)*startpos_ptr) * ((unsigned long long)NUMCAT) * 8ULL;
-		// printf("FRACLIKE index 7: %d vs %llu\n", *assign_ptr * numbases[*tree_ptr] * NUMCAT * 8 + *startpos_ptr * NUMCAT * 8, size);
-		FRACLIKE_ptr = &FRACLIKE[*tree_ptr][size];
+		double *node_base = &FRACLIKE[*tree_ptr][(unsigned long long)*assign_ptr * numPatterns[*tree_ptr] * NUMCAT * 8];
 
 		for(unsigned long int i = *startpos_ptr; i < *readlength_ptr + *startpos_ptr; i++)
 		{
@@ -2476,10 +2459,11 @@ double getlike_gamma_root_in_trifucation_sample_age_brent(double parameters[], v
 
 			if(b == -1)
 			{
-				FRACLIKE_ptr += 32; // NUMCAT (4) * 8;
+				/* gap: no FRACLIKE access */
 			}
 			else
 			{
+				FRACLIKE_ptr = node_base + (unsigned long long)SITE_PAT(*tree_ptr, i) * NUMCAT * 8;
 				// PMAT_ptr_0 = PMAT; 		//0*NUMCAT*4*4
 				PMAT_ptr_1 = &PMAT[64];	 // 1*NUMCAT(4)*4*4
 				PMAT_ptr_2 = &PMAT[128]; // 2*NUMCAT(4)*4*4
@@ -2594,13 +2578,7 @@ double getlike_gamma_root_in_trifurcation_reassign(double times[3], double param
 	// fraclike pointer starts where the read starts in the alignment at the right node
 	//FRACLIKE_ptr = &FRACLIKE[treeNum][node * numbases[treeNum] * NUMCAT * 8 + startposTemp[treeNum][seq] * NUMCAT * 8];
 
-	unsigned long long int size = ((unsigned long long)node) * ((unsigned long long)numbases[treeNum]) * ((unsigned long long)NUMCAT) * 8ULL
-						+ ((unsigned long long)startposTemp[treeNum][seq]) * ((unsigned long long)NUMCAT) * 8ULL;
-
-	// printf("FRACLIKE index 8: %d vs %llu\n", node * numbases[treeNum] * NUMCAT * 8 + startposTemp[treeNum][seq] * NUMCAT * 8, size);
-	FRACLIKE_ptr = &FRACLIKE[treeNum][size];
-	// printf("%d\t%d\n", numbases[treeNum],node * numbases[treeNum] * NUMCAT * 8 + startposTemp[treeNum][seq] * NUMCAT * 8);
-	//  printf("Sequence %d\n", seq);
+	double *node_base = &FRACLIKE[treeNum][(unsigned long long)node * numPatterns[treeNum] * NUMCAT * 8];
 
 	for (i = startposTemp[treeNum][seq]; i < readLengthTemp[treeNum][seq] + startposTemp[treeNum][seq]; i++)
 	{
@@ -2612,11 +2590,12 @@ double getlike_gamma_root_in_trifurcation_reassign(double times[3], double param
 
 		if (b == -1)
 		{
-			FRACLIKE_ptr += 32; // NUMCAT(4) * 8;
+			/* gap: no FRACLIKE access */
 		}
 		else
 		{
-			// if (b!=-1){
+			FRACLIKE_ptr = node_base + (unsigned long long)SITE_PAT(treeNum, i) * NUMCAT * 8;
+			// if (b!=-1):
 			// PMAT_ptr_0 = PMAT; 		//0*NUMCAT*4*4
 			PMAT_ptr_1 = &PMAT[64];	 // 1*NUMCAT(4)*4*4
 			PMAT_ptr_2 = &PMAT[128]; // 2*NUMCAT(4)*4*4
@@ -2761,10 +2740,7 @@ double getlike_gamma_root_in_trifurcation_Print_Lik(double times[3], double para
 
 	// fraclike pointer starts where the read starts in the alignment at the right node
 	//FRACLIKE_ptr = &FRACLIKE[treeNum][node * numbases[treeNum] * NUMCAT * 8 + startpos[seq] * NUMCAT * 8];
-	unsigned long long int size = ((unsigned long long)node) * ((unsigned long long)numbases[treeNum]) * ((unsigned long long)NUMCAT) * 8ULL
-    									+ ((unsigned long long)startpos[seq]) * ((unsigned long long)NUMCAT) * 8ULL;
-	// printf("FRACLIKE index 9: %d vs %llu\n", node * numbases[treeNum] * NUMCAT * 8 + startpos[seq] * NUMCAT * 8, size);
-	FRACLIKE_ptr = &FRACLIKE[treeNum][size];
+	double *node_base = &FRACLIKE[treeNum][(unsigned long long)node * numPatterns[treeNum] * NUMCAT * 8];
 
 	// printf("Sequence %d\n", seq);
 
@@ -2777,10 +2753,11 @@ double getlike_gamma_root_in_trifurcation_Print_Lik(double times[3], double para
 
 		if (b == -1)
 		{
-			FRACLIKE_ptr += 32; // NUMCAT (4) * 8
+			/* gap: no FRACLIKE access */
 		}
 		else
 		{
+			FRACLIKE_ptr = node_base + (unsigned long long)SITE_PAT(treeNum, i) * NUMCAT * 8;
 			// PMAT_ptr_0 = PMAT; 		//0*NUMCAT*4*4
 			PMAT_ptr_1 = &PMAT[64];	 // 1*NUMCAT*4*4 (4 * 4 * 4)
 			PMAT_ptr_2 = &PMAT[128]; // 2*NUMCAT*4*4 (2 * 4 * 4 * 4)
@@ -2887,9 +2864,7 @@ double getlike_gamma_root_in_trifurcation_Print_Lik_brent(double times[], void *
 	make_transition_prob_matrices(t, treeNum);
 
 	Like = 0.0;
-	unsigned long long int size = ((unsigned long long)node) * ((unsigned long long)numbases[treeNum]) * ((unsigned long long)NUMCAT) * 8ULL
-    								+ ((unsigned long long)startpos[seq]) * ((unsigned long long)NUMCAT) * 8ULL;
-	FRACLIKE_ptr = &FRACLIKE[treeNum][size];
+	double *node_base = &FRACLIKE[treeNum][(unsigned long long)node * numPatterns[treeNum] * NUMCAT * 8];
 
 	for (i = startpos[seq]; i < readlength[seq] + startpos[seq]; i++)
 	{
@@ -2898,10 +2873,11 @@ double getlike_gamma_root_in_trifurcation_Print_Lik_brent(double times[], void *
 
 		if (b == -1)
 		{
-			FRACLIKE_ptr += 32; // NUMCAT (4) * 8
+			/* gap: no FRACLIKE access */
 		}
 		else
 		{
+			FRACLIKE_ptr = node_base + (unsigned long long)SITE_PAT(treeNum, i) * NUMCAT * 8;
 			PMAT_ptr_1 = &PMAT[64];	 // 1*NUMCAT*4*4 (4 * 4 * 4)
 			PMAT_ptr_2 = &PMAT[128]; // 2*NUMCAT*4*4 (2 * 4 * 4 * 4)
 			for (j = 0; j < NUMCAT; j++)
@@ -3000,10 +2976,7 @@ double getlike_gamma_root_in_trifurcation_Print(double times[3], double paramete
 	Like = 0.0;
 	// fraclike pointer starts where the read starts in the alignment at the right node
 	//FRACLIKE_ptr = &FRACLIKE[treeNum][node * numbases[treeNum] * NUMCAT * 8 + startpos[seq] * NUMCAT * 8];
-	unsigned long long int size = ((unsigned long long)node) * ((unsigned long long)numbases[treeNum]) * ((unsigned long long)NUMCAT) * 8ULL
- 	                         + ((unsigned long long)startpos[seq]) * ((unsigned long long)NUMCAT) * 8ULL;
-	// printf("FRACLIKE index 10: %d vs %llu\n", node * numbases[treeNum] * NUMCAT * 8 + startpos[seq] * NUMCAT * 8, size);
-	FRACLIKE_ptr = &FRACLIKE[treeNum][size];
+	double *node_base = &FRACLIKE[treeNum][(unsigned long long)node * numPatterns[treeNum] * NUMCAT * 8];
 
 	for (i = startpos[seq]; i < readlength[seq] + startpos[seq]; i++)
 	{
@@ -3012,10 +2985,11 @@ double getlike_gamma_root_in_trifurcation_Print(double times[3], double paramete
 
 		if (b == -1)
 		{
-			FRACLIKE_ptr += 32; // NUMCAT(4) * 8;
+			/* gap: no FRACLIKE access */
 		}
 		else
 		{
+			FRACLIKE_ptr = node_base + (unsigned long long)SITE_PAT(treeNum, i) * NUMCAT * 8;
 			// PMAT_ptr_0 = PMAT; 		//0*NUMCAT*4*4
 			PMAT_ptr_1 = &PMAT[64];	 // 1*NUMCAT(4)*4*4
 			PMAT_ptr_2 = &PMAT[128]; // 2*NUMCAT(4)*4*4
@@ -3062,6 +3036,7 @@ double getlike_gamma_root_in_trifurcation_Print(double times[3], double paramete
 						{
 							A[v] = *PMAT_ptr_2 + *FRACLIKE_ptr;
 							PMAT_ptr_2++;
+							FRACLIKE_ptr++;
 						}
 						B[k] += logSumExp(A);
 						FRACLIKE_ptr -= 4;
@@ -3450,7 +3425,7 @@ void get_fractionalike(unsigned long int treeNum)
 	char c;
 	unsigned long long idx;
 
-	unsigned long long int size = ((long long int)(2 * numseq[treeNum] - 1)) * (long long int)numbases[treeNum] * (long long int)NUMCAT * 8LL;
+	unsigned long long int size = ((long long int)(2 * numseq[treeNum] - 1)) * (long long int)numPatterns[treeNum] * (long long int)NUMCAT * 8LL;
 
 	FRACLIKE[treeNum] = (double *)calloc(size, sizeof(double));
 	if (FRACLIKE[treeNum] == NULL)
@@ -3477,7 +3452,7 @@ void get_fractionalike(unsigned long int treeNum)
 			printf("error reading fractional likelihoods (c%i: %i != %i)\n", i, inin, i + 1);
 			exit(-1);
 		}
-		for (j = 0; j < numbases[treeNum]; j++)
+		for (j = 0; j < (int)numPatterns[treeNum]; j++)
 		{
 			c = cbuf_next_nonws(&cb, infile);
 			if (c != 'S')
@@ -3503,7 +3478,7 @@ void get_fractionalike(unsigned long int treeNum)
 			{
 				for (v = 0; v < 4; v++)
 				{
-					idx = ((unsigned long long)k) * numbases[treeNum] * NUMCAT * 8
+					idx = ((unsigned long long)k) * numPatterns[treeNum] * NUMCAT * 8
 					    + ((unsigned long long)j) * NUMCAT * 8
 					    + ((unsigned long long)i) * 8
 					    + v;
@@ -3517,7 +3492,7 @@ void get_fractionalike(unsigned long int treeNum)
 				// For fractional likelihood
 				for (v = 0; v < 4; v++)
 				{
-					idx = ((unsigned long long)k) * numbases[treeNum] * NUMCAT * 8
+					idx = ((unsigned long long)k) * numPatterns[treeNum] * NUMCAT * 8
 					    + ((unsigned long long)j) * NUMCAT * 8
 					    + ((unsigned long long)i) * 8
 					    + v;
@@ -3527,7 +3502,7 @@ void get_fractionalike(unsigned long int treeNum)
 				// For conditional likelihood
 				for (v = 0; v < 4; v++)
 				{
-					idx = ((unsigned long long)k) * numbases[treeNum] * NUMCAT * 8
+					idx = ((unsigned long long)k) * numPatterns[treeNum] * NUMCAT * 8
 					    + ((unsigned long long)j) * NUMCAT * 8
 					    + ((unsigned long long)i) * 8
 					    + v + 4;
@@ -5109,6 +5084,12 @@ void read_data(char *assignfile, char *fraclikefile, char *querydatafile, char *
 	// stores length of reference in each tree
 	numbases = (unsigned long int *)malloc(numTrees * sizeof(unsigned long int));
 
+	// stores unique pattern count per tree (equals numbases for uncompressed files)
+	numPatterns = (unsigned long int *)malloc(numTrees * sizeof(unsigned long int));
+
+	// stores site->pattern index per tree (NULL if uncompressed)
+	SITE_PATTERN = (uint32_t **)calloc(numTrees, sizeof(uint32_t *));
+
 	// stores the length of each read grouped by tree
 	readLengthTemp = (unsigned long int **)malloc(numTrees * sizeof(unsigned long int *));
 
@@ -5138,7 +5119,7 @@ void read_data(char *assignfile, char *fraclikefile, char *querydatafile, char *
 #pragma omp parallel for schedule(dynamic) reduction(max: totMaxAge)
 	for (unsigned long int treeNum = 0; treeNum < numTrees; treeNum++)
 	{
-		int i, j, k, v, numcat, fd;
+		int i, j, k, v, numcat, fd, is_compressed;
 		double a, b, checksum;
 		char tempFileName[500], strTree[500];
 		unsigned long int numbase_local;
@@ -5171,10 +5152,21 @@ void read_data(char *assignfile, char *fraclikefile, char *querydatafile, char *
 		fd = fileno(infile);
 		posix_fadvise(fd, 0, 0, POSIX_FADV_SEQUENTIAL);
 
-		// line 1
+		// line 1 — 3 fields = uncompressed, 4 fields = site-pattern-compressed
 		//  THERE IS AN ASSUMPTION THAT NUMBASE AND NUMCAT ALWAYS THE SAME, SHOULD MAKE A CHECK FOR THAT
-		(void)fscanf(infile, "%lu %lu %i\n", &numseq[treeNum], &numbase_local, &numcat);
-		numbases[treeNum] = numbase_local;
+		{
+			char hdr_line[256];
+			if (fgets(hdr_line, sizeof(hdr_line), infile) == NULL) {
+				printf("Error reading likelihood file header\n"); exit(-1);
+			}
+			unsigned long int np_read = 0;
+			int fields = sscanf(hdr_line, "%lu %lu %i %lu",
+			                    &numseq[treeNum], &numbase_local, &numcat, &np_read);
+			numbases[treeNum]    = numbase_local;
+			is_compressed        = (fields == 4);
+			numPatterns[treeNum] = is_compressed ? np_read : numbase_local;
+			SITE_PATTERN[treeNum] = NULL;
+		}
 		if (VERBOSE)
 			printf("Reading in fractional likelihoods for %lu sequences\n", numseq[treeNum]);
 		if (NUMCAT != numcat)
@@ -5220,7 +5212,14 @@ void read_data(char *assignfile, char *fraclikefile, char *querydatafile, char *
 
 		(void)fscanf(infile, "%lf", &maxAges[treeNum]);
 		// printf("%.16f\n", maxAges[treeNum]);
-		// if(treeNum > 0 && maxAges[treeNum] > totMaxAge)
+
+		// compressed format: read site->pattern index array
+		if (is_compressed) {
+			SITE_PATTERN[treeNum] = malloc(numbases[treeNum] * sizeof(uint32_t));
+			for (unsigned long jj = 0; jj < numbases[treeNum]; jj++)
+				(void)fscanf(infile, "%u", &SITE_PATTERN[treeNum][jj]);
+		}
+
 		if (maxAges[treeNum] > totMaxAge)
 		{
 			totMaxAge = maxAges[treeNum];
@@ -7144,8 +7143,13 @@ void freeData()
 	free(usedReads);
 
 	free(numbases);
+	free(numPatterns);
 	free(treeRoots);
 	free(maxAges);
+
+	for (long i = 0; i < numTrees; i++)
+		free(SITE_PATTERN[i]);
+	free(SITE_PATTERN);
 
 	// More complex frees
 	for (unsigned long int i = 0; i < numquery; i++)
