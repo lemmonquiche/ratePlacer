@@ -215,7 +215,7 @@ int getnodenumb()
 /*some old code for reading a Newick tree*/
 int getclade(int numleaves, int treeNum)
 {
-	int n1, n2, n3;
+	int n1 = 0, n2 = 0, n3 = 0;
 	char ch;
 
 	do
@@ -266,7 +266,7 @@ void allocatetreememmory(int numleaves, unsigned long int treeNum)
 	int i;
 
 	// Number of nodes based off full binary tree
-	trees[treeNum] = malloc((numleaves * 2 - 1) * (sizeof(struct node)));
+	trees[treeNum] = calloc((numleaves * 2 - 1), sizeof(struct node));
 }
 
 void freetreememmory(void)
@@ -395,6 +395,7 @@ void getGFLParSib(int curNode, int parSib[3], unsigned long int treeNum)
 		{
 			parSib[1] = -1;
 			parSib[2] = -1;
+			return;
 		}
 	}
 
