@@ -292,7 +292,7 @@ void printtree(int numleaves, int root, unsigned long int treeNum)
 	{
 		for (unsigned long int j = 0; j < numTrees; j++)
 		{
-			if (usedTrees != 0)
+			if (usedTrees[j] != 0)
 			{
 				printf("\nPRINTING TREE %lu\n", treeNum);
 				for (i = 0; i < 2 * numleaves - 1; i++)
@@ -1902,10 +1902,8 @@ double getlike_gamma_root_in_trifurcation(double times[3], double parameters[7])
 					else
 					{ // If leaf node
 						if ((c = DATA[treeNum][node][i]) > -1)
-						{
 							B[k] += *(PMAT_ptr_1 + c);
-							PMAT_ptr_1 += 4;
-						}
+						PMAT_ptr_1 += 4;
 						for (v = 0; v < 4; v++) // add position here into fraclike
 						{
 							// printf("\t\t\t\t\tPMAT[2] is %.16f and FRACLIKE[%d] is %.16f\n", *PMAT_ptr_2, v, FRACLIKE[treeNum][i][node][j][v]);
@@ -2010,10 +2008,8 @@ double getlike_gamma_root_in_trifurcation_brent(double times[], void *extra_data
 					else
 					{ // If leaf node
 						if ((c = DATA[treeNum][node][i]) > -1)
-						{
 							B[k] += *(PMAT_ptr_1 + c);
-							PMAT_ptr_1 += 4;
-						}
+						PMAT_ptr_1 += 4;
 						for (v = 0; v < 4; v++)
 						{
 							A[v] = *PMAT_ptr_2 + *FRACLIKE_ptr;
@@ -2167,10 +2163,8 @@ double getlike_gamma_root_in_trifucation_single_read_brent(double times[], void 
 					else
 					{ // If leaf node
 						if ((c = DATA[treeNum][node][i]) > -1)
-						{
 							B[k] += *(PMAT_ptr_1 + c);
-							PMAT_ptr_1 += 4;
-						}
+						PMAT_ptr_1 += 4;
 						for (v = 0; v < 4; v++) // add position here into fraclike
 						{
 							// printf("\t\t\t\t\tPMAT[2] is %.16f and FRACLIKE[%d] is %.16f\n", *PMAT_ptr_2, v, FRACLIKE[treeNum][i][node][j][v]);
@@ -2308,11 +2302,9 @@ double getlike_gamma_root_in_trifucation_single_read_brent_reassign(double times
 					else
 					{ // If leaf node
 						if ((c = DATA[treeNum][node][i]) > -1)
-						{
 							B[k] += *(PMAT_ptr_1 + c);
 							// printf("%.16f\t%d %d\n", *(PMAT_ptr_1 + c), c, 5-c);
-							PMAT_ptr_1 += 4;
-						}
+						PMAT_ptr_1 += 4;
 						for (v = 0; v < 4; v++) // add position here into fraclike
 						{
 							// printf("\t\t\t\t\tPMAT[2] is %.16f and FRACLIKE[%d] is %.16f\n", *PMAT_ptr_2, v, FRACLIKE[treeNum][i][node][j][v]);
@@ -2377,6 +2369,7 @@ double getlike_gamma_root_in_trifucation_single_read_brent_reassign_trans(double
 // parameters[0-(n-1)] is the placements of each read
 // parameters[n] is the age
 // Branch lengths of the read must be calculated based on the age and placement of the reads
+#if 0 /* dead code: pi[b] bug (should be pi[v]), no active callers */
 double getlike_gamma_root_in_trifucation_sample_age_brent(double parameters[], void *extra_data)
 {
 	double branch_lengths[numquery];
@@ -2542,7 +2535,9 @@ double getlike_gamma_root_in_trifucation_sample_age_brent(double parameters[], v
 
 	return -Like; // Notice: a scaling factor of NUMCAT^(number of sites) is missing
 }
+#endif /* re-enable to restore */
 
+#if 0 /* dead code: PMAT b*4 bug, no active callers */
 double getlike_gamma_root_in_trifurcation_reassign(double times[3], double parameters[7])
 {
 	int i, j, k, b, c, v, po, node, seq, treeNum;
@@ -2650,11 +2645,9 @@ double getlike_gamma_root_in_trifurcation_reassign(double times[3], double param
 					else
 					{ // If leaf node
 						if ((c = DATA[treeNum][node][i]) > -1)
-						{
 							B[k] += *(PMAT_ptr_1 + c);
 							// printf("%.16f\t%d %d\n", *(PMAT_ptr_1 + c), c, 5-c);
-							PMAT_ptr_1 += 4;
-						}
+						PMAT_ptr_1 += 4;
 						for (v = 0; v < 4; v++) // add position here into fraclike
 						{
 							// printf("\t\t\t\t\tPMAT[2] is %.16f and FRACLIKE[%d] is %.16f\n", *PMAT_ptr_2, v, FRACLIKE[treeNum][i][node][j][v]);
@@ -2690,6 +2683,7 @@ double getlike_gamma_root_in_trifurcation_reassign(double times[3], double param
 
 	return -Like; // Notice: a scaling factor of NUMCAT^(number of sites) is missing
 }
+#endif /* re-enable to restore */
 
 double getlike_gamma_root_in_trifurcation_Print_Lik(double times[3], double parameters[7])
 {
@@ -2764,7 +2758,7 @@ double getlike_gamma_root_in_trifurcation_Print_Lik(double times[3], double para
 			PMAT_ptr_2 = &PMAT[128]; // 2*NUMCAT*4*4 (2 * 4 * 4 * 4)
 			for (j = 0; j < NUMCAT; j++)
 			{
-				PMAT_ptr_0 = &PMAT[j * 16 + b * 4];
+				PMAT_ptr_0 = &PMAT[j * 16];
 				// printf("\t\tj: %d\n", j);
 				for (k = 0; k < 4; k++)
 				{
@@ -2806,10 +2800,8 @@ double getlike_gamma_root_in_trifurcation_Print_Lik(double times[3], double para
 					else
 					{ // If leaf node
 						if ((c = DATA[treeNum][node][i]) > -1)
-						{
 							B[k] += *(PMAT_ptr_1 + c);
-							PMAT_ptr_1 += 4;
-						}
+						PMAT_ptr_1 += 4;
 						for (v = 0; v < 4; v++) // add position here into fraclike
 						{
 							// printf("\t\t\t\t\tPMAT[2] is %.16f and FRACLIKE[%d] is %.16f\n", PMAT[2][j][k][v], v, FRACLIKE[treeNum][i][node][j][v]);
@@ -2883,7 +2875,7 @@ double getlike_gamma_root_in_trifurcation_Print_Lik_brent(double times[], void *
 			PMAT_ptr_2 = &PMAT[128]; // 2*NUMCAT*4*4 (2 * 4 * 4 * 4)
 			for (j = 0; j < NUMCAT; j++)
 			{
-				PMAT_ptr_0 = &PMAT[j * 16 + b * 4];
+				PMAT_ptr_0 = &PMAT[j * 16];
 				for (k = 0; k < 4; k++)
 				{
 					for (v = 0; v < 4; v++)
@@ -2912,10 +2904,8 @@ double getlike_gamma_root_in_trifurcation_Print_Lik_brent(double times[], void *
 					else
 					{ // If leaf node
 						if ((c = DATA[treeNum][node][i]) > -1)
-						{
 							B[k] += *(PMAT_ptr_1 + c);
-							PMAT_ptr_1 += 4;
-						}
+						PMAT_ptr_1 += 4;
 						for (v = 0; v < 4; v++)
 						{
 							A[v] = *PMAT_ptr_2 + *FRACLIKE_ptr;
@@ -2997,7 +2987,7 @@ double getlike_gamma_root_in_trifurcation_Print(double times[3], double paramete
 
 			for (j = 0; j < NUMCAT; j++)
 			{
-				PMAT_ptr_0 = &PMAT[j * 4 * 4 + b * 4];
+				PMAT_ptr_0 = &PMAT[j * 4 * 4];
 				for (k = 0; k < 4; k++)
 				{
 					for (v=0; v<4; v++)
@@ -3029,10 +3019,8 @@ double getlike_gamma_root_in_trifurcation_Print(double times[3], double paramete
 					else
 					{ // If leaf node
 						if ((c = DATA[treeNum][node][i]) > -1)
-						{
 							B[k] += *(PMAT_ptr_1 + c);
-							PMAT_ptr_1 += 4;
-						}
+						PMAT_ptr_1 += 4;
 						for (v = 0; v < 4; v++) // add position here into fraclike
 						{
 							A[v] = *PMAT_ptr_2 + *FRACLIKE_ptr;
@@ -3064,6 +3052,7 @@ double getlike_gamma_root_in_trifurcation_L0(double times[3], double parameters[
 	return getlike_gamma_root_in_trifurcation(T, parameters);
 }
 
+#if 0 /* dead code: calls getlike_gamma_root_in_trifurcation_reassign which is disabled */
 double getlike_gamma_root_in_trifurcation_testAge_reassign(double rootPlace, double parameters[8])
 {
 	double T[3], param[7];
@@ -3096,6 +3085,7 @@ double getlike_gamma_root_in_trifurcation_testAge_reassign(double rootPlace, dou
 
 	return getlike_gamma_root_in_trifurcation_reassign(T, param);
 }
+#endif /* re-enable to restore */
 
 double getlike_gamma_root_in_trifurcation_testAge(double rootPlace, double parameters[7])
 {
@@ -3150,9 +3140,9 @@ void inittransitionmatrix()
 	double sum, RIVAL[4], RIVEC[4][4], A[4][4], workspace[8], norm;
 
 	// TO DO: Can probably make these a single malloc
-	RRVAL = (double **)malloc(numTrees * sizeof(double *));
-	RRVEC = (double **)malloc(numTrees * sizeof(double *));
-	LRVEC = (double **)malloc(numTrees * sizeof(double *));
+	RRVAL = (double **)calloc(numTrees, sizeof(double *));
+	RRVEC = (double **)calloc(numTrees, sizeof(double *));
+	LRVEC = (double **)calloc(numTrees, sizeof(double *));
 
 	for (unsigned long int treeNum = 0; treeNum < numTrees; treeNum++)
 	{
@@ -3648,6 +3638,7 @@ void make_readfraclike()
 	//}
 }
 
+#if 0 /* dead code: all callers commented out; calls getlike_gamma_root_in_trifurcation_testAge_reassign which is disabled */
 double reassign_singleReadAge(double alpha, double parameters[7])
 {
 	// TO DO TO DO TO DO!!!!
@@ -3673,6 +3664,7 @@ double reassign_singleReadAge(double alpha, double parameters[7])
 
 	return (L2);
 }
+#endif
 
 // L is the node we are searching from, L_lik is the associated node
 void greedyDown(int extra_data[3], int *L, double *L_lik, int root)
@@ -3744,12 +3736,12 @@ void greedyDown(int extra_data[3], int *L, double *L_lik, int root)
 		{
 			// Leaf node, no more search
 			*L = testNodes[2];
-			*L_lik = testLik;
+			*L_lik = testLik2;
 		}
 		else
 		{
 			*L = testNodes[2];
-			*L_lik = testLik;
+			*L_lik = testLik2;
 			extra_data[2] = testNodes[2];
 			greedyDown(extra_data, L, L_lik, root);
 		}
@@ -6296,6 +6288,7 @@ double getlike_ages(double times, double parameters[7])
 	return (age_like);
 }
 
+#if 0 /* dead code: only call site (line 6712) is commented out; calls getlike_gamma_root_in_trifucation_sample_age_brent which is disabled */
 double getlike_ages_brent(double times, double parameters[7])
 {
 	// age for optimization should be times, is redudant and should fix?
@@ -6356,6 +6349,7 @@ double getlike_ages_brent(double times, double parameters[7])
 
 	return (age_like);
 }
+#endif
 
 // Gets Fisher information bounds for confidence interval
 // finite method for second derivative
@@ -6643,10 +6637,18 @@ int reassign_up(int move_node, int treeNum)
 	{
 		if (move_node_age >= assignAges[i])
 		{
-			assignments[i] = getGFLPar(assignments[i], treeAssign[i]);
-			assignAges[i] = nodeages[treeAssign[i]][assignments[i]] + bls[treeAssign[i]][assignments[i]];
-			if (assignments[i] == treeRoots[treeAssign[i]])
+			int newAssign = getGFLPar(assignments[i], treeAssign[i]);
+			if (newAssign == -1)
+			{
 				hit_root = 1;
+			}
+			else
+			{
+				assignments[i] = newAssign;
+				assignAges[i] = nodeages[treeAssign[i]][newAssign] + bls[treeAssign[i]][newAssign];
+				if (newAssign == treeRoots[treeAssign[i]])
+					hit_root = 1;
+			}
 		}
 	}
 
@@ -6811,11 +6813,11 @@ void maximize_like_jointly_for_all2D_reassign(double **par, int allTrees)
 	//}
 	//printf("\n");
 
-	fprintf(logfile, "Estimated age is %.16f with likelihood %.16f and 95%% confidence interval [%.16f,%.16f]\n", invectorL1[1], L1, invectorL1[1] - confI, invectorL2[1] + confI);
+	fprintf(logfile, "Estimated age is %.16f with likelihood %.16f and 95%% confidence interval [%.16f,%.16f]\n", invectorL1[1], L1, invectorL1[1] - confI, invectorL1[1] + confI);
 	fprintf(outfile, "estimated_age=%.16f\n", invectorL1[1]);
 	fprintf(outfile, "likelihood=%.16f\n", L1);
 	fprintf(outfile, "CI_lower=%.16f\n", invectorL1[1] - confI);
-	fprintf(outfile, "CI_upper=%.16f\n", invectorL2[1] + confI);
+	fprintf(outfile, "CI_upper=%.16f\n", invectorL1[1] + confI);
 	// printf("%.16f,%.16f\n", est_age, est_age_lik);
 
 	// confidenceSearch(bounds, chiValue, maxAge, est_age, -est_age_lik, p);

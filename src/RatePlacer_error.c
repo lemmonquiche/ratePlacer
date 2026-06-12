@@ -2059,9 +2059,9 @@ void inittransitionmatrix()
 	double sum, RIVAL[4], RIVEC[4][4],  A[4][4], workspace[8], norm;
 
 	//TO DO: Can probably make these a single malloc
-	RRVAL = (double **)malloc(numTrees * sizeof(double *));
-	RRVEC = (double **)malloc(numTrees * sizeof(double *));
-	LRVEC = (double **)malloc(numTrees * sizeof(double *));
+	RRVAL = (double **)calloc(numTrees, sizeof(double *));
+	RRVEC = (double **)calloc(numTrees, sizeof(double *));
+	LRVEC = (double **)calloc(numTrees, sizeof(double *));
 
 	for(int treeNum = 0; treeNum < numTrees; treeNum++)
 	{
@@ -2537,12 +2537,12 @@ void greedyDown(double p[3], int *L, double *L_lik, int root)
 		{
 			// Leaf node, no more search
 			*L = testNodes[2];
-			*L_lik = testLik;
+			*L_lik = testLik2;
 		}
 		else
 		{
 			*L = testNodes[2];
-			*L_lik = testLik;
+			*L_lik = testLik2;
 			p[2] = testNodes[2];
 			greedyDown(p, L, L_lik, root);
 		}
