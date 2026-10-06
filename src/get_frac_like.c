@@ -2034,8 +2034,12 @@ int main(int argc, char *argv[])
 	/** Check if number of files is correct and any flags **/
 	if (argc != 4) {
 		//printf("Specify name of two infiles and one outfile: referencedatafile, GTR+Gamma parameterfile, and likelihood outfile\nMaximum path name 500 characters\n");
-		printf("Specify name of input and output directory and number of trees: input directory, output directory, number of trees\nMaximum path name 500 characters\n");
-		exit(-1);
+		printf("Usage: %s INPUT_DIR OUTPUT_DIR NUM_TREES\n", argv[0]);
+		printf("  INPUT_DIR:  Directory with <tree>_reference.txt and <tree>_parameter.txt for trees 0..NUM_TREES-1.\n");
+		printf("  OUTPUT_DIR: Directory to write <tree>_likelihood.txt (created if missing).\n");
+		printf("  NUM_TREES:  Number of reference trees.\n");
+		printf("Maximum path length is 500 characters. See docs/file_formats.md for input formats.\n");
+		exit(argc == 2 && (strcmp(argv[1], "-h") == 0 || strcmp(argv[1], "--help") == 0) ? 0 : 1);
 	}
 
 	//Get number of trees and check its a valid number

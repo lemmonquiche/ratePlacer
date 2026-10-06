@@ -22,6 +22,32 @@
 #include <omp.h>
 #endif
 
+/* ---- portability shims for non-glibc systems (e.g. macOS) ---- */
+/* posix_fadvise is only a read-ahead hint, so it can be a no-op where unavailable. */
+#ifndef POSIX_FADV_SEQUENTIAL
+#define POSIX_FADV_SEQUENTIAL 0
+#define POSIX_FADV_DONTNEED 0
+#define posix_fadvise(fd, offset, len, advice) 0
+#endif
+
+/* Reentrant uniform RNG. glibc's drand48_r where available; elsewhere erand48 with a
+   state seeded the same way as srand48_r, so both produce the same sequence. */
+#ifdef __GLIBC__
+typedef struct drand48_data rp_rng;
+static void rp_rng_seed(rp_rng *s, long seed) { srand48_r(seed, s); }
+static double rp_rng_next(rp_rng *s) { double r; drand48_r(s, &r); return r; }
+#else
+typedef struct { unsigned short x[3]; } rp_rng;
+static void rp_rng_seed(rp_rng *s, long seed)
+{
+	s->x[0] = 0x330E;
+	s->x[1] = (unsigned short)(seed & 0xFFFF);
+	s->x[2] = (unsigned short)((seed >> 16) & 0xFFFF);
+}
+static double rp_rng_next(rp_rng *s) { return erand48(s->x); }
+#endif
+/* ---- end portability shims ---- */
+
 #pragma GCC diagnostic ignored "-Wstringop-overflow"
 #pragma GCC diagnostic ignored "-Wunused-result"
 
@@ -4708,8 +4734,8 @@ void mergeReads(unsigned long int treeNum, unsigned long int refBases)
 		double **rlike = (double **)malloc(rdlen * sizeof(double *));
 
 		// Per-node RNG state seeded from node index for reproducibility across parallelizations
-		struct drand48_data rng_state;
-		srand48_r((long int)(i + 1), &rng_state);
+		rp_rng rng_state;
+		rp_rng_seed(&rng_state, (long int)(i + 1));
 
 		for (unsigned long int pos = 0; pos < rdlen; pos++)
 		{
@@ -4742,8 +4768,7 @@ void mergeReads(unsigned long int treeNum, unsigned long int refBases)
 				// }
 				// qdata[pos] = baseIndex;
 
-				double base_select;
-				drand48_r(&rng_state, &base_select);
+				double base_select = rp_rng_next(&rng_state);
 				// explicity caste everything to float
 				// Test uniform
 				double base_sum = (double)(baseCounts[refPos * 4] + baseCounts[refPos * 4 + 1] + baseCounts[refPos * 4 + 2] + baseCounts[refPos * 4 + 3]);
@@ -5301,7 +5326,6 @@ void read_data(char *assignfile, char *fraclikefile, char *querydatafile, char *
 		// }
 	}
 
-	doNRinits(2);
 	inittransitionmatrix();
 	// unrolled
 	//  is there a reason I don't add the following to inittransitionmatrix? or into the next forloop?
@@ -7203,36 +7227,46 @@ void freeData()
 
 static void print_usage(const char *prog)
 {
-	printf("Usage: %s -a ASSIGN_FILE -q QUERY_FILE -l LIK_DIR -p PARAM_DIR \\\n", prog);
-	printf("              -n NUM_TREES -m MODE -e ERROR_FILE \\\n");
-	printf("              -A ALL_TREES -c COMPARE_AGE -r MERGE_READS -k REASSIGN \\\n");
-	printf("              -o OUT_PREFIX [-R] [-C COVERAGE] [-t THREADS]\n");
-	printf("  -a/--assign-file:  Path to sample assignment file.\n");
-	printf("  -q/--query-file:   Path to sample alignment file.\n");
-	printf("  -l/--lik-dir:      Path to likelihood directory.\n");
-	printf("  -p/--param-dir:    Path to parameter/tree directory.\n");
-	printf("  -n/--num-trees:    Number of trees.\n");
-	printf("  -m/--mode:         Estimation mode (0-9):\n");
-	printf("                       0=maximize_like_seperately_for_all2D_Print\n");
-	printf("                       1=maximize_like_seperately_for_all2D\n");
-	printf("                       2=likelihoodratiotest_for_all\n");
-	printf("                       3=maximize_like_jointly_for_all2D\n");
-	printf("                       4=age_like_distribution_jointly_for_all2D\n");
-	printf("                       5=age_like_distribution_jointly_for_all2D_upperLimit\n");
-	printf("                       6=maximize_like_jointly_for_all_noDrop2D\n");
-	printf("                       7=read_branch_like_dist\n");
-	printf("                       8=readContour\n");
-	printf("                       9=maximize_like_jointly_for_all2D_reassign\n");
-	printf("  -e/--error-file:   Path to error profile file.\n");
-	printf("  -A/--all-trees:    0/1 - estimate age for each tree individually or jointly.\n");
-	printf("  -c/--compare-age:  Age for Likelihood Ratio Test (0 if not testing or use modern).\n");
-	printf("  -r/--merge-reads:  0/1 - Merge reads assigned to the same edge.\n");
-	printf("  -k/--reassign:     0=keep inputted, 1=full (bestAssignment), 2=tronko.\n");
-	printf("  -o/--out-prefix:   Output file prefix (required). Creates <prefix>.summary.\n");
-	printf("  -R/--write-reads:  (optional) Write merged read sequences to <prefix>.reads.\n");
-	printf("  -C/--coverage:     (optional) Minimum coverage to keep merged read. Default '0.05f'.\n");
-	printf("                     Examples: '0.05f' (5%% fraction), '50b' (50 base pairs).\n");
-	printf("  -t/--threads:      (optional) Number of OpenMP threads. Default 1.\n");
+	printf("Usage: %s -a ASSIGN_FILE -q QUERY_FILE -e ERROR_FILE -l LIK_DIR -p PARAM_DIR \\\n", prog);
+	printf("              -n NUM_TREES -m MODE -A ALL_TREES -c COMPARE_AGE -r MERGE_READS \\\n");
+	printf("              -k REASSIGN -o OUT_PREFIX [options]\n");
+	printf("\nRequired inputs:\n");
+	printf("  -a/--assign-file:  Read assignment file (tree and node for each read).\n");
+	printf("  -q/--query-file:   Read alignment file (reads aligned to the reference coordinates).\n");
+	printf("  -e/--error-file:   Per-base nucleotide log-likelihood (error/damage) profile.\n");
+	printf("                     May be empty, in which case a flat 1%% error is assumed.\n");
+	printf("  -l/--lik-dir:      Directory of gfl output (<tree>_likelihood.txt).\n");
+	printf("  -p/--param-dir:    Directory of reference inputs (<tree>_reference.txt, <tree>_parameter.txt).\n");
+	printf("  -n/--num-trees:    Number of reference trees (trees are numbered 0..N-1).\n");
+	printf("  -o/--out-prefix:   Output prefix. Writes <prefix>.summary and <prefix>.log.\n");
+	printf("\nRequired settings:\n");
+	printf("  -m/--mode:         Analysis mode (3 = sample age estimation; see docs/usage.md):\n");
+	printf("                       0 = per-read age and placement, with per-site scores\n");
+	printf("                       1 = per-read age and placement\n");
+	printf("                       2 = per-read likelihood ratio test against COMPARE_AGE\n");
+	printf("                       3 = joint sample age estimate with 95%% CI\n");
+	printf("                       4 = sample age likelihood profile over a grid of ages\n");
+	printf("                       5 = as 4, restricted to ages <= 0.005\n");
+	printf("                       6 = as 3, without dropping reads\n");
+	printf("                       7 = per-read likelihood along the assigned branch\n");
+	printf("                       8 = per-read likelihood contour (age x placement)\n");
+	printf("                       9 = as 3, reassigning reads instead of dropping them\n");
+	printf("  -A/--all-trees:    0/1 - in modes 3/6/9, also estimate an age for each tree separately (written to the log).\n");
+	printf("  -c/--compare-age:  Age tested in mode 2 (likelihood ratio test). Use 0 otherwise.\n");
+	printf("  -r/--merge-reads:  0/1 - merge reads assigned to the same branch into one sequence.\n");
+	printf("  -k/--reassign:     Read placement: 0 = keep input nodes, 1 = ML search from input node,\n");
+	printf("                     2 = test input node against its neighbouring branches (tronko input).\n");
+	printf("\nOptional:\n");
+	printf("  -C/--coverage:     Minimum coverage to keep a merged read. Default '0.05f'.\n");
+	printf("                     Examples: '0.05f' (5%% of the reference), '500b' (500 base pairs).\n");
+	printf("  -t/--threads:      Number of OpenMP threads. Default 1.\n");
+	printf("  -R/--write-reads:  Write merged read sequences to <prefix>.reads.\n");
+	printf("  -T/--toss-root-reads: Discard reads placed on the branches below the root\n");
+	printf("                     (written to <prefix>.tossed).\n");
+	printf("  -b/--toss-branches FILE: With -T, discard reads on the branches listed in FILE\n");
+	printf("                     ('tree node' pairs, 0-based) instead of the root branches.\n");
+	printf("  -D/--debug-placements: Write a placement diagnostic for merged reads to the log.\n");
+	printf("  -h/--help:         Show this message.\n");
 }
 
 int main(int argc, char *argv[])
@@ -7268,9 +7302,10 @@ int main(int argc, char *argv[])
 		{"toss-root-reads",   no_argument,       0, 'T'},
 		{"toss-branches",     required_argument, 0, 'b'},
 		{"debug-placements",  no_argument,       0, 'D'},
+		{"help",              no_argument,       0, 'h'},
 		{0, 0, 0, 0}
 	};
-	const char *short_opts = "a:q:l:p:n:m:e:o:A:c:r:k:C:t:Rb:TD";
+	const char *short_opts = "a:q:l:p:n:m:e:o:A:c:r:k:C:t:Rb:TDh";
 
 	int opt, option_index = 0;
 	int seen_a=0, seen_q=0, seen_l=0, seen_p=0, seen_n=0,
@@ -7292,6 +7327,7 @@ int main(int argc, char *argv[])
 			case 'T': toss_root_reads_flag = 1;                  break;
 			case 'b': sprintf(toss_branches_file, "%s", optarg); break;
 			case 'D': debug_placements_flag = 1;                  break;
+			case 'h': print_usage(argv[0]); exit(0);
 			case 'A': allTrees = atoi(optarg);                  seen_A=1; break;
 			case 'c': compareAge = atof(optarg);                seen_c=1; break;
 			case 'r': toMerge = atoi(optarg);                   seen_r=1; break;
@@ -7523,7 +7559,6 @@ int main(int argc, char *argv[])
 	if (logfile)    fclose(logfile);
 	if (tossedfile) fclose(tossedfile);
 
-	freeNRinits(2);
 	freetreememmory();
 	freeData();
 

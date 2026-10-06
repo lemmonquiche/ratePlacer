@@ -1,8 +1,13 @@
-# Ignore the binaries
-gfl
-ratePlacer
-ratePlacer_errorHunt
-ratePlacer_*
+# Ignore the binaries and build products
+bin/
+*.dSYM/
+*.o
+/gfl
+/ratePlacer
+/ratePlacer_*
+
+# Ignore example output
+example/output/
 
 # Ignore vim files
 src/updating.vim
@@ -17,3 +22,6 @@ valgrind-out.txt
 bfgs/
 testData/
 CLAUDE.md
+
+# Python bytecode
+__pycache__/
