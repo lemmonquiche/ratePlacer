@@ -8,6 +8,7 @@ bin/
 
 # Ignore example output
 example/output/
+scripts/tests
 
 # Ignore vim files
 src/updating.vim
